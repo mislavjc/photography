@@ -1,4 +1,14 @@
-export const BASE_TILE_SIZE = 1400;
+// Default sizes for different screen sizes
+export const TILE_SIZES = {
+  mobile: 600,
+  desktop: 1400,
+} as const;
+
+// Get breakpoint for mobile detection
+export const MOBILE_BREAKPOINT = 768;
+
+// Static export for SSR compatibility
+export const BASE_TILE_SIZE = TILE_SIZES.desktop;
 export const GAP = 16;
 export const EDGE_PAD = GAP / 2;
 export const WORLD_TILES = 2000;

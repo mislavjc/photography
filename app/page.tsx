@@ -12,7 +12,6 @@ import React, {
 } from 'react';
 
 import {
-  BASE_TILE_SIZE,
   CELL_OVERSCAN_PX,
   EMA_ALPHA,
   FRICTION_PER_SEC,
@@ -23,12 +22,14 @@ import {
   OVERSCAN_TILES,
   WORLD_TILES,
 } from '../config';
+import { useScreenSize } from '../hooks/useScreenSize';
 import type { AccumulatedDelta, Position, Velocity } from '../types';
 
 const InfiniteImageMap = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
-  const tileSize = BASE_TILE_SIZE * zoom;
+  const { tileSize: baseTileSize } = useScreenSize();
+  const tileSize = baseTileSize * zoom;
 
   const rectCache = useRef(
     new Map<
