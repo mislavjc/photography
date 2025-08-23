@@ -5,7 +5,7 @@ import React, { useMemo } from 'react';
 import type { TileProps } from '../types';
 import { ImageCell } from './image-cell';
 
-export const Tile = ({
+const TileComponent = ({
   tx,
   ty,
   left,
@@ -29,6 +29,7 @@ export const Tile = ({
         height: tileSize,
         contain: 'layout paint size style',
         willChange: 'transform',
+        isolation: 'isolate',
       }}
     >
       {rects.map((r, i) => (
@@ -45,3 +46,19 @@ export const Tile = ({
     </div>
   );
 };
+
+// Memoize Tile component for better performance
+export const Tile = React.memo(TileComponent, (prevProps, nextProps) => {
+  // Only re-render if essential props change
+  return (
+    prevProps.tx === nextProps.tx &&
+    prevProps.ty === nextProps.ty &&
+    prevProps.left === nextProps.left &&
+    prevProps.top === nextProps.top &&
+    prevProps.tileSize === nextProps.tileSize &&
+    prevProps.viewport.left === nextProps.viewport.left &&
+    prevProps.viewport.top === nextProps.viewport.top &&
+    prevProps.viewport.right === nextProps.viewport.right &&
+    prevProps.viewport.bottom === nextProps.viewport.bottom
+  );
+});

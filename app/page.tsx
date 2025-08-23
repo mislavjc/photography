@@ -3,7 +3,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Tile } from 'components/tile';
 import { buildTileRects } from 'lib/tile';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 
 import {
   CELL_OVERSCAN_PX,
@@ -189,8 +189,8 @@ const InfiniteImageMap = () => {
     ensureRAF();
   }, [ensureRAF]);
 
-  const cols = colVirtualizer.getVirtualItems();
-  const rows = rowVirtualizer.getVirtualItems();
+  const _cols = colVirtualizer.getVirtualItems();
+  const _rows = rowVirtualizer.getVirtualItems();
 
   useEffect(() => {
     if (!('requestIdleCallback' in window)) return;
@@ -213,17 +213,19 @@ const InfiniteImageMap = () => {
     return () => window.cancelIdleCallback?.(id);
   }, [rowVirtualizer, colVirtualizer, tileSize]);
 
-  const viewport = useMemo(() => {
-    const el = scrollRef.current;
-    if (!el) return { left: 0, top: 0, right: 0, bottom: 0 };
-    return {
+  const viewportRef = useRef({ left: 0, top: 0, right: 0, bottom: 0 });
+
+  // Update viewport on every render but avoid triggering re-renders
+  const el = scrollRef.current;
+  if (el) {
+    viewportRef.current = {
       left: el.scrollLeft - CELL_OVERSCAN_PX,
       top: el.scrollTop - CELL_OVERSCAN_PX,
       right: el.scrollLeft + el.clientWidth + CELL_OVERSCAN_PX,
       bottom: el.scrollTop + el.clientHeight + CELL_OVERSCAN_PX,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cols, rows]);
+  }
+  const viewport = viewportRef.current;
 
   return (
     <div className="relative h-screen w-screen bg-white text-neutral-900 select-none">
