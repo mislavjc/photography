@@ -1,4 +1,4 @@
-export const BASE_TILE_SIZE = 880;
+export const BASE_TILE_SIZE = 1400;
 export const GAP = 16;
 export const EDGE_PAD = GAP / 2;
 export const WORLD_TILES = 2000;
