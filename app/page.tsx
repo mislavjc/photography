@@ -2,23 +2,15 @@
 
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Tile } from 'components/tile';
-import { buildTileRects, clamp } from 'lib/tile';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { buildTileRects } from 'lib/tile';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import {
   CELL_OVERSCAN_PX,
   EMA_ALPHA,
   FRICTION_PER_SEC,
-  MAX_ZOOM,
   MID,
   MIN_SPEED,
-  MIN_ZOOM,
   OVERSCAN_TILES,
   WORLD_TILES,
 } from '../config';
@@ -27,9 +19,7 @@ import type { AccumulatedDelta, Position, Velocity } from '../types';
 
 const InfiniteImageMap = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(1);
-  const { tileSize: baseTileSize } = useScreenSize();
-  const tileSize = baseTileSize * zoom;
+  const { tileSize, isHydrated } = useScreenSize();
 
   const rectCache = useRef(
     new Map<
@@ -86,37 +76,15 @@ const InfiniteImageMap = () => {
     el.dataset.mounted = '1';
   }, [totalWidth, totalHeight]);
 
-  const onWheel = useCallback(
-    (e: React.WheelEvent) => {
-      if (!e.ctrlKey && !(e.metaKey || e.shiftKey)) return;
-      e.preventDefault();
-      const el = scrollRef.current!;
-      const rect = el.getBoundingClientRect();
-      const px = e.clientX - rect.left + el.scrollLeft;
-      const py = e.clientY - rect.top + el.scrollTop;
-
-      const prevZoom = zoom;
-      const nextZoom = clamp(
-        zoom * (e.deltaY < 0 ? 1.1 : 0.9),
-        MIN_ZOOM,
-        MAX_ZOOM,
-      );
-      if (nextZoom === prevZoom) return;
-      setZoom(nextZoom);
-
-      // Force remeasure after zoom change to update cached sizes
+  // Force remeasure when hydrated and tile size changes (important for mobile)
+  useEffect(() => {
+    if (isHydrated) {
       requestAnimationFrame(() => {
         rowVirtualizer.measure();
         colVirtualizer.measure();
-        const scale = nextZoom / prevZoom;
-        el.scrollTo({
-          left: px * scale - (e.clientX - rect.left),
-          top: py * scale - (e.clientY - rect.top),
-        });
       });
-    },
-    [zoom, rowVirtualizer, colVirtualizer],
-  );
+    }
+  }, [isHydrated, tileSize, rowVirtualizer, colVirtualizer]);
 
   const dragging = useRef(false);
   const last = useRef<Position>({ x: 0, y: 0, t: 0 });
@@ -254,6 +222,7 @@ const InfiniteImageMap = () => {
       right: el.scrollLeft + el.clientWidth + CELL_OVERSCAN_PX,
       bottom: el.scrollTop + el.clientHeight + CELL_OVERSCAN_PX,
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cols, rows]);
 
   return (
@@ -262,7 +231,6 @@ const InfiniteImageMap = () => {
         ref={scrollRef}
         className="absolute inset-0 overflow-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden cursor-grab active:cursor-grabbing [touch-action:none] [overscroll-behavior:none]"
         onContextMenu={(e) => e.preventDefault()}
-        onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
