@@ -1,6 +1,6 @@
 import { APSC_AR, EDGE_PAD, GAP, ROWS_PER_TILE } from '../config';
 import type { Rect } from '../types';
-import { hash2, rng } from '../utils';
+import { hash2, rng } from './utils';
 
 export function buildTileRects(
   tileX: number,
