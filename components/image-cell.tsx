@@ -9,9 +9,9 @@ const ImageCellComponent = ({
   rect,
   tileLeft,
   tileTop,
-  tileSize: _tileSize,
   viewport,
   onHover,
+  manifest,
 }: ImageCellProps) => {
   const absLeft = tileLeft + rect.x;
   const absTop = tileTop + rect.y;
@@ -28,15 +28,16 @@ const ImageCellComponent = ({
   const { url } = useMemo(() => {
     const dpr =
       typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    const url1x = imgUrl(rect.seed, rect.w, rect.h);
+    const url1x = imgUrl(rect.seed, rect.w, rect.h, rect.imageId);
     const url2x = imgUrl(
       rect.seed,
       Math.round(rect.w * 2),
       Math.round(rect.h * 2),
+      rect.imageId,
     );
     const url = dpr > 1.25 ? url2x : url1x;
     return { url };
-  }, [rect.seed, rect.w, rect.h]);
+  }, [rect.seed, rect.w, rect.h, rect.imageId]);
 
   const [preview, setPreview] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -46,7 +47,7 @@ const ImageCellComponent = ({
     if (!isVisible) return;
 
     let cancelled = false;
-    const bh = getBlurhashForSeed(rect.seed);
+    const bh = getBlurhashForSeed(rect.seed, rect.imageId, manifest);
     const build = async () => {
       if (bh) {
         const data = await blurhashToDataURL(
@@ -62,6 +63,7 @@ const ImageCellComponent = ({
         rect.seed,
         Math.max(16, Math.round(rect.w / 12)),
         Math.max(16, Math.round(rect.h / 12)),
+        rect.imageId,
       );
       if (!cancelled) setPreview(tiny);
     };
@@ -69,7 +71,22 @@ const ImageCellComponent = ({
     return () => {
       cancelled = true;
     };
-  }, [rect.seed, rect.w, rect.h, isVisible]);
+  }, [rect.seed, rect.w, rect.h, rect.imageId, manifest, isVisible]);
+
+  // Check if image has correct APSC ratio for debugging
+  const actualRatio = rect.w / rect.h;
+  const APSC_LANDSCAPE_RATIO = 23.5 / 15.7; // ≈ 1.497
+  const APSC_PORTRAIT_RATIO = 15.7 / 23.5; // ≈ 0.668
+  const TOLERANCE = 0.01; // Allow small floating point differences
+
+  // Determine expected orientation based on ratio
+  const isLandscapeOriented = actualRatio > 1;
+  const expectedRatio = isLandscapeOriented
+    ? APSC_LANDSCAPE_RATIO
+    : APSC_PORTRAIT_RATIO;
+  const hasCorrectAPSC = Math.abs(actualRatio - expectedRatio) <= TOLERANCE;
+
+  // Debug is now visual only (red borders) to avoid console spam
 
   if (!isVisible) {
     return (
@@ -87,7 +104,7 @@ const ImageCellComponent = ({
 
   return (
     <div
-      className="group absolute overflow-hidden"
+      className={`group absolute overflow-hidden ${!hasCorrectAPSC ? 'border-4 border-red-500' : ''}`}
       style={{
         left: rect.x,
         top: rect.y,
@@ -95,34 +112,52 @@ const ImageCellComponent = ({
         height: rect.h,
         contain: 'layout style paint',
         willChange: 'transform',
+        boxSizing: 'border-box',
       }}
       onPointerEnter={() => onHover(url)}
       onPointerLeave={() => onHover(null)}
       draggable={false}
     >
       {preview && (
-        <img
-          src={preview}
-          alt=""
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-150 ${loaded ? 'opacity-0' : 'opacity-100'}`}
-          style={{
-            filter: 'blur(12px)',
-            transform: 'scale(1.06)',
-            transformOrigin: 'center',
-          }}
-          aria-hidden
-          draggable={false}
-        />
+        <>
+          {preview.startsWith('data:') ? (
+            <img
+              src={preview}
+              alt=""
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-150 ${loaded ? 'opacity-0' : 'opacity-100'}`}
+              style={{
+                filter: 'blur(12px)',
+                transform: 'scale(1.06)',
+                transformOrigin: 'center',
+              }}
+              aria-hidden
+              draggable={false}
+            />
+          ) : (
+            <img
+              src={preview}
+              alt=""
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-150 ${loaded ? 'opacity-0' : 'opacity-100'}`}
+              style={{
+                filter: 'blur(12px)',
+                transform: 'scale(1.06)',
+                transformOrigin: 'center',
+                objectFit: 'cover',
+              }}
+              aria-hidden
+              draggable={false}
+            />
+          )}
+        </>
       )}
       <img
         src={url}
         alt=""
         className={`relative h-full w-full select-none object-cover transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         draggable={false}
-        decoding="async"
         loading="lazy"
-        fetchPriority="low"
         onLoad={() => setLoaded(true)}
+        style={{ objectFit: 'cover' }}
       />
     </div>
   );
@@ -139,13 +174,15 @@ export const ImageCell = React.memo(
       prevProps.rect.y === nextProps.rect.y &&
       prevProps.rect.w === nextProps.rect.w &&
       prevProps.rect.h === nextProps.rect.h &&
+      prevProps.rect.imageId === nextProps.rect.imageId &&
       prevProps.tileLeft === nextProps.tileLeft &&
       prevProps.tileTop === nextProps.tileTop &&
       prevProps.tileSize === nextProps.tileSize &&
       prevProps.viewport.left === nextProps.viewport.left &&
       prevProps.viewport.top === nextProps.viewport.top &&
       prevProps.viewport.right === nextProps.viewport.right &&
-      prevProps.viewport.bottom === nextProps.viewport.bottom
+      prevProps.viewport.bottom === nextProps.viewport.bottom &&
+      prevProps.manifest === nextProps.manifest
     );
   },
 );

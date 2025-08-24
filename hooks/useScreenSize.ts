@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { MOBILE_BREAKPOINT, TILE_SIZES } from '../config';
+import { GAPS, MOBILE_BREAKPOINT, TILE_SIZES } from '../config';
 
 export const useScreenSize = () => {
   const [isMobile, setIsMobile] = useState(false);
@@ -30,16 +30,24 @@ export const useScreenSize = () => {
   }, []);
 
   // Use desktop size as default to match SSR, then switch after hydration
-  const tileSize = isHydrated
+  const tileConfig = isHydrated
     ? isMobile
       ? TILE_SIZES.mobile
       : TILE_SIZES.desktop
     : TILE_SIZES.desktop;
 
+  const gap = isHydrated
+    ? isMobile
+      ? GAPS.mobile
+      : GAPS.desktop
+    : GAPS.desktop;
+
   return {
     isMobile,
     windowSize,
-    tileSize,
+    tileWidth: tileConfig.width,
+    tileHeight: tileConfig.height,
+    gap,
     isHydrated,
   };
 };

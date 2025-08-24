@@ -4,6 +4,17 @@ export interface Rect {
   w: number;
   h: number;
   seed: number;
+  imageId?: string; // filename from manifest
+}
+
+export interface ManifestEntry {
+  blurhash: string;
+  w: number;
+  h: number;
+}
+
+export interface Manifest {
+  [filename: string]: ManifestEntry;
 }
 
 export interface Viewport {
@@ -18,10 +29,12 @@ export interface TileProps {
   ty: number;
   left: number;
   top: number;
-  tileSize: number;
-  getRects: (tx: number, ty: number, size: number) => Rect[];
+  tileWidth: number;
+  tileHeight: number;
+  getRects: (tx: number, ty: number, manifest?: Manifest) => Rect[];
   viewport: Viewport;
   onHover: (url: string | null) => void;
+  manifest?: Manifest;
 }
 
 export interface ImageCellProps {
@@ -31,6 +44,7 @@ export interface ImageCellProps {
   tileSize: number;
   viewport: Viewport;
   onHover: (url: string | null) => void;
+  manifest?: Manifest;
 }
 
 export interface Velocity {

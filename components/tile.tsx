@@ -10,37 +10,42 @@ const TileComponent = ({
   ty,
   left,
   top,
-  tileSize,
+  tileWidth,
+  tileHeight,
   getRects,
   viewport,
   onHover,
+  manifest,
 }: TileProps) => {
   const rects = useMemo(
-    () => getRects(tx, ty, tileSize),
-    [tx, ty, tileSize, getRects],
+    () => getRects(tx, ty, manifest),
+    [tx, ty, getRects, manifest],
   );
 
   return (
     <div
       className="absolute"
+      title={`Tile (${tx}, ${ty}) - ${rects.length} images`}
       style={{
         transform: `translate3d(${left}px, ${top}px, 0)`,
-        width: tileSize,
-        height: tileSize,
+        width: tileWidth,
+        height: tileHeight,
         contain: 'layout paint size style',
         willChange: 'transform',
         isolation: 'isolate',
+        boxSizing: 'border-box',
       }}
     >
-      {rects.map((r, i) => (
+      {rects.map((r, i: number) => (
         <ImageCell
           key={i}
           rect={r}
           tileLeft={left}
           tileTop={top}
-          tileSize={tileSize}
+          tileSize={tileWidth}
           viewport={viewport}
           onHover={onHover}
+          manifest={manifest}
         />
       ))}
     </div>
