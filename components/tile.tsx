@@ -60,7 +60,8 @@ export const Tile = React.memo(TileComponent, (prevProps, nextProps) => {
     prevProps.ty === nextProps.ty &&
     prevProps.left === nextProps.left &&
     prevProps.top === nextProps.top &&
-    prevProps.tileSize === nextProps.tileSize &&
+    prevProps.tileWidth === nextProps.tileWidth &&
+    prevProps.tileHeight === nextProps.tileHeight &&
     prevProps.viewport.left === nextProps.viewport.left &&
     prevProps.viewport.top === nextProps.viewport.top &&
     prevProps.viewport.right === nextProps.viewport.right &&

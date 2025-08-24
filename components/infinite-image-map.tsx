@@ -34,7 +34,7 @@ const InfiniteImageMap = ({ manifest }: InfiniteImageMapProps) => {
   // Ultra-fast LRU cache implementation for 60fps performance
   const rectCache = useRef(new Map<string, Rect[]>());
   const cacheOrder = useRef(
-    new Map<string, { prev?: string; next?: string }>(),
+    new Map<string, { prev: string | null; next: string | null }>(),
   );
   const cacheHead = useRef<string | null>(null);
   const cacheTail = useRef<string | null>(null);
@@ -63,7 +63,7 @@ const InfiniteImageMap = ({ manifest }: InfiniteImageMapProps) => {
     }
 
     // Move to head
-    node.prev = undefined;
+    node.prev = null;
     node.next = cacheHead.current;
     if (cacheHead.current) {
       const headNode = cacheOrder.current.get(cacheHead.current);
@@ -103,13 +103,13 @@ const InfiniteImageMap = ({ manifest }: InfiniteImageMapProps) => {
           cacheTail.current = tailNode?.prev || null;
           if (cacheTail.current) {
             const newTailNode = cacheOrder.current.get(cacheTail.current);
-            if (newTailNode) newTailNode.next = undefined;
+            if (newTailNode) newTailNode.next = null;
           }
         }
       }
 
       rectCache.current.set(k, rects);
-      cacheOrder.current.set(k, {});
+      cacheOrder.current.set(k, { prev: null, next: null });
       moveToHead(k);
       return rects;
     },
@@ -298,7 +298,7 @@ const InfiniteImageMap = ({ manifest }: InfiniteImageMapProps) => {
               manifest || undefined,
             );
             rectCache.current.set(k, rects);
-            cacheOrder.current.set(k, {});
+            cacheOrder.current.set(k, { prev: null, next: null });
             moveToHead(k);
           }
         }
