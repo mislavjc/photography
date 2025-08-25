@@ -86,3 +86,5 @@ export interface AccumulatedDelta {
   dx: number;
   dy: number;
 }
+
+export type TimeRange = 'all' | 'morning' | 'afternoon' | 'evening' | 'night';

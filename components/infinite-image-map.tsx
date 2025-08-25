@@ -33,6 +33,10 @@ const InfiniteImageMap = ({ manifest, onHover }: InfiniteImageMapProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { tileWidth, tileHeight, gap, isHydrated } = useScreenSize();
 
+  // Create a simple manifest identifier for cache invalidation
+  const keys = Object.keys(manifest);
+  const manifestId = `${keys.length}-${keys.slice(0, 5).sort().join(',')}`;
+
   // Ultra-fast LRU cache implementation for 60fps performance
   const rectCache = useRef(new Map<string, Rect[]>());
   const cacheOrder = useRef(
@@ -40,14 +44,26 @@ const InfiniteImageMap = ({ manifest, onHover }: InfiniteImageMapProps) => {
   );
   const cacheHead = useRef<string | null>(null);
   const cacheTail = useRef<string | null>(null);
-  const keyFor = (
-    tx: number,
-    ty: number,
-    width: number,
-    hasManifest: boolean,
-  ) => `${tx}:${ty}:${Math.round(width)}:${hasManifest}`;
+
+  // Clear cache when manifest changes (without useEffect)
+  const prevManifestId = useRef(manifestId);
+  const prevManifest = useRef(manifest);
+  if (
+    prevManifestId.current !== manifestId ||
+    prevManifest.current !== manifest
+  ) {
+    rectCache.current.clear();
+    cacheOrder.current.clear();
+    cacheHead.current = null;
+    cacheTail.current = null;
+    prevManifestId.current = manifestId;
+    prevManifest.current = manifest;
+  }
+
+  const keyFor = (tx: number, ty: number, width: number, manifestId: string) =>
+    `${tx}:${ty}:${Math.round(width)}:${manifestId}`;
   // Ultra-fast cache access and eviction for smooth scrolling
-  const moveToHead = useCallback((key: string) => {
+  const moveToHead = (key: string) => {
     const node = cacheOrder.current.get(key);
     if (!node || key === cacheHead.current) return;
 
@@ -75,48 +91,45 @@ const InfiniteImageMap = ({ manifest, onHover }: InfiniteImageMapProps) => {
     if (!cacheTail.current) {
       cacheTail.current = key;
     }
-  }, []);
+  };
 
-  const getRects = useCallback(
-    (tx: number, ty: number, manifestData?: Manifest) => {
-      const k = keyFor(tx, ty, tileWidth, !!manifestData);
-      const hit = rectCache.current.get(k);
-      if (hit) {
-        moveToHead(k);
-        return hit;
-      }
+  const getRects = (tx: number, ty: number, manifestData?: Manifest) => {
+    const k = keyFor(tx, ty, tileWidth, manifestId);
+    const hit = rectCache.current.get(k);
+    if (hit) {
+      moveToHead(k);
+      return hit;
+    }
 
-      const rects = buildTileRects(
-        tx,
-        ty,
-        tileWidth,
-        tileHeight,
-        gap,
-        manifestData,
-      );
+    const rects = buildTileRects(
+      tx,
+      ty,
+      tileWidth,
+      tileHeight,
+      gap,
+      manifestData,
+    );
 
-      // Fast LRU eviction
-      if (rectCache.current.size >= 500) {
-        // Reduced cache size for better performance
+    // Fast LRU eviction
+    if (rectCache.current.size >= 500) {
+      // Reduced cache size for better performance
+      if (cacheTail.current) {
+        const tailNode = cacheOrder.current.get(cacheTail.current);
+        rectCache.current.delete(cacheTail.current);
+        cacheOrder.current.delete(cacheTail.current);
+        cacheTail.current = tailNode?.prev || null;
         if (cacheTail.current) {
-          const tailNode = cacheOrder.current.get(cacheTail.current);
-          rectCache.current.delete(cacheTail.current);
-          cacheOrder.current.delete(cacheTail.current);
-          cacheTail.current = tailNode?.prev || null;
-          if (cacheTail.current) {
-            const newTailNode = cacheOrder.current.get(cacheTail.current);
-            if (newTailNode) newTailNode.next = null;
-          }
+          const newTailNode = cacheOrder.current.get(cacheTail.current);
+          if (newTailNode) newTailNode.next = null;
         }
       }
+    }
 
-      rectCache.current.set(k, rects);
-      cacheOrder.current.set(k, { prev: null, next: null });
-      moveToHead(k);
-      return rects;
-    },
-    [tileWidth, tileHeight, gap, moveToHead],
-  );
+    rectCache.current.set(k, rects);
+    cacheOrder.current.set(k, { prev: null, next: null });
+    moveToHead(k);
+    return rects;
+  };
 
   const rowVirtualizer = useVirtualizer({
     count: WORLD_TILES,
@@ -288,7 +301,7 @@ const InfiniteImageMap = ({ manifest, onHover }: InfiniteImageMapProps) => {
 
           const tx = nextCol - MID;
           const ty = nextRow - MID;
-          const k = keyFor(tx, ty, tileWidth, !!manifest);
+          const k = keyFor(tx, ty, tileWidth, manifestId);
 
           if (!rectCache.current.has(k)) {
             const rects = buildTileRects(
@@ -316,7 +329,7 @@ const InfiniteImageMap = ({ manifest, onHover }: InfiniteImageMapProps) => {
     tileHeight,
     gap,
     manifest,
-    moveToHead,
+    manifestId,
   ]);
 
   // No more dynamic measurement needed - using fixed tall tiles

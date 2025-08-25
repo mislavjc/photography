@@ -7,9 +7,16 @@ class ImageCycler {
   private portraitIndex = 0;
   private landscapeIndex = 0;
   private initialized = false;
+  private currentManifestSize = 0;
 
   private initializeFromManifest(manifest: Manifest) {
-    if (this.initialized) return;
+    const manifestSize = Object.keys(manifest).length;
+    if (this.initialized && manifestSize === this.currentManifestSize) return;
+
+    // Reset if manifest has changed
+    if (this.initialized && manifestSize !== this.currentManifestSize) {
+      this.reset();
+    }
 
     const allImages = Object.keys(manifest);
     this.portraitImages = [];
@@ -32,6 +39,7 @@ class ImageCycler {
     this.landscapeImages = this.shuffleArray([...this.landscapeImages], 67890);
 
     this.initialized = true;
+    this.currentManifestSize = manifestSize;
   }
 
   private shuffleArray<T>(array: T[], seed: number): T[] {

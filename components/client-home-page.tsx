@@ -6,6 +6,7 @@ import type { ImageMetadata, Manifest } from '../types';
 import InfiniteImageMap from './infinite-image-map';
 import { MetadataTooltip } from './metadata-tooltip';
 import { PerformanceMonitor } from './performance-monitor';
+import TimeRangeFilter from './time-range-filter';
 
 interface ClientHomePageProps {
   manifest: Manifest;
@@ -30,9 +31,11 @@ export default function ClientHomePage({ manifest }: ClientHomePageProps) {
   return (
     <div onMouseMove={handleMouseMove}>
       <InfiniteImageMap
+        key={`manifest-${Object.keys(manifest).length}-${Object.keys(manifest).slice(0, 5).sort().join('-')}`}
         manifest={manifest}
         onHover={isDevelopment ? handleHover : undefined}
       />
+      <TimeRangeFilter />
       {isDevelopment && (
         <MetadataTooltip metadata={hoveredMetadata} position={mousePosition} />
       )}
