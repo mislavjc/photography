@@ -11,6 +11,22 @@ import fg from 'fast-glob';
 
 import { makeBlurhash } from '../lib/blurhash-utils';
 
+// Type for EXIF metadata
+interface ExifMetadata {
+  camera: string | null;
+  lens: string | null;
+  focalLength: string | null;
+  aperture: string | null;
+  shutterSpeed: string | null;
+  iso: string | null;
+  location: {
+    latitude: number;
+    longitude: number;
+    altitude?: number;
+  } | null;
+  dateTime: string | null;
+}
+
 config({ path: '.env.local' });
 
 // ----------------------- Config & Env -----------------------
@@ -84,7 +100,10 @@ const putObject = (
 // ----------------------- Process single file -----------------------
 const processFile = (
   file: string,
-  manifest: Record<string, { blurhash: string; w: number; h: number }>,
+  manifest: Record<
+    string,
+    { blurhash: string; w: number; h: number; exif: ExifMetadata }
+  >,
   maxDim: number,
   verbose: boolean,
 ) =>
@@ -98,7 +117,12 @@ const processFile = (
     // Generate blurhash
     const bh = yield* makeBlurhash(file, maxDim);
     if (bh.blurhash) {
-      manifest[rel] = { blurhash: bh.blurhash, w: bh.w, h: bh.h };
+      manifest[rel] = {
+        blurhash: bh.blurhash,
+        w: bh.w,
+        h: bh.h,
+        exif: bh.exif,
+      };
       if (verbose) {
         yield* Console.log(`  🎨 blurhash: ${bh.w}x${bh.h}`);
       }
@@ -143,8 +167,10 @@ const program = Effect.gen(function* () {
     yield* Console.log(`   BlurHash max dimension: ${cfg.BLURHASH_MAX}`);
   }
 
-  const manifest: Record<string, { blurhash: string; w: number; h: number }> =
-    {};
+  const manifest: Record<
+    string,
+    { blurhash: string; w: number; h: number; exif: ExifMetadata }
+  > = {};
 
   // Process each file
   yield* Effect.all(

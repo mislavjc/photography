@@ -46,6 +46,22 @@ import sharp from 'sharp';
 
 import { makeBlurhash } from '../lib/blurhash-utils';
 
+// Type for EXIF metadata
+interface ExifMetadata {
+  camera: string | null;
+  lens: string | null;
+  focalLength: string | null;
+  aperture: string | null;
+  shutterSpeed: string | null;
+  iso: string | null;
+  location: {
+    latitude: number;
+    longitude: number;
+    altitude?: number;
+  } | null;
+  dateTime: string | null;
+}
+
 // Load environment variables from .env.local (common in Next.js projects)
 config({ path: '.env.local' });
 
@@ -265,7 +281,10 @@ const processOne =
     q: { Q_AVIF: number; Q_WEBP: number; Q_JPEG: number },
     genBlur: boolean,
     blurMax: number,
-    manifest: Record<string, { blurhash: string; w: number; h: number }>,
+    manifest: Record<
+      string,
+      { blurhash: string; w: number; h: number; exif: ExifMetadata }
+    >,
     progress?: { update: () => void; getCompleted: () => number },
     metadataConfig?: { PRESERVE_METADATA?: boolean }, // Config object for metadata settings
     verbose?: boolean,
@@ -375,7 +394,12 @@ const processOne =
       if (genBlur) {
         const bh = yield* makeBlurhash(file, blurMax);
         if (bh.blurhash) {
-          manifest[rel] = { blurhash: bh.blurhash, w: bh.w, h: bh.h };
+          manifest[rel] = {
+            blurhash: bh.blurhash,
+            w: bh.w,
+            h: bh.h,
+            exif: bh.exif,
+          };
           if (verbose && !progress) {
             yield* Console.log(`  🎨 blurhash: ${rel} (${bh.w}x${bh.h})`);
           }
@@ -461,8 +485,10 @@ const program = Effect.gen(function* () {
     );
   }
 
-  const manifest: Record<string, { blurhash: string; w: number; h: number }> =
-    {};
+  const manifest: Record<
+    string,
+    { blurhash: string; w: number; h: number; exif: ExifMetadata }
+  > = {};
 
   // Initialize progress tracker
   const progress = createProgressTracker(files.length);

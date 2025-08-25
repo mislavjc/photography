@@ -16,6 +16,7 @@ import { useScreenSize } from '../hooks/useScreenSize';
 import { buildTileRects } from '../lib/tile';
 import type {
   AccumulatedDelta,
+  ImageMetadata,
   Manifest,
   Position,
   Rect,
@@ -25,9 +26,10 @@ import { Tile } from './tile';
 
 interface InfiniteImageMapProps {
   manifest: Manifest;
+  onHover?: (_metadata: ImageMetadata | null) => void;
 }
 
-const InfiniteImageMap = ({ manifest }: InfiniteImageMapProps) => {
+const InfiniteImageMap = ({ manifest, onHover }: InfiniteImageMapProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { tileWidth, tileHeight, gap, isHydrated } = useScreenSize();
 
@@ -368,7 +370,7 @@ const InfiniteImageMap = ({ manifest }: InfiniteImageMapProps) => {
                     tileHeight={tileHeight}
                     getRects={getRects}
                     viewport={viewport}
-                    onHover={() => null}
+                    onHover={onHover}
                     manifest={manifest}
                   />
                 );

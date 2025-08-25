@@ -18,9 +18,34 @@ async function loadManifestFromR2(): Promise<Manifest> {
     const manifestUrl = `${R2_PUBLIC_URL.replace(/\/$/, '')}/${R2_VARIANTS_PREFIX}/r2-manifest.json`;
     console.log('Loading manifest from R2:', manifestUrl);
 
-    const response = await fetch(manifestUrl, {
-      next: { revalidate: 3600 }, // Cache for 1 hour
-    });
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
+
+    let response: Response;
+
+    if (isDevelopment) {
+      // In development, force fresh data for debugging
+      const cacheBuster = Date.now();
+      const fetchOptions = {
+        cache: 'no-store' as const,
+        next: { revalidate: 0 },
+      };
+      response = await fetch(`${manifestUrl}?v=${cacheBuster}`, fetchOptions);
+    } else if (isBuild) {
+      // During build, use cached version to enable static generation
+      const fetchOptions = {
+        cache: 'force-cache' as const,
+        next: { revalidate: 3600 }, // Cache for 1 hour during build
+      };
+      response = await fetch(manifestUrl, fetchOptions);
+    } else {
+      // In production runtime, cache for performance
+      const fetchOptions = {
+        cache: 'force-cache' as const,
+        next: { revalidate: 300 }, // Cache for 5 minutes in production
+      };
+      response = await fetch(manifestUrl, fetchOptions);
+    }
 
     if (!response.ok) {
       throw new Error(
@@ -38,16 +63,35 @@ async function loadManifestFromR2(): Promise<Manifest> {
 }
 
 export async function loadManifest(): Promise<Manifest> {
-  if (manifestCache) {
+  // Use cached manifest if available and not in development
+  if (manifestCache && process.env.NODE_ENV !== 'development') {
+    console.log('Using cached manifest');
     return manifestCache;
   }
 
+  // Load fresh data
   try {
-    // Load only from R2 (remote manifest)
+    console.log('Loading fresh manifest...');
     manifestCache = await loadManifestFromR2();
+    console.log(
+      `Loaded manifest with ${Object.keys(manifestCache).length} images`,
+    );
     return manifestCache;
   } catch (error) {
     console.error('Failed to load remote manifest:', error);
+
+    // In production build, return empty manifest to allow static generation
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('Build time: returning empty manifest for static generation');
+      return {};
+    }
+
+    // In other cases, return cached version if available
+    if (manifestCache) {
+      console.log('Falling back to cached manifest');
+      return manifestCache;
+    }
+
     return {};
   }
 }

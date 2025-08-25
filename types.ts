@@ -7,10 +7,34 @@ export interface Rect {
   imageId?: string; // filename from manifest
 }
 
+export interface ExifMetadata {
+  camera: string | null;
+  lens: string | null;
+  focalLength: string | null;
+  aperture: string | null;
+  shutterSpeed: string | null;
+  iso: string | null;
+  location: {
+    latitude: number;
+    longitude: number;
+    altitude?: number;
+  } | null;
+  dateTime: string | null;
+}
+
 export interface ManifestEntry {
   blurhash: string;
   w: number;
   h: number;
+  exif: ExifMetadata;
+}
+
+export interface ImageMetadata {
+  filename: string;
+  dimensions: { w: number; h: number };
+  orientation: 'portrait' | 'landscape';
+  url: string;
+  exif: ExifMetadata;
 }
 
 export interface Manifest {
@@ -33,7 +57,7 @@ export interface TileProps {
   tileHeight: number;
   getRects: (tx: number, ty: number, manifest?: Manifest) => Rect[];
   viewport: Viewport;
-  onHover: (url: string | null) => void;
+  onHover?: (metadata: ImageMetadata | null) => void;
   manifest?: Manifest;
 }
 
@@ -43,7 +67,7 @@ export interface ImageCellProps {
   tileTop: number;
   tileSize: number;
   viewport: Viewport;
-  onHover: (url: string | null) => void;
+  onHover?: (metadata: ImageMetadata | null) => void;
   manifest?: Manifest;
 }
 

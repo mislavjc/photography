@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { blurhashToDataURL, getBlurhashForSeed, imgUrl } from '../lib/tile';
-import type { ImageCellProps } from '../types';
+import type { ImageCellProps, ImageMetadata } from '../types';
 
 const ImageCellComponent = ({
   rect,
@@ -160,8 +160,46 @@ const ImageCellComponent = ({
         willChange: 'transform',
         boxSizing: 'border-box',
       }}
-      onPointerEnter={() => onHover(url)}
-      onPointerLeave={() => onHover(null)}
+      {...(onHover && {
+        onPointerEnter: () => {
+          if (rect.imageId && manifest) {
+            const imageData = manifest[rect.imageId];
+            if (imageData) {
+              const isDevelopment = process.env.NODE_ENV === 'development';
+              const metadata: ImageMetadata = {
+                filename: rect.imageId,
+                dimensions: { w: imageData.w, h: imageData.h },
+                orientation:
+                  imageData.h > imageData.w ? 'portrait' : 'landscape',
+                url: url,
+                exif: isDevelopment
+                  ? imageData.exif || {
+                      camera: null,
+                      lens: null,
+                      focalLength: null,
+                      aperture: null,
+                      shutterSpeed: null,
+                      iso: null,
+                      location: null,
+                      dateTime: null,
+                    }
+                  : {
+                      camera: null,
+                      lens: null,
+                      focalLength: null,
+                      aperture: null,
+                      shutterSpeed: null,
+                      iso: null,
+                      location: null,
+                      dateTime: null,
+                    },
+              };
+              onHover(metadata);
+            }
+          }
+        },
+        onPointerLeave: () => onHover(null),
+      })}
       draggable={false}
       title={getTooltipText()}
     >
