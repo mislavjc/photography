@@ -73,20 +73,66 @@ const ImageCellComponent = ({
     };
   }, [rect.seed, rect.w, rect.h, rect.imageId, manifest, isVisible]);
 
-  // Check if image has correct APSC ratio for debugging
+  // Enhanced orientation and EXIF handling
   const actualRatio = rect.w / rect.h;
   const APSC_LANDSCAPE_RATIO = 23.5 / 15.7; // ≈ 1.497
   const APSC_PORTRAIT_RATIO = 15.7 / 23.5; // ≈ 0.668
-  const TOLERANCE = 0.01; // Allow small floating point differences
+  const RATIO_TOLERANCE = 0.01; // Allow small floating point differences
 
-  // Determine expected orientation based on ratio
-  const isLandscapeOriented = actualRatio > 1;
-  const expectedRatio = isLandscapeOriented
+  // Determine expected orientation based on slot dimensions
+  const slotIsLandscape = actualRatio > 1;
+  const expectedRatio = slotIsLandscape
     ? APSC_LANDSCAPE_RATIO
     : APSC_PORTRAIT_RATIO;
-  const hasCorrectAPSC = Math.abs(actualRatio - expectedRatio) <= TOLERANCE;
+  const hasCorrectAPSC =
+    Math.abs(actualRatio - expectedRatio) <= RATIO_TOLERANCE;
 
-  // Debug is now visual only (red borders) to avoid console spam
+  // Check image orientation vs slot orientation (if we have manifest data)
+  let hasWrongOrientation = false;
+  let orientationInfo = '';
+  // exifRotation placeholder for future CSS transform use
+
+  if (rect.imageId && manifest) {
+    const imageData = manifest[rect.imageId];
+    if (imageData) {
+      // Check if image orientation matches slot orientation
+      const imageIsPortrait = imageData.h > imageData.w;
+      const orientationMatches = imageIsPortrait === !slotIsLandscape; // slotIsLandscape is false for portrait slots
+
+      if (!orientationMatches) {
+        hasWrongOrientation = true;
+        orientationInfo = `${rect.imageId}: ${imageIsPortrait ? 'portrait' : 'landscape'} image in ${slotIsLandscape ? 'landscape' : 'portrait'} slot (${imageData.w}x${imageData.h})`;
+
+        // Log orientation mismatch with additional debugging info
+        const imageRatio = imageData.w / imageData.h;
+        console.log(`📐 Orientation mismatch: ${orientationInfo}`);
+        console.log(
+          `   Image ratio: ${imageRatio.toFixed(3)}, Slot ratio: ${actualRatio.toFixed(3)}`,
+        );
+      }
+
+      // Note: Browser should handle EXIF rotation automatically, but if issues persist,
+      // we could add CSS transforms here based on EXIF data in the future
+    }
+  }
+
+  // Show red border for either wrong ratio OR wrong orientation
+  const needsRedBorder = !hasCorrectAPSC || hasWrongOrientation;
+
+  // Create tooltip text for red border explanation
+  const getTooltipText = () => {
+    if (!needsRedBorder) return '';
+    const issues = [];
+    if (!hasCorrectAPSC) {
+      issues.push(
+        `Wrong APSC ratio (expected: ${expectedRatio.toFixed(3)}, got: ${actualRatio.toFixed(3)})`,
+      );
+    }
+    if (hasWrongOrientation) {
+      issues.push(orientationInfo);
+    }
+    return issues.join('\n');
+  };
 
   if (!isVisible) {
     return (
@@ -104,7 +150,7 @@ const ImageCellComponent = ({
 
   return (
     <div
-      className={`group absolute overflow-hidden ${!hasCorrectAPSC ? 'border-4 border-red-500' : ''}`}
+      className={`group absolute overflow-hidden ${needsRedBorder ? 'border-4 border-red-500' : ''}`}
       style={{
         left: rect.x,
         top: rect.y,
@@ -117,6 +163,7 @@ const ImageCellComponent = ({
       onPointerEnter={() => onHover(url)}
       onPointerLeave={() => onHover(null)}
       draggable={false}
+      title={getTooltipText()}
     >
       {preview && (
         <>
