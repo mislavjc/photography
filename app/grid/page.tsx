@@ -1,9 +1,11 @@
+import { computeNearSquareLayout } from 'lib/layout';
 import { loadManifest } from 'lib/manifest-server';
 
-import { GridComponent } from './grid-component';
+import { PannableGrid } from '../../components/finite-grid';
 
-export default async function GridPage() {
+export default async function Page() {
   const manifest = await loadManifest();
+  const layout = computeNearSquareLayout(manifest);
 
-  return <GridComponent manifest={manifest} />;
+  return <PannableGrid manifest={manifest} initialLayout={layout} />;
 }
