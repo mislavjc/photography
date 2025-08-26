@@ -6,9 +6,15 @@ import type { Manifest } from 'types';
 
 const SSR_SAFE_VW = 1200;
 const SSR_SAFE_VH = 800;
+
 const VIRTUAL_MARGIN = 400;
-const INERTIA_DECAY = 0.92;
-const MAX_SPEED = 4.5;
+
+// Kinetics
+const INERTIA_DURATION_MS = 1000; // <-- 1 second coast
+const SPEED_SMOOTHING = 0.22; // exponential smoothing for pointer velocity
+const MAX_SPEED = 7.0; // px/ms (tune up/down)
+const MIN_INERTIA_SPEED = 0.02; // below this, don’t start inertia
+const PAD = 200;
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -30,7 +36,6 @@ function useViewportSize() {
 
   return { vw, vh };
 }
-// -----------------------------------------------------------------------------
 
 type Props = {
   manifest: Manifest;
@@ -39,14 +44,12 @@ type Props = {
 
 export function PannableGrid({ manifest, initialLayout }: Props) {
   const { vw, vh } = useViewportSize();
-
   const layout = useMemo(
     () => initialLayout ?? computeNearSquareLayout(manifest),
     [manifest, initialLayout],
   );
 
-  const PAD = 200;
-
+  // Initial centered camera (SSR-safe)
   const initialCam = useMemo(() => {
     const minX = -PAD;
     const minY = -PAD;
@@ -59,43 +62,132 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
   }, [layout.width, layout.height]);
 
   const [cam, setCam] = useState(initialCam);
+  const camRef = useRef(cam);
+  useEffect(() => {
+    camRef.current = cam;
+  }, [cam]);
+
+  // Live bounds
   const minX = -PAD;
   const minY = -PAD;
   const maxX = Math.max(0, layout.width - vw + PAD);
   const maxY = Math.max(0, layout.height - vh + PAD);
 
+  // Dragging state
   const draggingRef = useRef(false);
   const lastPosRef = useRef<{ x: number; y: number; t: number } | null>(null);
-  const velRef = useRef({ vx: 0, vy: 0 });
+  const velRef = useRef({ vx: 0, vy: 0 }); // smoothed pointer velocity
+
+  // Inertia state
+  const inertiaRef = useRef<{
+    active: boolean;
+    start: number; // ms
+    t: number; // elapsed ms
+    lastTick: number; // ms
+    vx0: number; // px/ms (initial velocity at release)
+    vy0: number;
+    ax: number; // px/ms^2 (constant decel so it stops at 1s)
+    ay: number;
+  } | null>(null);
+
   const rafRef = useRef<number | null>(null);
 
-  // Inertia loop
+  // RAF loop: handle inertia (time-based kinematics)
   useEffect(() => {
     const tick = () => {
-      if (!draggingRef.current) {
-        const { vx, vy } = velRef.current;
-        if (Math.abs(vx) > 0.01 || Math.abs(vy) > 0.01) {
-          setCam((c) => ({
-            x: clamp(c.x - vx, minX, maxX),
-            y: clamp(c.y - vy, minY, maxY),
-          }));
-          velRef.current = { vx: vx * INERTIA_DECAY, vy: vy * INERTIA_DECAY };
+      const inert = inertiaRef.current;
+      if (inert && inert.active) {
+        const now = performance.now();
+        const dt = Math.max(0, now - inert.lastTick); // ms
+        const tPrev = inert.t;
+        const tNext = Math.min(INERTIA_DURATION_MS, tPrev + dt);
+
+        // Velocity at start of this frame
+        const vxPrev = inert.vx0 + inert.ax * tPrev;
+        const vyPrev = inert.vy0 + inert.ay * tPrev;
+
+        // Displacement over dt with constant acceleration: s = v*dt + 0.5*a*dt^2
+        const dx = vxPrev * dt + 0.5 * inert.ax * dt * dt;
+        const dy = vyPrev * dt + 0.5 * inert.ay * dt * dt;
+
+        // Apply (note: same sign convention as dragging → subtract)
+        let nextX = camRef.current.x - dx;
+        let nextY = camRef.current.y - dy;
+
+        // Clamp to bounds and stop the axis that hit a wall
+        const clampedX = clamp(nextX, minX, maxX);
+        const clampedY = clamp(nextY, minY, maxY);
+
+        // If we collided on X and are still trying to push into the wall → stop X inertia
+        if (clampedX !== nextX) {
+          // zero X motion going forward
+          inertiaRef.current = {
+            ...inert,
+            vx0: 0,
+            ax: 0,
+            start: inert.start,
+            t: tNext,
+            lastTick: now,
+            vy0: inert.vy0,
+            ay: inert.ay,
+          };
+          nextX = clampedX;
+        }
+        if (clampedY !== nextY) {
+          inertiaRef.current = {
+            ...inert,
+            vy0: 0,
+            ay: 0,
+            start: inert.start,
+            t: tNext,
+            lastTick: now,
+            vx0: inertiaRef.current!.vx0,
+            ax: inertiaRef.current!.ax,
+          };
+          nextY = clampedY;
+        }
+
+        setCam({ x: clampedX, y: clampedY });
+        camRef.current = { x: clampedX, y: clampedY };
+
+        // Advance time
+        const stillInTime = tNext < INERTIA_DURATION_MS;
+        const stillMoving =
+          Math.abs(inertiaRef.current!.vx0 + inertiaRef.current!.ax * tNext) >
+            0.001 ||
+          Math.abs(inertiaRef.current!.vy0 + inertiaRef.current!.ay * tNext) >
+            0.001;
+
+        // Update inertia clock
+        if (inertiaRef.current) {
+          inertiaRef.current.t = tNext;
+          inertiaRef.current.lastTick = now;
+        }
+
+        // Stop when time’s up or both axes done
+        if (!stillInTime || !stillMoving) {
+          inertiaRef.current = null;
         }
       }
+
       rafRef.current = requestAnimationFrame(tick);
     };
+
     rafRef.current = requestAnimationFrame(tick);
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [minX, maxX, minY, maxY]);
 
+  // Pointer handlers
   function onPointerDown(e: React.PointerEvent) {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     draggingRef.current = true;
     lastPosRef.current = { x: e.clientX, y: e.clientY, t: performance.now() };
     velRef.current = { vx: 0, vy: 0 };
+    inertiaRef.current = null; // cancel inertia when new drag starts
   }
+
   function onPointerMove(e: React.PointerEvent) {
     if (!draggingRef.current || !lastPosRef.current) return;
     const now = performance.now();
@@ -103,28 +195,65 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
     const dx = e.clientX - lastPosRef.current.x;
     const dy = e.clientY - lastPosRef.current.y;
 
-    setCam((c) => ({
-      x: clamp(c.x - dx, minX, maxX),
-      y: clamp(c.y - dy, minY, maxY),
-    }));
+    // Move camera opposite to pointer
+    setCam((c) => {
+      const nx = clamp(c.x - dx, minX, maxX);
+      const ny = clamp(c.y - dy, minY, maxY);
+      camRef.current = { x: nx, y: ny };
+      return { x: nx, y: ny };
+    });
 
-    const vx = clamp(dx / dt, -MAX_SPEED, MAX_SPEED);
-    const vy = clamp(dy / dt, -MAX_SPEED, MAX_SPEED);
-    velRef.current = { vx, vy };
+    // Exponential smoothing for velocity (px/ms)
+    const sampleVx = clamp(dx / dt, -MAX_SPEED, MAX_SPEED);
+    const sampleVy = clamp(dy / dt, -MAX_SPEED, MAX_SPEED);
+    velRef.current = {
+      vx:
+        (1 - SPEED_SMOOTHING) * velRef.current.vx + SPEED_SMOOTHING * sampleVx,
+      vy:
+        (1 - SPEED_SMOOTHING) * velRef.current.vy + SPEED_SMOOTHING * sampleVy,
+    };
+
     lastPosRef.current = { x: e.clientX, y: e.clientY, t: now };
   }
+
   function onPointerUp(e: React.PointerEvent) {
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {}
     draggingRef.current = false;
-    lastPosRef.current = null;
-  }
-  function onPointerCancel() {
-    draggingRef.current = false;
+
+    // Start inertia if speed is meaningful
+    const { vx, vy } = velRef.current;
+    const speed = Math.hypot(vx, vy);
+    if (speed >= MIN_INERTIA_SPEED) {
+      const now = performance.now();
+      // Constant deceleration: a = -v0 / T (per axis)
+      const ax = -vx / INERTIA_DURATION_MS;
+      const ay = -vy / INERTIA_DURATION_MS;
+      inertiaRef.current = {
+        active: true,
+        start: now,
+        t: 0,
+        lastTick: now,
+        vx0: vx,
+        vy0: vy,
+        ax,
+        ay,
+      };
+    } else {
+      inertiaRef.current = null;
+    }
+
     lastPosRef.current = null;
   }
 
+  function onPointerCancel() {
+    draggingRef.current = false;
+    lastPosRef.current = null;
+    inertiaRef.current = null;
+  }
+
+  // Virtualization
   const viewRect = { x: cam.x, y: cam.y, w: vw, h: vh };
   const virtualRect = {
     x: Math.max(0, viewRect.x - VIRTUAL_MARGIN),
@@ -155,12 +284,13 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
     virtualRect.h,
   ]);
 
+  // Recenter after hydration if viewport differs
   useEffect(() => {
     if (vw === SSR_SAFE_VW && vh === SSR_SAFE_VH) return;
-    setCam({
-      x: clamp((layout.width - vw) / 2, minX, maxX),
-      y: clamp((layout.height - vh) / 2, minY, maxY),
-    });
+    const nx = clamp((layout.width - vw) / 2, minX, maxX);
+    const ny = clamp((layout.height - vh) / 2, minY, maxY);
+    setCam({ x: nx, y: ny });
+    camRef.current = { x: nx, y: ny };
   }, [vw, vh, layout.width, layout.height]); // eslint-disable-line
 
   return (
@@ -171,14 +301,23 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onWheel={(e) => {
+        // desktop nicety: wheel pans; shift for horizontal
         if (e.shiftKey) {
-          setCam((c) => ({ x: clamp(c.x + e.deltaY, minX, maxX), y: c.y }));
+          setCam((c) => {
+            const nx = clamp(c.x + e.deltaY, minX, maxX);
+            camRef.current = { x: nx, y: c.y };
+            return { x: nx, y: c.y };
+          });
         } else {
-          setCam((c) => ({
-            x: clamp(c.x + e.deltaX, minX, maxX),
-            y: clamp(c.y + e.deltaY, minY, maxY),
-          }));
+          setCam((c) => {
+            const nx = clamp(c.x + e.deltaX, minX, maxX);
+            const ny = clamp(c.y + e.deltaY, minY, maxY);
+            camRef.current = { x: nx, y: ny };
+            return { x: nx, y: ny };
+          });
         }
+        // Optional: wheel inertia (commented out to not conflict with pointer inertia)
+        // inertiaRef.current = null;
       }}
       role="application"
       aria-label="Pannable photo grid"
@@ -207,10 +346,9 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
         ))}
       </div>
 
-      {/* HUD - Development only */}
+      {/* HUD - dev only */}
       {process.env.NODE_ENV === 'development' && (
         <div className="absolute left-4 bottom-4 text-xs bg-white/80 backdrop-blur rounded-md px-2 py-1 shadow">
-          <div>Cols: {layout.columns}</div>
           <div>
             World: {Math.round(layout.width)} × {Math.round(layout.height)} px
           </div>
@@ -226,6 +364,7 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
   );
 }
 
+// ---------- image helpers (unchanged) -----------
 const AVAILABLE_WIDTHS = [160, 240, 320, 480, 640, 800, 960] as const;
 const FORMATS = ['avif', 'webp', 'jpeg'] as const;
 
