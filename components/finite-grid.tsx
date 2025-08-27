@@ -1,6 +1,7 @@
 'use client';
 
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
+import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest } from 'types';
 
@@ -43,6 +44,7 @@ type Props = {
 };
 
 export function PannableGrid({ manifest, initialLayout }: Props) {
+  const router = useRouter();
   const { vw, vh } = useViewportSize();
   const layout = useMemo(
     () => initialLayout ?? computeNearSquareLayout(manifest),
@@ -179,21 +181,56 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
     };
   }, [minX, maxX, minY, maxY]);
 
+  // Click detection state
+  const clickStartRef = useRef<{
+    x: number;
+    y: number;
+    t: number;
+    element?: HTMLElement;
+  } | null>(null);
+
   // Pointer handlers
   function onPointerDown(e: React.PointerEvent) {
+    const target = e.target as HTMLElement;
+    const isPhotoClick = target.closest('article') !== null;
+
+    // Always prepare for potential dragging
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    draggingRef.current = true;
+    draggingRef.current = false; // Start as false, will become true on move
     lastPosRef.current = { x: e.clientX, y: e.clientY, t: performance.now() };
     velRef.current = { vx: 0, vy: 0 };
-    inertiaRef.current = null; // cancel inertia when new drag starts
+    inertiaRef.current = null;
+
+    // Store click start info if on a photo
+    if (isPhotoClick) {
+      clickStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        t: performance.now(),
+        element: target.closest('article') as HTMLElement,
+      };
+    } else {
+      clickStartRef.current = null;
+    }
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    if (!draggingRef.current || !lastPosRef.current) return;
+    if (!lastPosRef.current) return;
+
     const now = performance.now();
     const dt = Math.max(1, now - lastPosRef.current.t);
     const dx = e.clientX - lastPosRef.current.x;
     const dy = e.clientY - lastPosRef.current.y;
+    const distance = Math.hypot(dx, dy);
+
+    // Start dragging if movement exceeds threshold
+    if (!draggingRef.current && distance > 5) {
+      draggingRef.current = true;
+      // Clear click start info when we start dragging
+      clickStartRef.current = null;
+    }
+
+    if (!draggingRef.current) return;
 
     // Move camera opposite to pointer
     setCam((c) => {
@@ -220,37 +257,62 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {}
-    draggingRef.current = false;
 
-    // Start inertia if speed is meaningful
-    const { vx, vy } = velRef.current;
-    const speed = Math.hypot(vx, vy);
-    if (speed >= MIN_INERTIA_SPEED) {
-      const now = performance.now();
-      // Constant deceleration: a = -v0 / T (per axis)
-      const ax = -vx / INERTIA_DURATION_MS;
-      const ay = -vy / INERTIA_DURATION_MS;
-      inertiaRef.current = {
-        active: true,
-        start: now,
-        t: 0,
-        lastTick: now,
-        vx0: vx,
-        vy0: vy,
-        ax,
-        ay,
-      };
-    } else {
-      inertiaRef.current = null;
+    // If we weren't dragging and have click start info, check for navigation
+    if (!draggingRef.current && clickStartRef.current) {
+      const clickDuration = performance.now() - clickStartRef.current.t;
+      const clickDistance = Math.hypot(
+        e.clientX - clickStartRef.current.x,
+        e.clientY - clickStartRef.current.y,
+      );
+
+      // If click was quick and didn't move much, navigate
+      if (clickDuration < 300 && clickDistance < 10) {
+        const photoElement = clickStartRef.current.element;
+        if (photoElement) {
+          const filename = photoElement.getAttribute('data-filename');
+          if (filename) {
+            router.push(`/grid/${encodeURIComponent(filename)}`);
+          }
+        }
+      }
     }
 
+    // If we were dragging, start inertia if speed is meaningful
+    if (draggingRef.current) {
+      const { vx, vy } = velRef.current;
+      const speed = Math.hypot(vx, vy);
+      if (speed >= MIN_INERTIA_SPEED) {
+        const now = performance.now();
+        // Constant deceleration: a = -v0 / T (per axis)
+        const ax = -vx / INERTIA_DURATION_MS;
+        const ay = -vy / INERTIA_DURATION_MS;
+        inertiaRef.current = {
+          active: true,
+          start: now,
+          t: 0,
+          lastTick: now,
+          vx0: vx,
+          vy0: vy,
+          ax,
+          ay,
+        };
+      } else {
+        inertiaRef.current = null;
+      }
+    }
+
+    // Reset state
+    draggingRef.current = false;
     lastPosRef.current = null;
+    clickStartRef.current = null;
   }
 
   function onPointerCancel() {
     draggingRef.current = false;
     lastPosRef.current = null;
     inertiaRef.current = null;
+    clickStartRef.current = null;
   }
 
   // Virtualization
@@ -276,13 +338,7 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
       if (ix1 < vx2 && ix2 > vx1 && iy1 < vy2 && iy2 > vy1) out.push(it);
     }
     return out;
-  }, [
-    layout.items,
-    virtualRect.x,
-    virtualRect.y,
-    virtualRect.w,
-    virtualRect.h,
-  ]);
+  }, [layout, virtualRect.x, virtualRect.y, virtualRect.w, virtualRect.h]);
 
   // Recenter after hydration if viewport differs
   useEffect(() => {
@@ -334,7 +390,8 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
         {visibleItems.map((it) => (
           <article
             key={it.filename}
-            className="absolute"
+            data-filename={it.filename}
+            className="absolute cursor-pointer hover:opacity-80 transition-opacity"
             style={{ left: it.x, top: it.y, width: it.w, height: it.h }}
           >
             <Picture
@@ -366,20 +423,16 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
 
 // ---------- image helpers (unchanged) -----------
 const AVAILABLE_WIDTHS = [160, 240, 320, 480, 640, 800, 960] as const;
-const FORMATS = ['avif', 'webp', 'jpeg'] as const;
+type Formats = 'avif' | 'webp' | 'jpeg';
 
 function getImageBaseName(filename: string): string {
   return filename.replace(/\.[^.]+$/, '');
 }
-function r2VariantUrl(
-  filename: string,
-  width: number,
-  format: (typeof FORMATS)[number],
-) {
+function r2VariantUrl(filename: string, width: number, format: Formats) {
   const base = getImageBaseName(filename);
   return `https://r2.photography.mislavjc.com/variants/${format}/${width}/${base}.${format}`;
 }
-function buildSrcSet(filename: string, format: (typeof FORMATS)[number]) {
+function buildSrcSet(filename: string, format: Formats) {
   return AVAILABLE_WIDTHS.map(
     (w) => `${r2VariantUrl(filename, w, format)} ${w}w`,
   ).join(', ');
