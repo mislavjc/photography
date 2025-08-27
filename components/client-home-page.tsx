@@ -6,7 +6,7 @@ import type { ImageMetadata, Manifest } from '../types';
 import InfiniteImageMap from './infinite-image-map';
 import { MetadataTooltip } from './metadata-tooltip';
 import { PerformanceMonitor } from './performance-monitor';
-import TimeRangeFilter from './time-range-filter';
+import { PhotoFilter } from './photo-filter';
 
 interface ClientHomePageProps {
   manifest: Manifest;
@@ -35,7 +35,7 @@ export default function ClientHomePage({ manifest }: ClientHomePageProps) {
         manifest={manifest}
         onHover={isDevelopment ? handleHover : undefined}
       />
-      <TimeRangeFilter />
+      <PhotoFilter />
       {isDevelopment && (
         <MetadataTooltip metadata={hoveredMetadata} position={mousePosition} />
       )}

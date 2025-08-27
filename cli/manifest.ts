@@ -7,6 +7,8 @@ import path from 'node:path';
 
 import { config } from 'dotenv';
 import { Console, Effect, pipe } from 'effect';
+import { exiftool, Tags } from 'exiftool-vendored';
+import { FastAverageColor } from 'fast-average-color';
 import fg from 'fast-glob';
 
 import { makeBlurhash } from '../lib/blurhash-utils';
@@ -25,6 +27,11 @@ interface ExifMetadata {
     altitude?: number;
   } | null;
   dateTime: string | null;
+  dominantColors?: Array<{
+    hex: string;
+    rgb: { r: number; g: number; b: number };
+    percentage: number;
+  }>;
 }
 
 config({ path: '.env.local' });
@@ -71,6 +78,143 @@ const cleanPrefix = (p: string) => p.replace(/^\/+|\/+$/g, '');
 // ----------------------- BlurHash -----------------------
 // Note: makeBlurhash is now imported from shared utility
 
+// ----------------------- EXIF (exiftool) -----------------------
+const formatAperture = (f?: number | string | null) =>
+  f != null
+    ? `f/${typeof f === 'number' ? f.toFixed(1).replace(/\.0$/, '') : f}`
+    : null;
+
+const formatShutter = (t?: string | number | null) => {
+  if (t == null) return null;
+  if (typeof t === 'string') return t; // exiftool often gives "1/500"
+  if (t === 0) return '0s';
+  if (t < 1) return `1/${Math.round(1 / t)}s`;
+  return `${t}s`;
+};
+
+const formatFocal = (f?: number | string | null) =>
+  f != null ? `${f} mm` : null;
+
+const toNumber = (v: unknown) =>
+  typeof v === 'number' ? v : v == null ? undefined : Number(v);
+
+const readExif = (filePath: string) =>
+  Effect.tryPromise<ExifMetadata, Error>({
+    try: async () => {
+      const t: Tags = await exiftool.read(filePath);
+      const camera = [t.Make, t.Model].filter(Boolean).join(' ').trim() || null;
+
+      const lens =
+        (t.LensModel as string | undefined) ??
+        (t.Lens as string | undefined) ??
+        null;
+
+      const focalLength = formatFocal(
+        (t.FocalLength as number | string | undefined) ?? null,
+      );
+
+      const aperture = formatAperture(
+        (t.FNumber as number | string | undefined) ?? null,
+      );
+
+      const shutterSpeed = formatShutter(
+        (t.ShutterSpeed as string | undefined) ??
+          (t.ExposureTime as number | undefined) ??
+          null,
+      );
+      const iso = (t.ISO as number | string | undefined)?.toString() ?? null;
+
+      const dateTime =
+        t.DateTimeOriginal?.toString?.() ??
+        t.CreateDate?.toString?.() ??
+        t.ModifyDate?.toString?.() ??
+        null;
+
+      const lat = toNumber(t.GPSLatitude);
+      const lon = toNumber(t.GPSLongitude);
+      const alt = toNumber(t.GPSAltitude);
+
+      const location =
+        lat != null && lon != null
+          ? { latitude: lat, longitude: lon, altitude: alt }
+          : null;
+
+      const exif: ExifMetadata = {
+        camera,
+        lens,
+        focalLength,
+        aperture,
+        shutterSpeed,
+        iso,
+        location,
+        dateTime,
+        // dominantColors is appended later
+      };
+
+      return exif;
+    },
+    catch: (e) => (e instanceof Error ? e : new Error(String(e))),
+  });
+
+// Ensure exiftool child exits when program ends
+const shutdownExiftool = Effect.tryPromise({
+  try: async () => {
+    await exiftool.end();
+  },
+  catch: () => undefined,
+}).pipe(Effect.ignore);
+
+// ----------------------- Dominant Colors -----------------------
+const fac = new FastAverageColor();
+
+const toHex = (r: number, g: number, b: number) =>
+  `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+
+const extractDominantColors = (file: string, maxColors = 5) =>
+  Effect.tryPromise({
+    try: async () => {
+      const sharp = (await import('sharp')).default;
+
+      const { data, info } = await sharp(file)
+        .resize({
+          width: 200,
+          height: 200,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+      // data is already RGBA bytes
+      const rgba = new Uint8ClampedArray(
+        data.buffer,
+        data.byteOffset,
+        data.byteLength,
+      );
+
+      const [r, g, b] = fac.getColorFromArray4(rgba, {
+        width: info.width,
+        height: info.height,
+        algorithm: 'dominant', // or 'sqrt' / 'simple'
+      });
+
+      const hex = toHex(r, g, b);
+
+      return [
+        {
+          hex,
+          rgb: { r, g, b },
+          percentage: 100,
+        },
+      ].slice(0, maxColors);
+    },
+    catch: (error) => {
+      console.error(`Error extracting dominant colors from ${file}:`, error);
+      return [];
+    },
+  });
+
 // ----------------------- R2 Upload (for manifest only) -----------------------
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
@@ -116,15 +260,28 @@ const processFile = (
 
     // Generate blurhash
     const bh = yield* makeBlurhash(file, maxDim);
+
+    // Read EXIF (exiftool)
+    const exif = yield* readExif(file);
+
+    // Dominant colors
+    const dominantColors = yield* extractDominantColors(file, 5);
+
     if (bh.blurhash) {
       manifest[rel] = {
         blurhash: bh.blurhash,
         w: bh.w,
         h: bh.h,
-        exif: bh.exif,
+        exif: {
+          ...exif,
+          dominantColors,
+        },
       };
       if (verbose) {
         yield* Console.log(`  🎨 blurhash: ${bh.w}x${bh.h}`);
+        if (dominantColors && dominantColors.length > 0) {
+          yield* Console.log(`  🌈 dominant color: ${dominantColors[0].hex}`);
+        }
       }
     } else {
       if (verbose) {
@@ -151,6 +308,10 @@ const discoverFiles = Effect.gen(function* () {
         `No images found under ${SRC_DIR}. Supported: ${exts.join(', ')}`,
       ),
     );
+
+  // For testing with one image, uncomment the line below
+  // return [files[0]]; // Test with first image only
+
   return files;
 });
 
@@ -169,7 +330,17 @@ const program = Effect.gen(function* () {
 
   const manifest: Record<
     string,
-    { blurhash: string; w: number; h: number; exif: ExifMetadata }
+    {
+      blurhash: string;
+      w: number;
+      h: number;
+      exif: ExifMetadata;
+      dominantColors?: Array<{
+        hex: string;
+        rgb: { r: number; g: number; b: number };
+        percentage: number;
+      }>;
+    }
   > = {};
 
   // Process each file
@@ -213,12 +384,17 @@ const program = Effect.gen(function* () {
       yield* Console.log(
         `   ${filename}: ${data.blurhash.substring(0, 20)}... (${data.w}x${data.h})`,
       );
+      if (data.exif.dominantColors && data.exif.dominantColors.length > 0) {
+        yield* Console.log(
+          `   🌈 Colors: ${data.exif.dominantColors.map((c) => c.hex).join(', ')}`,
+        );
+      }
     }
   }
 });
 
 pipe(
-  program,
+  program.pipe(Effect.ensuring(shutdownExiftool)),
   Effect.catchAll((e) =>
     Effect.gen(function* () {
       const msg = e instanceof Error ? e.message : String(e);

@@ -150,6 +150,25 @@ export const MetadataTooltip = ({
               </div>
             )}
 
+            {/* Dominant Color */}
+            {exif.dominantColors && exif.dominantColors.length > 0 && (
+              <div className="border-t border-gray-600 pt-2">
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wider">
+                  Dominant Color
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-8 h-8 rounded-lg border border-gray-400 shadow-sm"
+                    style={{ backgroundColor: exif.dominantColors[0].hex }}
+                    title={`${exif.dominantColors[0].hex} - Background color`}
+                  />
+                  <div className="text-sm text-white font-mono">
+                    {exif.dominantColors[0].hex.toUpperCase()}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* No metadata available */}
             {!exif.camera &&
               !exif.lens &&

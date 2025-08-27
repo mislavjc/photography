@@ -15,6 +15,13 @@ interface SharpMetadata {
   [key: string]: unknown;
 }
 
+// Type for dominant color
+interface DominantColor {
+  hex: string;
+  rgb: { r: number; g: number; b: number };
+  percentage: number;
+}
+
 /**
  * Extract comprehensive EXIF metadata from an image file
  * @param file - Path to the image file
@@ -508,6 +515,100 @@ export const extractExifMetadata = (file: string) =>
   });
 
 /**
+ * Extract dominant colors from an image file
+ * @param file - Path to the image file
+ * @param maxColors - Maximum number of dominant colors to extract (default: 5)
+ * @returns Array of dominant colors with hex, rgb, and percentage values
+ */
+export const extractDominantColors = (file: string, maxColors: number = 5) =>
+  Effect.tryPromise({
+    try: async () => {
+      const image = sharp(file);
+
+      // Resize image for faster processing while maintaining color accuracy
+      const { data } = await image
+        .clone()
+        .resize({
+          width: 200,
+          height: 200,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+      // Convert raw pixel data to RGB values
+      const pixels: Array<{ r: number; g: number; b: number }> = [];
+      for (let i = 0; i < data.length; i += 3) {
+        pixels.push({
+          r: data[i],
+          g: data[i + 1],
+          b: data[i + 2],
+        });
+      }
+
+      // Simple color quantization using a basic k-means approach
+      // Group similar colors together
+      const colorMap = new Map<
+        string,
+        { count: number; color: { r: number; g: number; b: number } }
+      >();
+
+      pixels.forEach((pixel) => {
+        // Create a simplified color key (reduce precision to group similar colors)
+        const key = `${Math.floor(pixel.r / 16) * 16}_${Math.floor(pixel.g / 16) * 16}_${Math.floor(pixel.b / 16) * 16}`;
+
+        if (colorMap.has(key)) {
+          const existing = colorMap.get(key)!;
+          existing.count++;
+          // Average the colors
+          existing.color.r = Math.floor(
+            (existing.color.r * (existing.count - 1) + pixel.r) /
+              existing.count,
+          );
+          existing.color.g = Math.floor(
+            (existing.color.g * (existing.count - 1) + pixel.g) /
+              existing.count,
+          );
+          existing.color.b = Math.floor(
+            (existing.color.b * (existing.count - 1) + pixel.b) /
+              existing.count,
+          );
+        } else {
+          colorMap.set(key, { count: 1, color: { ...pixel } });
+        }
+      });
+
+      // Convert to array and sort by frequency
+      const sortedColors = Array.from(colorMap.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, maxColors);
+
+      // Calculate percentages and format
+      const totalPixels = pixels.length;
+      const dominantColors: DominantColor[] = sortedColors.map(
+        ({ count, color }) => {
+          const percentage = (count / totalPixels) * 100;
+          const hex = `#${color.r.toString(16).padStart(2, '0')}${color.g.toString(16).padStart(2, '0')}${color.b.toString(16).padStart(2, '0')}`;
+
+          return {
+            hex,
+            rgb: color,
+            percentage: Math.round(percentage * 100) / 100, // Round to 2 decimal places
+          };
+        },
+      );
+
+      return dominantColors;
+    },
+    catch: (error) => {
+      console.log(`Error extracting dominant colors from ${file}:`, error);
+      return [];
+    },
+  });
+
+/**
  * Generate a blurhash for an image file with proper EXIF orientation handling
  * @param file - Path to the image file
  * @param maxDim - Maximum dimension for the blurhash thumbnail (default: 64)
@@ -556,6 +657,11 @@ export const makeBlurhash = (file: string, maxDim: number = 64) =>
         Effect.runPromise,
       );
 
+      // Extract dominant colors
+      const dominantColors = await extractDominantColors(file).pipe(
+        Effect.runPromise,
+      );
+
       const { data, info } = await image
         .clone()
         .resize({
@@ -575,7 +681,8 @@ export const makeBlurhash = (file: string, maxDim: number = 64) =>
         w: originalWidth,
         h: originalHeight,
         exif: exifMetadata,
+        dominantColors,
       };
     },
-    catch: () => ({ blurhash: '', w: 0, h: 0, exif: {} }),
+    catch: () => ({ blurhash: '', w: 0, h: 0, exif: {}, dominantColors: [] }),
   });

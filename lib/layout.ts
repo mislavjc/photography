@@ -53,16 +53,8 @@ export function computeNearSquareLayout(manifest: Manifest): Layout {
   let best: Layout | null = null;
 
   for (const cols of candidates) {
-    // Adapt column width to keep overall world width in a nice range
-    let columnWidth = BASE_COL_WIDTH;
-    const roughWidth = cols * columnWidth + (cols - 1) * GAP;
-    if (roughWidth < TARGET_MIN_WORLD) {
-      const scale = TARGET_MIN_WORLD / roughWidth;
-      columnWidth = Math.round(columnWidth * scale);
-    } else if (roughWidth > TARGET_MAX_WORLD) {
-      const scale = TARGET_MAX_WORLD / roughWidth;
-      columnWidth = Math.max(120, Math.round(columnWidth * scale));
-    }
+    // Use consistent column width regardless of photo count
+    const columnWidth = BASE_COL_WIDTH;
 
     const colHeights = new Array(cols).fill(0);
     const items: PlacedItem[] = [];

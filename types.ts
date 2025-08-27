@@ -20,6 +20,11 @@ export interface ExifMetadata {
     altitude?: number;
   } | null;
   dateTime: string | null;
+  dominantColors?: Array<{
+    hex: string;
+    rgb: { r: number; g: number; b: number };
+    percentage: number;
+  }>;
 }
 
 export interface ManifestEntry {
@@ -88,3 +93,18 @@ export interface AccumulatedDelta {
 }
 
 export type TimeRange = 'all' | 'morning' | 'afternoon' | 'evening' | 'night';
+
+export type ColorRange =
+  | 'all'
+  | 'red'
+  | 'blue'
+  | 'green'
+  | 'yellow'
+  | 'purple'
+  | 'orange'
+  | 'pink'
+  | 'cyan'
+  | 'brown'
+  | 'gray'
+  | 'black'
+  | 'white';
