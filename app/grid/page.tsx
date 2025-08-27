@@ -40,7 +40,7 @@ export default async function Page({ searchParams }: HomePageProps) {
   return (
     <div>
       <PannableGrid manifest={filteredManifest} initialLayout={layout} />
-      <PhotoFilter />
+      {/* <PhotoFilter /> */}
     </div>
   );
 }
