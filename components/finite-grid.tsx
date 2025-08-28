@@ -11,11 +11,12 @@ const SSR_SAFE_VH = 800;
 
 const VIRTUAL_MARGIN = 400;
 
-// Kinetics
-const INERTIA_DURATION_MS = 1000; // <-- 1 second coast
-const SPEED_SMOOTHING = 0.22; // exponential smoothing for pointer velocity
-const MAX_SPEED = 7.0; // px/ms (tune up/down)
-const MIN_INERTIA_SPEED = 0.02; // below this, don’t start inertia
+// Kinetics (tuned for snappier, non-slippery feel)
+const INERTIA_TAU_MS = 240; // exponential decay time-constant (~0.24s)
+const SPEED_SMOOTHING = 0.12; // less smoothing → more accurate velocity
+const MAX_SPEED = 3.5; // clamp swipe velocity
+const MIN_INERTIA_SPEED = 0.06; // only fling on intentional swipes
+const DRAG_GAIN = 0.9; // move world a bit less than the cursor (heavier feel)
 const PAD = 200;
 
 function clamp(n: number, min: number, max: number) {
@@ -81,16 +82,12 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
   const lastPosRef = useRef<{ x: number; y: number; t: number } | null>(null);
   const velRef = useRef({ vx: 0, vy: 0 }); // smoothed pointer velocity
 
-  // Inertia state
+  // Inertia state (simplified: velocity with exponential decay)
   const inertiaRef = useRef<{
     active: boolean;
-    start: number; // ms
-    t: number; // elapsed ms
     lastTick: number; // ms
-    vx0: number; // px/ms (initial velocity at release)
-    vy0: number;
-    ax: number; // px/ms^2 (constant decel so it stops at 1s)
-    ay: number;
+    vx: number; // px/ms (current)
+    vy: number; // px/ms (current)
   } | null>(null);
 
   const rafRef = useRef<number | null>(null);
@@ -102,75 +99,37 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
       if (inert && inert.active) {
         const now = performance.now();
         const dt = Math.max(0, now - inert.lastTick); // ms
-        const tPrev = inert.t;
-        const tNext = Math.min(INERTIA_DURATION_MS, tPrev + dt);
 
-        // Velocity at start of this frame
-        const vxPrev = inert.vx0 + inert.ax * tPrev;
-        const vyPrev = inert.vy0 + inert.ay * tPrev;
+        // Exponential velocity decay: v(t+dt) = v * exp(-dt/τ)
+        const k = Math.exp(-dt / INERTIA_TAU_MS);
 
-        // Displacement over dt with constant acceleration: s = v*dt + 0.5*a*dt^2
-        const dx = vxPrev * dt + 0.5 * inert.ax * dt * dt;
-        const dy = vyPrev * dt + 0.5 * inert.ay * dt * dt;
+        // Displacement under exp decay over dt: s = v * τ * (1 - k)
+        const dx = inert.vx * INERTIA_TAU_MS * (1 - k);
+        const dy = inert.vy * INERTIA_TAU_MS * (1 - k);
 
-        // Apply (note: same sign convention as dragging → subtract)
-        let nextX = camRef.current.x - dx;
-        let nextY = camRef.current.y - dy;
+        const nextX = camRef.current.x - dx;
+        const nextY = camRef.current.y - dy;
 
-        // Clamp to bounds and stop the axis that hit a wall
+        // Clamp & kill the axis that hits bounds
         const clampedX = clamp(nextX, minX, maxX);
         const clampedY = clamp(nextY, minY, maxY);
 
-        // If we collided on X and are still trying to push into the wall → stop X inertia
-        if (clampedX !== nextX) {
-          // zero X motion going forward
-          inertiaRef.current = {
-            ...inert,
-            vx0: 0,
-            ax: 0,
-            start: inert.start,
-            t: tNext,
-            lastTick: now,
-            vy0: inert.vy0,
-            ay: inert.ay,
-          };
-          nextX = clampedX;
-        }
-        if (clampedY !== nextY) {
-          inertiaRef.current = {
-            ...inert,
-            vy0: 0,
-            ay: 0,
-            start: inert.start,
-            t: tNext,
-            lastTick: now,
-            vx0: inertiaRef.current!.vx0,
-            ax: inertiaRef.current!.ax,
-          };
-          nextY = clampedY;
-        }
+        // Update velocities for next frame
+        let nextVx = inert.vx * k;
+        let nextVy = inert.vy * k;
+
+        if (clampedX !== nextX) nextVx = 0;
+        if (clampedY !== nextY) nextVy = 0;
 
         setCam({ x: clampedX, y: clampedY });
         camRef.current = { x: clampedX, y: clampedY };
 
-        // Advance time
-        const stillInTime = tNext < INERTIA_DURATION_MS;
-        const stillMoving =
-          Math.abs(inertiaRef.current!.vx0 + inertiaRef.current!.ax * tNext) >
-            0.001 ||
-          Math.abs(inertiaRef.current!.vy0 + inertiaRef.current!.ay * tNext) >
-            0.001;
-
-        // Update inertia clock
-        if (inertiaRef.current) {
-          inertiaRef.current.t = tNext;
-          inertiaRef.current.lastTick = now;
-        }
-
-        // Stop when time’s up or both axes done
-        if (!stillInTime || !stillMoving) {
-          inertiaRef.current = null;
-        }
+        inertiaRef.current = {
+          active: Math.hypot(nextVx, nextVy) > 0.01, // stop quickly
+          lastTick: now,
+          vx: nextVx,
+          vy: nextVy,
+        };
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -233,15 +192,18 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
 
     if (!draggingRef.current) return;
 
-    // Move camera opposite to pointer
+    // Heavier feel while dragging
+    const ddx = dx * DRAG_GAIN;
+    const ddy = dy * DRAG_GAIN;
+
     setCam((c) => {
-      const nx = clamp(c.x - dx, minX, maxX);
-      const ny = clamp(c.y - dy, minY, maxY);
+      const nx = clamp(c.x - ddx, minX, maxX);
+      const ny = clamp(c.y - ddy, minY, maxY);
       camRef.current = { x: nx, y: ny };
       return { x: nx, y: ny };
     });
 
-    // Exponential smoothing for velocity (px/ms)
+    // Exponential smoothing for velocity (px/ms), clamped
     const sampleVx = clamp(dx / dt, -MAX_SPEED, MAX_SPEED);
     const sampleVy = clamp(dy / dt, -MAX_SPEED, MAX_SPEED);
     velRef.current = {
@@ -283,24 +245,10 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
     if (draggingRef.current) {
       const { vx, vy } = velRef.current;
       const speed = Math.hypot(vx, vy);
-      if (speed >= MIN_INERTIA_SPEED) {
-        const now = performance.now();
-        // Constant deceleration: a = -v0 / T (per axis)
-        const ax = -vx / INERTIA_DURATION_MS;
-        const ay = -vy / INERTIA_DURATION_MS;
-        inertiaRef.current = {
-          active: true,
-          start: now,
-          t: 0,
-          lastTick: now,
-          vx0: vx,
-          vy0: vy,
-          ax,
-          ay,
-        };
-      } else {
-        inertiaRef.current = null;
-      }
+      inertiaRef.current =
+        speed >= MIN_INERTIA_SPEED
+          ? { active: true, lastTick: performance.now(), vx, vy }
+          : null;
     }
 
     // Reset state
@@ -358,17 +306,18 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onWheel={(e) => {
+        const WHEEL_GAIN = 0.8; // lower = heavier
         // desktop nicety: wheel pans; shift for horizontal
         if (e.shiftKey) {
           setCam((c) => {
-            const nx = clamp(c.x + e.deltaY, minX, maxX);
+            const nx = clamp(c.x + e.deltaY * WHEEL_GAIN, minX, maxX);
             camRef.current = { x: nx, y: c.y };
             return { x: nx, y: c.y };
           });
         } else {
           setCam((c) => {
-            const nx = clamp(c.x + e.deltaX, minX, maxX);
-            const ny = clamp(c.y + e.deltaY, minY, maxY);
+            const nx = clamp(c.x + e.deltaX * WHEEL_GAIN, minX, maxX);
+            const ny = clamp(c.y + e.deltaY * WHEEL_GAIN, minY, maxY);
             camRef.current = { x: nx, y: ny };
             return { x: nx, y: ny };
           });
