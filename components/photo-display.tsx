@@ -230,9 +230,6 @@ export function PhotoDisplay({
 
         <div className="h-[env(safe-area-inset-bottom)]" />
       </div>
-
-      {/* Safe area bottom spacing for content */}
-      <div className="h-[env(safe-area-inset-bottom)]" />
     </div>
   );
 }

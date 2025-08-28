@@ -1,4 +1,4 @@
-import { PhotoFilter } from 'components/photo-filter';
+// import { PhotoFilter } from 'components/photo-filter';
 import { filterManifestByColorRange } from 'lib/color-filter';
 import { computeNearSquareLayout } from 'lib/layout';
 import { loadManifest } from 'lib/manifest-server';
@@ -42,7 +42,11 @@ export default async function Page({ searchParams }: HomePageProps) {
 
   return (
     <div>
-      <PannableGrid manifest={filteredManifest} initialLayout={layout} />
+      <PannableGrid
+        manifest={filteredManifest}
+        initialLayout={layout}
+        stateKey={`grid:${timeRange}:${colorRange}`}
+      />
       {/* <PhotoFilter /> */}
     </div>
   );

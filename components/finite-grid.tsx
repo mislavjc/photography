@@ -43,9 +43,14 @@ function useViewportSize() {
 type Props = {
   manifest: Manifest;
   initialLayout?: Layout;
+  stateKey?: string;
 };
 
-export function PannableGrid({ manifest, initialLayout }: Props) {
+export function PannableGrid({
+  manifest,
+  initialLayout,
+  stateKey = 'grid:default',
+}: Props) {
   const router = useRouter();
   const { vw, vh } = useViewportSize();
   const layout = useMemo(
@@ -297,6 +302,52 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
     setCam({ x: nx, y: ny });
     camRef.current = { x: nx, y: ny };
   }, [vw, vh, layout.width, layout.height]); // eslint-disable-line
+
+  // Load saved cam AFTER we know vw/vh & layout (avoid SSR mismatch)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(stateKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { x: number; y: number } | null;
+      if (!saved) return;
+
+      const nx = clamp(saved.x, minX, maxX);
+      const ny = clamp(saved.y, minY, maxY);
+      setCam({ x: nx, y: ny });
+      camRef.current = { x: nx, y: ny };
+    } catch {}
+  }, [stateKey, vw, vh, layout.width, layout.height, minX, maxX, minY, maxY]);
+
+  // Debounced saver
+  const saveTimer = useRef<number | null>(null);
+  const saveCam = React.useCallback(
+    (c: { x: number; y: number }) => {
+      try {
+        sessionStorage.setItem(stateKey, JSON.stringify({ x: c.x, y: c.y }));
+      } catch {}
+    },
+    [stateKey],
+  );
+
+  useEffect(() => {
+    if (saveTimer.current) cancelAnimationFrame(saveTimer.current);
+    saveTimer.current = requestAnimationFrame(() => saveCam(cam));
+    return () => {
+      if (saveTimer.current) cancelAnimationFrame(saveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cam.x, cam.y, stateKey]);
+
+  // Save on tab hide / page unload
+  useEffect(() => {
+    const onHide = () => saveCam(camRef.current);
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('beforeunload', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('beforeunload', onHide);
+    };
+  }, [saveCam]);
 
   return (
     <div
