@@ -1,5 +1,6 @@
 'use client';
 
+import { Picture } from 'components/picture';
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -272,7 +273,7 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
         if (photoElement) {
           const filename = photoElement.getAttribute('data-filename');
           if (filename) {
-            router.push(`/grid/${encodeURIComponent(filename)}`);
+            router.push(`/${encodeURIComponent(filename)}`);
           }
         }
       }
@@ -395,9 +396,11 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
             style={{ left: it.x, top: it.y, width: it.w, height: it.h }}
           >
             <Picture
-              filename={it.filename}
+              uuidWithExt={it.filename}
               alt={it.filename}
-              className="w-full h-full object-cover rounded-lg shadow-sm bg-gray-50"
+              profile="grid"
+              className="w-full h-full object-cover bg-gray-50"
+              sizes={`${Math.round(it.w)}px`}
             />
           </article>
         ))}
@@ -418,60 +421,5 @@ export function PannableGrid({ manifest, initialLayout }: Props) {
         </div>
       )}
     </div>
-  );
-}
-
-// ---------- image helpers (unchanged) -----------
-const AVAILABLE_WIDTHS = [160, 240, 320, 480, 640, 800, 960] as const;
-type Formats = 'avif' | 'webp' | 'jpeg';
-
-function getImageBaseName(filename: string): string {
-  return filename.replace(/\.[^.]+$/, '');
-}
-function r2VariantUrl(filename: string, width: number, format: Formats) {
-  const base = getImageBaseName(filename);
-  return `https://r2.photography.mislavjc.com/variants/${format}/${width}/${base}.${format}`;
-}
-function buildSrcSet(filename: string, format: Formats) {
-  return AVAILABLE_WIDTHS.map(
-    (w) => `${r2VariantUrl(filename, w, format)} ${w}w`,
-  ).join(', ');
-}
-const DEFAULT_SIZES =
-  '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 220px';
-
-function Picture({
-  filename,
-  alt,
-  loading = 'lazy',
-  className = '',
-}: {
-  filename: string;
-  alt: string;
-  loading?: 'lazy' | 'eager';
-  className?: string;
-}) {
-  return (
-    <picture className={className}>
-      <source
-        type="image/avif"
-        srcSet={buildSrcSet(filename, 'avif')}
-        sizes={DEFAULT_SIZES}
-      />
-      <source
-        type="image/webp"
-        srcSet={buildSrcSet(filename, 'webp')}
-        sizes={DEFAULT_SIZES}
-      />
-      <img
-        src={r2VariantUrl(filename, 320, 'jpeg')}
-        srcSet={buildSrcSet(filename, 'jpeg')}
-        sizes={DEFAULT_SIZES}
-        alt={alt}
-        loading={loading}
-        className="w-full h-full object-cover block"
-        draggable={false}
-      />
-    </picture>
   );
 }

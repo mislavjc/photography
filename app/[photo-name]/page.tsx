@@ -1,6 +1,5 @@
 import { PhotoDisplay } from 'components/photo-display';
 import { loadManifest } from 'lib/manifest-server';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 interface PhotoPageProps {
@@ -18,17 +17,12 @@ export default async function PhotoPage({ params }: PhotoPageProps) {
   const photoData = manifest[photoName];
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="mb-8">
-        <Link
-          href="/grid"
-          className="inline-flex items-center text-lg hover:opacity-80 transition-opacity"
-        >
-          ← Back to Grid
-        </Link>
-      </div>
-
-      <PhotoDisplay photoName={photoName} photoData={photoData} />
-    </div>
+    <PhotoDisplay
+      photoName={photoName}
+      photoData={photoData}
+      backHref="/"
+      dockHeaderRems={3.5}
+      showGrid
+    />
   );
 }
