@@ -397,7 +397,7 @@ export function PannableGrid({
             <article
               key={it.filename}
               data-filename={it.filename}
-              className="absolute cursor-pointer hover:opacity-80 transition-opacity"
+              className="absolute cursor-pointer"
               style={{ left: it.x, top: it.y, width: it.w, height: it.h }}
             >
               <Picture
