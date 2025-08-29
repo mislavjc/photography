@@ -1,6 +1,7 @@
 'use client';
 import type { PlacedItem } from 'lib/layout';
-import React from 'react';
+import { motion } from 'motion/react';
+import React, { useState } from 'react';
 import type { Manifest } from 'types';
 
 type MinimapProps = {
@@ -65,6 +66,7 @@ export function Minimap({
   const [cursor, setCursor] = React.useState<'grab' | 'grabbing' | 'crosshair'>(
     'crosshair',
   );
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   function clamp(n: number, min: number, max: number) {
     return Math.max(min, Math.min(max, n));
@@ -177,94 +179,141 @@ export function Minimap({
   }, [tiles, manifest, scale, offsetX, offsetY, sampleStep, pad]);
 
   return (
-    <div
+    <motion.div
+      layout
+      layoutId="minimap"
       className={[
         'rounded-xl shadow-xl ring-2 ring-gray-200/50',
         'bg-white border border-gray-200/50',
         'pointer-events-auto',
         className ?? '',
       ].join(' ')}
-      style={{ width: outer, height: outer }}
+      style={{
+        width: isCollapsed ? 40 : outer,
+        height: isCollapsed ? 40 : outer,
+      }}
+      transition={{
+        layout: {
+          duration: 0.2,
+          ease: 'easeOut',
+        },
+      }}
+      onClick={
+        !isCollapsed
+          ? undefined
+          : (e) => {
+              e.stopPropagation();
+              setIsCollapsed(false);
+            }
+      }
       onPointerDown={(e) => e.stopPropagation()}
       onPointerMove={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
       onPointerCancel={(e) => e.stopPropagation()}
+      whileHover={
+        !isCollapsed
+          ? undefined
+          : { scale: 1.05, transition: { duration: 0.1 } }
+      }
+      whileTap={
+        !isCollapsed
+          ? undefined
+          : { scale: 0.95, transition: { duration: 0.05 } }
+      }
     >
-      <svg
-        width={outer}
-        height={outer}
-        className="block"
-        style={{ cursor }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        role="img"
-        aria-label="Minimap"
-      >
-        {/* Frame area */}
-        <rect
-          x={0}
-          y={0}
-          width={outer}
-          height={outer}
-          rx={12}
-          ry={12}
-          fill="transparent"
-        />
-        {/* World area background (square fit) */}
-        <rect
-          x={offsetX}
-          y={offsetY}
-          width={drawW}
-          height={drawH}
-          fill="#fafafa"
-          strokeWidth={1.5}
-          rx={6}
-          ry={6}
-        />
-        {/* Actual content bounds inside effective world (optional guide) */}
-        <rect
-          x={offsetX + pad * scale}
-          y={offsetY + pad * scale}
-          width={worldW * scale}
-          height={worldH * scale}
-          fill="none"
-          stroke="#9ca3af"
-          strokeDasharray="2,2"
-          strokeWidth={0.8}
-        />
-        {/* Tiles */}
-        <g>{rects}</g>
-        {/* Viewport */}
-        <rect
-          x={vx}
-          y={vy}
-          width={vw}
-          height={vh}
-          fill="none"
-          stroke="#111827"
-          strokeWidth={2}
-        />
-        <line
-          x1={vx}
-          y1={vy}
-          x2={vx + vw}
-          y2={vy + vh}
-          stroke="#111827"
-          strokeWidth={1}
-        />
-        <line
-          x1={vx + vw}
-          y1={vy}
-          x2={vx}
-          y2={vy + vh}
-          stroke="#111827"
-          strokeWidth={1}
-        />
-      </svg>
-    </div>
+      {isCollapsed ? (
+        <div className="w-full h-full flex items-center justify-center cursor-pointer">
+          <span className="text-gray-600 text-sm font-bold">🗺️</span>
+        </div>
+      ) : (
+        <>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsCollapsed(true);
+            }}
+            className="absolute top-2 right-2 z-10 w-6 h-6 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-600 transition-colors"
+            title="Collapse minimap"
+          >
+            ×
+          </button>
+          <svg
+            width={outer}
+            height={outer}
+            className="block"
+            style={{ cursor }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
+            role="img"
+            aria-label="Minimap"
+          >
+            {/* Frame area */}
+            <rect
+              x={0}
+              y={0}
+              width={outer}
+              height={outer}
+              rx={12}
+              ry={12}
+              fill="transparent"
+            />
+            {/* World area background (square fit) */}
+            <rect
+              x={offsetX}
+              y={offsetY}
+              width={drawW}
+              height={drawH}
+              fill="#fafafa"
+              strokeWidth={1.5}
+              rx={6}
+              ry={6}
+            />
+            {/* Actual content bounds inside effective world (optional guide) */}
+            <rect
+              x={offsetX + pad * scale}
+              y={offsetY + pad * scale}
+              width={worldW * scale}
+              height={worldH * scale}
+              fill="none"
+              stroke="#9ca3af"
+              strokeDasharray="2,2"
+              strokeWidth={0.8}
+            />
+            {/* Tiles */}
+            <g>{rects}</g>
+            {/* Viewport */}
+            <rect
+              x={vx}
+              y={vy}
+              width={vw}
+              height={vh}
+              fill="none"
+              stroke="#111827"
+              strokeWidth={2}
+            />
+            <line
+              x1={vx}
+              y1={vy}
+              x2={vx + vw}
+              y2={vy + vh}
+              stroke="#111827"
+              strokeWidth={1}
+            />
+            <line
+              x1={vx + vw}
+              y1={vy}
+              x2={vx}
+              y2={vy + vh}
+              stroke="#111827"
+              strokeWidth={1}
+            />
+          </svg>
+        </>
+      )}
+    </motion.div>
   );
 }
