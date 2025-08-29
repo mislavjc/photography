@@ -9,7 +9,7 @@ interface DevHudProps {
   cam: { x: number; y: number };
   vw: number;
   vh: number;
-  visibleItems: typeof layout.items;
+  visibleItems: Layout['items'];
   minX: number;
   minY: number;
   maxX: number;

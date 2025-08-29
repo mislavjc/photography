@@ -144,7 +144,7 @@ export function Minimap({
 
   // Build rects (optionally downsampled)
   const rects = React.useMemo(() => {
-    const out: JSX.Element[] = [];
+    const out: React.JSX.Element[] = [];
     // stride to reduce DOM if needed
     for (let i = 0; i < tiles.length; i += Math.max(1, sampleStep)) {
       const t = tiles[i];
@@ -157,10 +157,7 @@ export function Minimap({
 
       // Extract dominant color (fallback to gray)
       const mc = manifest[t.filename];
-      const hex =
-        mc?.exif?.dominantColors?.[0]?.hex ??
-        mc?.exif?.dominantColors?.[0] ??
-        '#c7c7c7';
+      const hex = mc?.exif?.dominantColors?.[0]?.hex || '#c7c7c7';
 
       out.push(
         <rect
