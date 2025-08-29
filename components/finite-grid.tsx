@@ -1,5 +1,7 @@
 'use client';
 
+import { DevHud } from 'components/dev-hud';
+import { Minimap } from 'components/minimap';
 import { Picture } from 'components/picture';
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
 import { useRouter } from 'next/navigation';
@@ -372,6 +374,21 @@ export function PannableGrid({
     [stateKey],
   );
 
+  // Add a jump helper (clamps + saves)
+  const jumpCam = React.useCallback(
+    (c: { x: number; y: number }) => {
+      const nx = clamp(c.x, minX, maxX);
+      const ny = clamp(c.y, minY, maxY);
+      setCam({ x: nx, y: ny });
+      camRef.current = { x: nx, y: ny };
+      // persist immediately for snappy back/forward behavior
+      try {
+        sessionStorage.setItem(stateKey, JSON.stringify({ x: nx, y: ny }));
+      } catch {}
+    },
+    [minX, maxX, minY, maxY, stateKey],
+  );
+
   // Debounced saver (kept)
   const saveTimer = useRef<number | null>(null);
 
@@ -469,19 +486,36 @@ export function PannableGrid({
         })}
       </div>
 
+      {/* Minimap */}
+      <Minimap
+        className="absolute right-4 bottom-4"
+        worldW={layout.width}
+        worldH={layout.height}
+        camX={cam.x}
+        camY={cam.y}
+        viewW={vw}
+        viewH={vh}
+        tiles={layout.items} // {x,y,w,h,filename} in your layout
+        manifest={manifest}
+        onSetCam={jumpCam}
+        sampleStep={1} // increase to 2/3/4 if you have thousands of tiles
+        sizePx={168}
+        pad={PAD}
+      />
+
       {/* HUD - dev only */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="absolute left-4 bottom-4 text-xs bg-white/80 backdrop-blur rounded-md px-2 py-1 shadow">
-          <div>
-            World: {Math.round(layout.width)} × {Math.round(layout.height)} px
-          </div>
-          <div>
-            Cam: {Math.round(cam.x)}, {Math.round(cam.y)}
-          </div>
-          <div>
-            Nodes: {visibleItems.length}/{layout.items.length}
-          </div>
-        </div>
+        <DevHud
+          layout={layout}
+          cam={cam}
+          vw={vw}
+          vh={vh}
+          visibleItems={visibleItems}
+          minX={minX}
+          minY={minY}
+          maxX={maxX}
+          maxY={maxY}
+        />
       )}
     </div>
   );
