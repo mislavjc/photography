@@ -23,6 +23,26 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+// --- helpers ---
+function readSavedCam(key: string): { x: number; y: number } | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (
+      obj &&
+      typeof obj.x === 'number' &&
+      isFinite(obj.x) &&
+      typeof obj.y === 'number' &&
+      isFinite(obj.y)
+    ) {
+      return { x: obj.x, y: obj.y };
+    }
+  } catch {}
+  return null;
+}
+
 function useViewportSize() {
   const [vw, setVw] = useState(SSR_SAFE_VW);
   const [vh, setVh] = useState(SSR_SAFE_VH);
@@ -58,19 +78,39 @@ export function PannableGrid({
     [manifest, initialLayout],
   );
 
-  // Initial centered camera (SSR-safe)
-  const initialCam = useMemo(() => {
-    const minX = -PAD;
-    const minY = -PAD;
-    const maxX = Math.max(0, layout.width - SSR_SAFE_VW + PAD);
-    const maxY = Math.max(0, layout.height - SSR_SAFE_VH + PAD);
-    return {
-      x: clamp((layout.width - SSR_SAFE_VW) / 2, minX, maxX),
-      y: clamp((layout.height - SSR_SAFE_VH) / 2, minY, maxY),
-    };
-  }, [layout.width, layout.height]);
+  // Track whether we restored from storage to avoid recentering over it
+  const restoredFromStorageRef = useRef(false);
 
-  const [cam, setCam] = useState(initialCam);
+  // Initial cam (SSR-safe): prefer saved, else center on SSR_SAFE_*
+  const [cam, setCam] = useState(() => {
+    const saved = readSavedCam(stateKey);
+    if (saved) {
+      restoredFromStorageRef.current = true;
+      return saved;
+    }
+    const minX = -PAD,
+      minY = -PAD;
+    const maxX = Math.max(
+      0,
+      (initialLayout?.width ?? layout.width) - SSR_SAFE_VW + PAD,
+    );
+    const maxY = Math.max(
+      0,
+      (initialLayout?.height ?? layout.height) - SSR_SAFE_VH + PAD,
+    );
+    return {
+      x: clamp(
+        ((initialLayout?.width ?? layout.width) - SSR_SAFE_VW) / 2,
+        minX,
+        maxX,
+      ),
+      y: clamp(
+        ((initialLayout?.height ?? layout.height) - SSR_SAFE_VH) / 2,
+        minY,
+        maxY,
+      ),
+    };
+  });
   const camRef = useRef(cam);
   useEffect(() => {
     camRef.current = cam;
@@ -226,7 +266,7 @@ export function PannableGrid({
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {}
 
-    // If we weren't dragging and have click start info, check for navigation
+    // [click-to-open] save immediately BEFORE navigating
     if (!draggingRef.current && clickStartRef.current) {
       const clickDuration = performance.now() - clickStartRef.current.t;
       const clickDistance = Math.hypot(
@@ -234,19 +274,19 @@ export function PannableGrid({
         e.clientY - clickStartRef.current.y,
       );
 
-      // If click was quick and didn't move much, navigate
       if (clickDuration < 300 && clickDistance < 10) {
         const photoElement = clickStartRef.current.element;
         if (photoElement) {
           const filename = photoElement.getAttribute('data-filename');
           if (filename) {
+            saveCam(camRef.current); // <— ensure persisted before route change
             router.push(`/${encodeURIComponent(filename)}`);
           }
         }
       }
     }
 
-    // If we were dragging, start inertia if speed is meaningful
+    // inertia start (unchanged) ...
     if (draggingRef.current) {
       const { vx, vy } = velRef.current;
       const speed = Math.hypot(vx, vy);
@@ -254,9 +294,10 @@ export function PannableGrid({
         speed >= MIN_INERTIA_SPEED
           ? { active: true, lastTick: performance.now(), vx, vy }
           : null;
+      // also save right after a drag ends (snappier persistence)
+      saveCam(camRef.current);
     }
 
-    // Reset state
     draggingRef.current = false;
     lastPosRef.current = null;
     clickStartRef.current = null;
@@ -294,32 +335,34 @@ export function PannableGrid({
     return out;
   }, [layout, virtualRect.x, virtualRect.y, virtualRect.w, virtualRect.h]);
 
-  // Recenter after hydration if viewport differs
+  // On first real viewport/layout paint: clamp to bounds.
+  // If we DID NOT restore from storage, center to live viewport once.
+  const didHydrateCenterRef = useRef(false);
   useEffect(() => {
-    if (vw === SSR_SAFE_VW && vh === SSR_SAFE_VH) return;
-    const nx = clamp((layout.width - vw) / 2, minX, maxX);
-    const ny = clamp((layout.height - vh) / 2, minY, maxY);
-    setCam({ x: nx, y: ny });
-    camRef.current = { x: nx, y: ny };
-  }, [vw, vh, layout.width, layout.height]); // eslint-disable-line
+    // Always clamp to new bounds
+    const clamped = {
+      x: clamp(camRef.current.x, minX, maxX),
+      y: clamp(camRef.current.y, minY, maxY),
+    };
 
-  // Load saved cam AFTER we know vw/vh & layout (avoid SSR mismatch)
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(stateKey);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as { x: number; y: number } | null;
-      if (!saved) return;
-
-      const nx = clamp(saved.x, minX, maxX);
-      const ny = clamp(saved.y, minY, maxY);
+    // Center only once if no restore happened
+    if (!restoredFromStorageRef.current && !didHydrateCenterRef.current) {
+      didHydrateCenterRef.current = true;
+      const nx = clamp((layout.width - vw) / 2, minX, maxX);
+      const ny = clamp((layout.height - vh) / 2, minY, maxY);
       setCam({ x: nx, y: ny });
       camRef.current = { x: nx, y: ny };
-    } catch {}
-  }, [stateKey, vw, vh, layout.width, layout.height, minX, maxX, minY, maxY]);
+      return;
+    }
 
-  // Debounced saver
-  const saveTimer = useRef<number | null>(null);
+    // If we restored or already centered, just clamp (no recenter)
+    if (clamped.x !== camRef.current.x || clamped.y !== camRef.current.y) {
+      setCam(clamped);
+      camRef.current = clamped;
+    }
+  }, [vw, vh, layout.width, layout.height, minX, maxX, minY, maxY]);
+
+  // Persist helpers
   const saveCam = React.useCallback(
     (c: { x: number; y: number }) => {
       try {
@@ -328,6 +371,12 @@ export function PannableGrid({
     },
     [stateKey],
   );
+
+  // Debounced saver (kept)
+  const saveTimer = useRef<number | null>(null);
+
+  // Optional: also save during wheel pan "idle" (coarse heuristic)
+  const wheelSaveTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (saveTimer.current) cancelAnimationFrame(saveTimer.current);
@@ -338,14 +387,16 @@ export function PannableGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cam.x, cam.y, stateKey]);
 
-  // Save on tab hide / page unload
+  // Save on visibility/pagehide/beforeunload (BFCache safe)
   useEffect(() => {
-    const onHide = () => saveCam(camRef.current);
-    document.addEventListener('visibilitychange', onHide);
-    window.addEventListener('beforeunload', onHide);
+    const onFreeze = () => saveCam(camRef.current);
+    document.addEventListener('visibilitychange', onFreeze);
+    window.addEventListener('beforeunload', onFreeze);
+    window.addEventListener('pagehide', onFreeze); // important for BFCache
     return () => {
-      document.removeEventListener('visibilitychange', onHide);
-      window.removeEventListener('beforeunload', onHide);
+      document.removeEventListener('visibilitychange', onFreeze);
+      window.removeEventListener('beforeunload', onFreeze);
+      window.removeEventListener('pagehide', onFreeze);
     };
   }, [saveCam]);
 
@@ -357,8 +408,7 @@ export function PannableGrid({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onWheel={(e) => {
-        const WHEEL_GAIN = 0.8; // lower = heavier
-        // desktop nicety: wheel pans; shift for horizontal
+        const WHEEL_GAIN = 0.8;
         if (e.shiftKey) {
           setCam((c) => {
             const nx = clamp(c.x + e.deltaY * WHEEL_GAIN, minX, maxX);
@@ -373,8 +423,11 @@ export function PannableGrid({
             return { x: nx, y: ny };
           });
         }
-        // Optional: wheel inertia (commented out to not conflict with pointer inertia)
-        // inertiaRef.current = null;
+        if (wheelSaveTimer.current)
+          cancelAnimationFrame(wheelSaveTimer.current);
+        wheelSaveTimer.current = requestAnimationFrame(() =>
+          saveCam(camRef.current),
+        );
       }}
       role="application"
       aria-label="Pannable photo grid"
