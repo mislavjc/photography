@@ -147,6 +147,7 @@ export function PhotoDisplay({
                   imgClassName="block w-full h-full object-contain object-left-top"
                   pictureClassName="block w-full h-full" // avoid inline <picture>
                   sizes="100vw"
+                  dominantColor={dominant}
                 />
               </div>
             </div>

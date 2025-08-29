@@ -1,9 +1,11 @@
 // components/picture.tsx
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 
 type Formats = 'avif' | 'webp' | 'jpeg';
 type Profile = 'grid' | 'large';
+type Mode = 'intrinsic' | 'fill';
+type Fit = 'contain' | 'cover' | 'none' | 'scale-down' | 'fill';
 
 const GRID_WIDTHS = [160, 240, 320, 480, 640, 800, 960] as const;
 const LARGE_WIDTHS = [
@@ -36,18 +38,21 @@ interface PictureProps {
   profile: Profile;
   loading?: 'lazy' | 'eager';
   sizes?: string;
-
-  /** Intrinsic photo dimensions (from manifest) to prevent CLS */
   intrinsicWidth: number;
   intrinsicHeight: number;
 
+  /** Class on the WRAPPER (not <picture>) */
+  pictureClassName?: string;
   /** Applied to <img> only */
   imgClassName?: string;
-  /** Optional: class on <picture> */
-  pictureClassName?: string;
-
-  /** Optional inline style for <img> (e.g., objectPosition) */
   imgStyle?: React.CSSProperties;
+
+  /** Dominant color hex for background */
+  dominantColor?: string;
+
+  /** Layout behavior */
+  mode?: Mode;
+  fit?: Fit;
 }
 
 export function Picture({
@@ -58,40 +63,91 @@ export function Picture({
   sizes,
   intrinsicWidth,
   intrinsicHeight,
-  imgClassName = '',
   pictureClassName = '',
+  imgClassName = '',
   imgStyle,
+  dominantColor,
+  mode = 'intrinsic',
+  fit = 'contain',
 }: PictureProps) {
+  const [isLoaded, setIsLoaded] = useState(false);
+
   const widths = profile === 'grid' ? GRID_WIDTHS : LARGE_WIDTHS;
   const defaultSizes =
     profile === 'grid'
       ? '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 220px'
       : '(max-width: 1024px) calc(100vw - 2rem), 100vw';
 
+  // Background color logic
+  const backgroundColor = isLoaded
+    ? 'transparent'
+    : dominantColor || 'transparent';
+
+  // Image styles based on mode
+  const intrinsicImgStyles: React.CSSProperties = {
+    ...(mode === 'intrinsic'
+      ? {
+          display: 'block',
+          width: 'auto', // natural width
+          height: 'auto', // preserve aspect ratio
+          maxWidth: '100%', // shrink to fit parent width if needed
+          maxHeight: '100%', // shrink to fit parent height if needed
+          aspectRatio: `${intrinsicWidth} / ${intrinsicHeight}`,
+        }
+      : {
+          width: '100%',
+          height: '100%', // fill wrapper (wrapper must define height)
+          objectFit: fit,
+        }),
+    ...imgStyle,
+  };
+
+  // Wrapper styles to match img sizing in intrinsic mode
+  const wrapperStyles: React.CSSProperties = {
+    backgroundColor,
+    ...(mode === 'intrinsic' && {
+      display: 'inline-block', // shrink to content width
+      width: 'auto',
+      maxWidth: '100%',
+    }),
+  };
+
+  // Strip height classes that conflict with intrinsic mode
+  const shouldStripHeightClasses = mode === 'intrinsic';
+  const safeImgClass = shouldStripHeightClasses
+    ? imgClassName
+        .split(' ')
+        .filter((c) => c && !/^h-(full|screen|\[.*\])$/.test(c))
+        .join(' ')
+    : imgClassName;
+
   return (
-    <picture className={pictureClassName}>
-      <source
-        type="image/avif"
-        srcSet={buildSrcSet(uuidWithExt, profile, 'avif', widths)}
-        sizes={sizes || defaultSizes}
-      />
-      <source
-        type="image/webp"
-        srcSet={buildSrcSet(uuidWithExt, profile, 'webp', widths)}
-        sizes={sizes || defaultSizes}
-      />
-      <img
-        width={intrinsicWidth}
-        height={intrinsicHeight}
-        src={r2VariantUrl(uuidWithExt, profile, 320, 'jpeg')}
-        srcSet={buildSrcSet(uuidWithExt, profile, 'jpeg', widths)}
-        sizes={sizes || defaultSizes}
-        alt={alt}
-        loading={loading}
-        draggable={false}
-        className={imgClassName}
-        style={imgStyle}
-      />
-    </picture>
+    <div className={pictureClassName} style={wrapperStyles}>
+      <picture>
+        <source
+          type="image/avif"
+          srcSet={buildSrcSet(uuidWithExt, profile, 'avif', widths)}
+          sizes={sizes || defaultSizes}
+        />
+        <source
+          type="image/webp"
+          srcSet={buildSrcSet(uuidWithExt, profile, 'webp', widths)}
+          sizes={sizes || defaultSizes}
+        />
+        <img
+          width={intrinsicWidth}
+          height={intrinsicHeight}
+          src={r2VariantUrl(uuidWithExt, profile, 320, 'jpeg')}
+          srcSet={buildSrcSet(uuidWithExt, profile, 'jpeg', widths)}
+          sizes={sizes || defaultSizes}
+          alt={alt}
+          loading={loading}
+          draggable={false}
+          className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${safeImgClass}`}
+          style={intrinsicImgStyles}
+          onLoad={() => setIsLoaded(true)}
+        />
+      </picture>
+    </div>
   );
 }
