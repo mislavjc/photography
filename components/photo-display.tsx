@@ -128,14 +128,27 @@ export function PhotoDisplay({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-6 gap-y-2">
           {/* IMAGE — mobile: auto height; desktop: viewport minus header */}
           <div className="lg:col-span-8">
-            <div className="relative h-auto lg:h-[calc(100vh-var(--headerH))]">
-              <Picture
-                uuidWithExt={photoName}
-                alt={photoName}
-                profile="large"
-                loading="eager"
-                className="block h-full w-full object-contain object-left-top"
-              />
+            <div
+              className="relative w-full overflow-hidden"
+              style={{
+                aspectRatio: `${photoData.w} / ${photoData.h}`,
+                maxHeight: `calc(100vh - var(--headerH))`,
+              }}
+            >
+              <div className="absolute inset-0">
+                <Picture
+                  uuidWithExt={photoName}
+                  alt={photoName}
+                  profile="large"
+                  loading="eager"
+                  intrinsicWidth={photoData.w}
+                  intrinsicHeight={photoData.h}
+                  // key bits ↓
+                  imgClassName="block w-full h-full object-contain object-left-top"
+                  pictureClassName="block w-full h-full" // avoid inline <picture>
+                  sizes="100vw"
+                />
+              </div>
             </div>
           </div>
 

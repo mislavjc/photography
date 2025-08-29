@@ -1,5 +1,5 @@
+// components/picture.tsx
 'use client';
-
 import React from 'react';
 
 type Formats = 'avif' | 'webp' | 'jpeg';
@@ -16,10 +16,9 @@ function r2VariantUrl(
   width: number,
   format: Formats,
 ) {
-  const base = uuidWithExt.replace(/\.[^.]+$/, ''); // strip ext
+  const base = uuidWithExt.replace(/\.[^.]+$/, '');
   return `https://r2.photography.mislavjc.com/variants/${profile}/${format}/${width}/${base}.${format}`;
 }
-
 function buildSrcSet(
   uuidWithExt: string,
   profile: Profile,
@@ -32,12 +31,23 @@ function buildSrcSet(
 }
 
 interface PictureProps {
-  uuidWithExt: string; // e.g. "1f5a2d2f-....jpg"
+  uuidWithExt: string;
   alt: string;
-  profile: Profile; // "grid" | "large"
+  profile: Profile;
   loading?: 'lazy' | 'eager';
-  className?: string;
-  sizes?: string; // override sizes attribute
+  sizes?: string;
+
+  /** Intrinsic photo dimensions (from manifest) to prevent CLS */
+  intrinsicWidth: number;
+  intrinsicHeight: number;
+
+  /** Applied to <img> only */
+  imgClassName?: string;
+  /** Optional: class on <picture> */
+  pictureClassName?: string;
+
+  /** Optional inline style for <img> (e.g., objectPosition) */
+  imgStyle?: React.CSSProperties;
 }
 
 export function Picture({
@@ -45,19 +55,21 @@ export function Picture({
   alt,
   profile,
   loading = 'lazy',
-  className = '',
   sizes,
+  intrinsicWidth,
+  intrinsicHeight,
+  imgClassName = '',
+  pictureClassName = '',
+  imgStyle,
 }: PictureProps) {
   const widths = profile === 'grid' ? GRID_WIDTHS : LARGE_WIDTHS;
-
-  // sensible defaults per profile
   const defaultSizes =
     profile === 'grid'
       ? '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 220px'
-      : '100vw';
+      : '(max-width: 1024px) calc(100vw - 2rem), 100vw';
 
   return (
-    <picture className={className}>
+    <picture className={pictureClassName}>
       <source
         type="image/avif"
         srcSet={buildSrcSet(uuidWithExt, profile, 'avif', widths)}
@@ -69,13 +81,16 @@ export function Picture({
         sizes={sizes || defaultSizes}
       />
       <img
+        width={intrinsicWidth}
+        height={intrinsicHeight}
         src={r2VariantUrl(uuidWithExt, profile, 320, 'jpeg')}
         srcSet={buildSrcSet(uuidWithExt, profile, 'jpeg', widths)}
         sizes={sizes || defaultSizes}
         alt={alt}
         loading={loading}
         draggable={false}
-        className={className}
+        className={imgClassName}
+        style={imgStyle}
       />
     </picture>
   );

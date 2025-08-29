@@ -388,22 +388,32 @@ export function PannableGrid({
           height: layout.height,
         }}
       >
-        {visibleItems.map((it) => (
-          <article
-            key={it.filename}
-            data-filename={it.filename}
-            className="absolute cursor-pointer hover:opacity-80 transition-opacity"
-            style={{ left: it.x, top: it.y, width: it.w, height: it.h }}
-          >
-            <Picture
-              uuidWithExt={it.filename}
-              alt={it.filename}
-              profile="grid"
-              className="w-full h-full object-cover bg-gray-50"
-              sizes={`${Math.round(it.w)}px`}
-            />
-          </article>
-        ))}
+        {visibleItems.map((it) => {
+          const meta = manifest[it.filename]; // { w, h, ... } from Manifest
+          const intrinsicW = meta?.w ?? 3; // fallback guards
+          const intrinsicH = meta?.h ?? 2;
+
+          return (
+            <article
+              key={it.filename}
+              data-filename={it.filename}
+              className="absolute cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ left: it.x, top: it.y, width: it.w, height: it.h }}
+            >
+              <Picture
+                uuidWithExt={it.filename}
+                alt={it.filename}
+                profile="grid"
+                intrinsicWidth={intrinsicW}
+                intrinsicHeight={intrinsicH}
+                pictureClassName="block w-full h-full"
+                imgClassName="block w-full h-full object-cover bg-gray-50"
+                sizes={`${Math.round(it.w)}px`}
+                loading="lazy"
+              />
+            </article>
+          );
+        })}
       </div>
 
       {/* HUD - dev only */}
