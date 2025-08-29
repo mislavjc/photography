@@ -19,6 +19,7 @@ import { FastAverageColor } from 'fast-average-color';
 import fg from 'fast-glob';
 import mime from 'mime-types';
 import sharp from 'sharp';
+import zlib from 'zlib';
 
 // ----------------------- Types -----------------------
 interface ExifLocation {
@@ -159,6 +160,7 @@ const putObject = (
   Body: Buffer | fs.ReadStream,
   ContentType: string,
   Metadata?: Record<string, string>,
+  options?: { contentEncoding?: string; cacheControl?: string },
 ) =>
   Effect.tryPromise({
     try: () =>
@@ -168,8 +170,12 @@ const putObject = (
           Key,
           Body,
           ContentType,
-          CacheControl: 'public, max-age=31536000, immutable',
+          CacheControl:
+            options?.cacheControl || 'public, max-age=31536000, immutable',
           Metadata,
+          ...(options?.contentEncoding && {
+            ContentEncoding: options.contentEncoding,
+          }),
         }),
       ),
     catch: (e) => new Error(`putObject failed for ${Key}: ${e}`),
@@ -251,8 +257,14 @@ const formatShutter = (t?: string | number | null) => {
   return `${t}s`;
 };
 
-const formatFocal = (f?: number | string | null) =>
-  f != null ? `${f} mm` : null;
+const formatFocal = (f?: number | string | null) => {
+  if (f == null) return null;
+  const str = String(f).trim();
+  // If it already contains 'mm', return as-is
+  if (str.toLowerCase().includes('mm')) return str;
+  // Otherwise add 'mm'
+  return `${str} mm`;
+};
 
 const toNumber = (v: unknown) =>
   typeof v === 'number' ? v : v == null ? undefined : Number(v);
@@ -407,6 +419,44 @@ const makeBlurhash = (file: string, maxDim: number = 64) =>
       };
     },
     catch: () => ({ blurhash: '', w: 0, h: 0 }),
+  });
+
+// ----------------------- Compression helpers -----------------------
+const compressManifest = (buf: Buffer) =>
+  Effect.tryPromise<{ compressed: Buffer; encoding: 'br' | 'gzip' }, Error>({
+    try: async () => {
+      const tryBr = () =>
+        new Promise<Buffer>((res, rej) =>
+          zlib.brotliCompress(
+            buf,
+            {
+              params: {
+                [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
+                [zlib.constants.BROTLI_PARAM_MODE]:
+                  zlib.constants.BROTLI_MODE_TEXT,
+              },
+            },
+            (e, out) => (e ? rej(e) : res(out)),
+          ),
+        );
+
+      const doGzip = () =>
+        new Promise<Buffer>((res, rej) =>
+          zlib.gzip(
+            buf,
+            { level: zlib.constants.Z_BEST_COMPRESSION },
+            (e, out) => (e ? rej(e) : res(out)),
+          ),
+        );
+
+      // Prefer brotli, fallback to gzip
+      try {
+        return { compressed: await tryBr(), encoding: 'br' as const };
+      } catch {
+        return { compressed: await doGzip(), encoding: 'gzip' as const };
+      }
+    },
+    catch: (e) => new Error(`Compression failed: ${e}`),
   });
 
 // ----------------------- AI helpers -----------------------
@@ -579,6 +629,9 @@ const toVariantKey = (
 // ----------------------- Discover -----------------------
 const discoverFiles = Effect.gen(function* () {
   const SRC_DIR = (process.argv[2] || './images').replace(/\/$/, '');
+  const isManifestOnly =
+    process.argv.includes('--manifest-only') ||
+    process.argv.includes('--regenerate-manifest');
   const exts = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff'];
   const patterns = exts.flatMap((e) => [
     `${SRC_DIR}/**/*.${e}`,
@@ -593,7 +646,7 @@ const discoverFiles = Effect.gen(function* () {
       new Error(`No images found. Supported: ${exts.join(', ')}`),
     );
 
-  return { SRC_DIR, files: allFiles };
+  return { SRC_DIR, files: allFiles, isManifestOnly };
 });
 
 // ----------------------- Progress -----------------------
@@ -614,14 +667,21 @@ const createProgressTracker = (total: number) => {
 // ----------------------- Main pipeline per file -----------------------
 const program = Effect.gen(function* () {
   const cfg = yield* getConfig;
-  const { SRC_DIR, files } = yield* discoverFiles;
+  const { SRC_DIR, files, isManifestOnly } = yield* discoverFiles;
 
+  const modeMessage = isManifestOnly ? 'Manifest regeneration' : 'Upload';
   yield* Console.log(
-    `Uploading from ${SRC_DIR} → s3://${cfg.R2_BUCKET}/{${cfg.R2_PREFIX}, ${cfg.R2_VARIANTS_PREFIX}}`,
+    `${modeMessage} from ${SRC_DIR} → s3://${cfg.R2_BUCKET}/{${cfg.R2_PREFIX}, ${cfg.R2_VARIANTS_PREFIX}}`,
   );
   yield* Console.log(
     `Found ${files.length} files | concurrency ${cfg.CONCURRENCY}`,
   );
+
+  if (isManifestOnly) {
+    yield* Console.log(
+      `📋 Manifest-only mode: will verify ALL originals AND variants exist in R2 before regenerating`,
+    );
+  }
 
   if (cfg.VERBOSE) {
     yield* Console.log(`🔧 Config:`);
@@ -693,40 +753,57 @@ const program = Effect.gen(function* () {
         );
         const origKey = toOrigKeyUsingUuid(uuid, ext, cfg.R2_PREFIX);
 
-        if (!sentinel) {
-          // Upload original if not present (or size differs)
+        if (isManifestOnly) {
+          // In manifest-only mode, verify original exists in R2
           const head = yield* headObject(cfg.s3, cfg.R2_BUCKET, origKey);
-          if (head && Number(head?.ContentLength) === st.size) {
-            // already there
-          } else {
-            const ContentType = mime.lookup(file) || 'application/octet-stream';
-            yield* Effect.tryPromise({
-              try: () => {
-                const up = new Upload({
-                  client: cfg.s3,
-                  params: {
-                    Bucket: cfg.R2_BUCKET,
-                    Key: origKey,
-                    Body: fs.createReadStream(file),
-                    ContentType,
-                    CacheControl: 'public, max-age=31536000, immutable',
-                    Metadata: { sha256: hashHex },
-                  },
-                  queueSize: 4,
-                  partSize: 8 * 1024 * 1024,
-                  leavePartsOnError: false,
-                });
-                return up.done();
-              },
-              catch: (e) => new Error(`upload failed for ${file}: ${e}`),
-            });
+          if (!head) {
+            yield* Effect.fail(
+              new Error(
+                `Original image missing in R2: ${origKey} (file: ${file})`,
+              ),
+            );
           }
-          yield* putSentinel(cfg.s3, cfg.R2_BUCKET, hashHex, origKey);
-          if (cfg.VERBOSE) yield* Console.log(`+ original: ${origKey}`);
-        } else if (cfg.VERBOSE) {
-          yield* Console.log(
-            `= duplicate: ${file} (hash ${hashHex.slice(0, 8)}...)`,
-          );
+          if (cfg.VERBOSE) {
+            yield* Console.log(`✓ verified: ${origKey}`);
+          }
+        } else {
+          // Original upload logic (only in upload mode)
+          if (!sentinel) {
+            // Upload original if not present (or size differs)
+            const head = yield* headObject(cfg.s3, cfg.R2_BUCKET, origKey);
+            if (head && Number(head?.ContentLength) === st.size) {
+              // already there
+            } else {
+              const ContentType =
+                mime.lookup(file) || 'application/octet-stream';
+              yield* Effect.tryPromise({
+                try: () => {
+                  const up = new Upload({
+                    client: cfg.s3,
+                    params: {
+                      Bucket: cfg.R2_BUCKET,
+                      Key: origKey,
+                      Body: fs.createReadStream(file),
+                      ContentType,
+                      CacheControl: 'public, max-age=31536000, immutable',
+                      Metadata: { sha256: hashHex },
+                    },
+                    queueSize: 4,
+                    partSize: 8 * 1024 * 1024,
+                    leavePartsOnError: false,
+                  });
+                  return up.done();
+                },
+                catch: (e) => new Error(`upload failed for ${file}: ${e}`),
+              });
+            }
+            yield* putSentinel(cfg.s3, cfg.R2_BUCKET, hashHex, origKey);
+            if (cfg.VERBOSE) yield* Console.log(`+ original: ${origKey}`);
+          } else if (cfg.VERBOSE) {
+            yield* Console.log(
+              `= duplicate: ${file} (hash ${hashHex.slice(0, 8)}...)`,
+            );
+          }
         }
 
         // Variants: probe everything needed
@@ -754,7 +831,8 @@ const program = Effect.gen(function* () {
           }
         }
 
-        if (needed.length) {
+        if (!isManifestOnly && needed.length) {
+          // Only generate variants in upload mode
           const uniqueWidths = Array.from(new Set(needed.map((n) => n.w))).sort(
             (a, b) => a - b,
           );
@@ -772,9 +850,22 @@ const program = Effect.gen(function* () {
             if (cfg.VERBOSE)
               yield* Console.log(`  ↳ ${fmt}@${w}: ${key} (${buf.length} B)`);
           }
+        } else if (isManifestOnly && needed.length > 0) {
+          // In manifest-only mode, fail if any variants are missing
+          const missingVariants = needed
+            .map((n) => `${n.fmt}@${n.w}`)
+            .join(', ');
+          yield* Effect.fail(
+            new Error(
+              `Missing variants for ${file}: ${missingVariants} (${needed.length} total missing)`,
+            ),
+          );
+        } else if (isManifestOnly && cfg.VERBOSE) {
+          // All variants verified successfully
+          yield* Console.log(`✓ all variants verified`);
         }
 
-        // Manifest entry (UUID filename as key)
+        // Manifest entry (UUID filename as key) - always do this
         if (cfg.GEN_BLURHASH) {
           const bh = yield* makeBlurhash(file, cfg.BLURHASH_MAX);
           const dominantColors = yield* extractDominantColors(file, 5);
@@ -882,25 +973,70 @@ const program = Effect.gen(function* () {
     );
   }
 
-  // Upload manifest
+  // Upload manifest (compressed)
   if (cfg.GEN_BLURHASH) {
     const manifestContent = JSON.stringify(manifest, null, 2);
+    const manifestBuffer = Buffer.from(manifestContent);
     const manifestKey = `${cleanPrefix(cfg.R2_VARIANTS_PREFIX)}/r2-manifest.json`;
+
+    // Compress manifest
+    const { compressed: compressedManifest, encoding } =
+      yield* compressManifest(manifestBuffer);
+    const originalSizeKB = (manifestBuffer.length / 1024).toFixed(1);
+    const compressedSizeKB = (compressedManifest.length / 1024).toFixed(1);
+    const compressionRatio = (
+      (compressedManifest.length / manifestBuffer.length) *
+      100
+    ).toFixed(1);
+
+    // Upload compressed manifest
     yield* putObject(
       cfg.s3,
       cfg.R2_BUCKET,
       manifestKey,
-      Buffer.from(manifestContent),
+      compressedManifest,
       'application/json',
+      {
+        'original-size': manifestBuffer.length.toString(),
+        'compressed-size': compressedManifest.length.toString(),
+        'compression-encoding': encoding,
+      },
+      {
+        contentEncoding: encoding,
+        cacheControl: 'public, max-age=300, s-maxage=300', // 5 minutes for manifest
+      },
     );
+
+    // Also upload uncompressed version for reference
+    const uncompressedKey = `${cleanPrefix(cfg.R2_VARIANTS_PREFIX)}/r2-manifest-original.json`;
+    yield* putObject(
+      cfg.s3,
+      cfg.R2_BUCKET,
+      uncompressedKey,
+      manifestBuffer,
+      'application/json',
+      {
+        'original-size': manifestBuffer.length.toString(),
+        note: 'uncompressed-reference',
+      },
+      {
+        cacheControl: 'public, max-age=300, s-maxage=300', // 5 minutes for manifest
+      },
+    );
+
+    const action = isManifestOnly ? 'regenerated' : 'uploaded';
     yield* Console.log(
-      `\n📄 Manifest uploaded: s3://${cfg.R2_BUCKET}/${manifestKey}`,
+      `\n📄 Manifest ${action}: s3://${cfg.R2_BUCKET}/${manifestKey}`,
     );
     yield* Console.log(`   Entries: ${Object.keys(manifest).length}`);
+    yield* Console.log(
+      `   Compression: ${originalSizeKB} KB → ${compressedSizeKB} KB (${encoding}, ${compressionRatio}%)`,
+    );
   }
 
   const dt = Date.now() - t0;
-  yield* Console.log(`✅ Done in ${(dt / 1000).toFixed(2)}s`);
+  const completionMode = isManifestOnly ? 'Manifest regeneration' : 'Upload';
+  yield* Console.log(`✅ ${completionMode} done in ${(dt / 1000).toFixed(2)}s`);
 }).pipe(Effect.ensuring(shutdownExiftool));
 
 pipe(
