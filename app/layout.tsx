@@ -1,7 +1,9 @@
 import './globals.css';
 
+import { SITE_CONFIG } from 'lib/constants';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import PlausibleProvider from 'next-plausible';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
 const geistSans = Geist({
@@ -29,7 +31,9 @@ const RootLayout = ({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NuqsAdapter>{children}</NuqsAdapter>
+        <PlausibleProvider domain={SITE_CONFIG.domain}>
+          <NuqsAdapter>{children}</NuqsAdapter>
+        </PlausibleProvider>
       </body>
     </html>
   );
