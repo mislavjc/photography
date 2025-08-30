@@ -1,7 +1,7 @@
 'use client';
 import type { PlacedItem } from 'lib/layout';
 import { motion } from 'motion/react';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest } from 'types';
 
 type MinimapProps = {
@@ -36,34 +36,40 @@ export function Minimap({
   pad = 200,
 }: MinimapProps) {
   const outer = Math.max(120, sizePx);
-  const innerPad = 8; // inner padding
+  const innerPad = 8;
 
-  // Calculate effective world bounds including camera padding
+  // Effective world incl. padding
   const effectiveWorldW = worldW + pad * 2;
   const effectiveWorldH = worldH + pad * 2;
 
-  // Fit effective world into square
+  // Fit to square
   const inner = outer - innerPad * 2;
   const scale = Math.min(inner / effectiveWorldW, inner / effectiveWorldH);
   const drawW = Math.max(1, effectiveWorldW * scale);
   const drawH = Math.max(1, effectiveWorldH * scale);
-
   const offsetX = (outer - drawW) / 2;
   const offsetY = (outer - drawH) / 2;
 
-  // Viewport rect in minimap space (adjusted for camera padding)
+  // Viewport rect (minimap space)
   const vx = offsetX + (camX + pad) * scale;
   const vy = offsetY + (camY + pad) * scale;
   const vw = Math.max(6, viewW * scale);
   const vh = Math.max(6, viewH * scale);
 
-  // Drag state + cursors
-  const draggingRef = React.useRef(false);
-  const dragOffsetRef = React.useRef<{ dx: number; dy: number }>({
-    dx: 0,
-    dy: 0,
-  });
-  const [cursor, setCursor] = React.useState<'grab' | 'grabbing' | 'crosshair'>(
+  // Camera center (world → minimap)
+  const camCx = offsetX + (camX + pad + viewW / 2) * scale;
+  const camCy = offsetY + (camY + pad + viewH / 2) * scale;
+
+  // Trail of recent camera centers (breadcrumbs)
+  const trailRef = useRef<Array<{ x: number; y: number }>>([]);
+  useEffect(() => {
+    trailRef.current = [...trailRef.current, { x: camCx, y: camCy }].slice(-14);
+  }, [camCx, camCy]);
+
+  // Drag state
+  const draggingRef = useRef(false);
+  const dragOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const [cursor, setCursor] = useState<'grab' | 'grabbing' | 'crosshair'>(
     'crosshair',
   );
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -78,10 +84,8 @@ export function Minimap({
     if (/^[0-9a-fA-F]{6}$/.test(s)) return `#${s}`;
     return '#c7c7c7';
   }
-
-  // Convert minimap point -> world cam top-left (clamped)
   function pointToCamTopLeft(mx: number, my: number) {
-    const wx = (mx - offsetX) / scale - pad; // subtract padding to get actual world coordinate
+    const wx = (mx - offsetX) / scale - pad;
     const wy = (my - offsetY) / scale - pad;
     const cx = clamp(wx, -pad, Math.max(0, worldW - viewW + pad));
     const cy = clamp(wy, -pad, Math.max(0, worldH - viewH + pad));
@@ -94,14 +98,11 @@ export function Minimap({
     const mx = e.nativeEvent.offsetX;
     const my = e.nativeEvent.offsetY;
 
-    // If down inside viewport -> drag with grab cursor
     if (mx >= vx && mx <= vx + vw && my >= vy && my <= vy + vh) {
       draggingRef.current = true;
       dragOffsetRef.current = { dx: mx - vx, dy: my - vy };
       setCursor('grabbing');
     } else {
-      // Click-to-jump: place top-left so the dragged rect centers on click,
-      // then clamp so you CAN hit the exact edges.
       const desiredTopLeft = {
         x: (mx - offsetX) / scale - viewW / 2 - pad,
         y: (my - offsetY) / scale - viewH / 2 - pad,
@@ -144,23 +145,17 @@ export function Minimap({
     setCursor('crosshair');
   }
 
-  // Build rects (optionally downsampled)
-  const rects = React.useMemo(() => {
+  // Mini-tiles
+  const rects = useMemo(() => {
     const out: React.JSX.Element[] = [];
-    // stride to reduce DOM if needed
     for (let i = 0; i < tiles.length; i += Math.max(1, sampleStep)) {
       const t = tiles[i];
-
-      // ⬇️ shift tiles by +pad so they sit inside the effective world
       const x = offsetX + (t.x + pad) * scale;
       const y = offsetY + (t.y + pad) * scale;
       const w = Math.max(1, t.w * scale);
       const h = Math.max(1, t.h * scale);
-
-      // Extract dominant color (fallback to gray)
       const mc = manifest[t.filename];
       const hex = mc?.exif?.dominantColors?.[0]?.hex || '#c7c7c7';
-
       out.push(
         <rect
           key={t.filename}
@@ -170,13 +165,57 @@ export function Minimap({
           height={h}
           fill={sanitizeHex(hex)}
           stroke="none"
-          opacity={0.95}
-          rx={w > 3 && h > 3 ? 0.8 : 0} // tiny rounding for bigger mini-tiles
+          opacity={0.9}
+          rx={w > 3 && h > 3 ? 0.8 : 0}
         />,
       );
     }
     return out;
   }, [tiles, manifest, scale, offsetX, offsetY, sampleStep, pad]);
+
+  // Light 3x3 grid over the content bounds
+  const gridLines = useMemo(() => {
+    const lines: React.JSX.Element[] = [];
+    const gx = offsetX + pad * scale;
+    const gy = offsetY + pad * scale;
+    const gw = worldW * scale;
+    const gh = worldH * scale;
+    for (let i = 1; i <= 2; i++) {
+      const x = gx + (gw * i) / 3;
+      const y = gy + (gh * i) / 3;
+      lines.push(
+        <line
+          key={`v${i}`}
+          x1={x}
+          y1={gy}
+          x2={x}
+          y2={gy + gh}
+          stroke="#e5e7eb"
+          strokeWidth={0.7}
+        />,
+      );
+      lines.push(
+        <line
+          key={`h${i}`}
+          x1={gx}
+          y1={y}
+          x2={gx + gw}
+          y2={y}
+          stroke="#e5e7eb"
+          strokeWidth={0.7}
+        />,
+      );
+    }
+    return lines;
+  }, [offsetX, offsetY, scale, worldW, worldH, pad]);
+
+  // Breadcrumb path + dots
+  const trailPath = useMemo(() => {
+    if (!trailRef.current.length) return '';
+    return trailRef.current
+      .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`)
+      .join(' ');
+  }, [camCx, camCy]);
 
   return (
     <motion.div
@@ -192,12 +231,7 @@ export function Minimap({
         width: isCollapsed ? 40 : outer,
         height: isCollapsed ? 40 : outer,
       }}
-      transition={{
-        layout: {
-          duration: 0.2,
-          ease: 'easeOut',
-        },
-      }}
+      transition={{ layout: { duration: 0.2, ease: 'easeOut' } }}
       onClick={
         !isCollapsed
           ? undefined
@@ -237,6 +271,7 @@ export function Minimap({
           >
             ×
           </button>
+
           <svg
             width={outer}
             height={outer}
@@ -251,7 +286,29 @@ export function Minimap({
             role="img"
             aria-label="Minimap"
           >
-            {/* Frame area */}
+            <defs>
+              {/* Spotlight mask: cut a hole where the viewport is */}
+              <mask id="viewport-spotlight">
+                {/* black = hidden, white = visible */}
+                <rect x="0" y="0" width={outer} height={outer} fill="white" />
+                <rect
+                  x={vx}
+                  y={vy}
+                  width={vw}
+                  height={vh}
+                  rx={3}
+                  ry={3}
+                  fill="black"
+                />
+              </mask>
+              {/* Soft pulse for center dot */}
+              <radialGradient id="pulse" cx="50%" cy="50%">
+                <stop offset="0%" stopOpacity="0.35" />
+                <stop offset="100%" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+
+            {/* Frame */}
             <rect
               x={0}
               y={0}
@@ -261,56 +318,109 @@ export function Minimap({
               ry={12}
               fill="transparent"
             />
-            {/* World area background (square fit) */}
+
+            {/* World bg */}
             <rect
               x={offsetX}
               y={offsetY}
               width={drawW}
               height={drawH}
               fill="#fafafa"
-              strokeWidth={1.5}
               rx={6}
               ry={6}
             />
-            {/* Actual content bounds inside effective world (optional guide) */}
+
+            {/* Content bounds */}
             <rect
               x={offsetX + pad * scale}
               y={offsetY + pad * scale}
               width={worldW * scale}
               height={worldH * scale}
               fill="none"
-              stroke="#9ca3af"
-              strokeDasharray="2,2"
-              strokeWidth={0.8}
+              stroke="#cbd5e1"
+              strokeWidth={0.9}
             />
+
+            {/* Light grid over content */}
+            <g>{gridLines}</g>
+
             {/* Tiles */}
             <g>{rects}</g>
-            {/* Viewport */}
-            <rect
-              x={vx}
-              y={vy}
-              width={vw}
-              height={vh}
-              fill="none"
-              stroke="#111827"
-              strokeWidth={2}
-            />
-            <line
-              x1={vx}
-              y1={vy}
-              x2={vx + vw}
-              y2={vy + vh}
-              stroke="#111827"
-              strokeWidth={1}
-            />
-            <line
-              x1={vx + vw}
-              y1={vy}
-              x2={vx}
-              y2={vy + vh}
-              stroke="#111827"
-              strokeWidth={1}
-            />
+
+            {/* Breadcrumb trail (path + fading dots) */}
+            {trailRef.current.length > 1 && (
+              <>
+                <path
+                  d={trailPath}
+                  fill="none"
+                  stroke="#111827"
+                  strokeOpacity={0.25}
+                  strokeWidth={1.5}
+                />
+                {trailRef.current.map((p, i, arr) => (
+                  <circle
+                    key={`t${i}`}
+                    cx={p.x}
+                    cy={p.y}
+                    r={i === arr.length - 1 ? 2.4 : 1.8}
+                    fill="#111827"
+                    opacity={i / arr.length}
+                  />
+                ))}
+              </>
+            )}
+
+            {/* Viewport highlight: bold outline + dim everything else via mask */}
+            <g>
+              <rect
+                x={0}
+                y={0}
+                width={outer}
+                height={outer}
+                fill="#000"
+                opacity={0.18}
+                mask="url(#viewport-spotlight)"
+                pointerEvents="none"
+              />
+              <rect
+                x={vx}
+                y={vy}
+                width={vw}
+                height={vh}
+                fill="none"
+                stroke="#111827"
+                strokeWidth={2.5}
+              />
+              {/* subtle inner stroke for contrast on light backgrounds */}
+              <rect
+                x={vx + 0.5}
+                y={vy + 0.5}
+                width={vw - 1}
+                height={vh - 1}
+                fill="none"
+                stroke="#ffffff"
+                strokeOpacity={0.6}
+                strokeWidth={1}
+              />
+            </g>
+
+            {/* Center marker with soft pulse */}
+            <circle cx={camCx} cy={camCy} r={6} fill="url(#pulse)" />
+            <circle cx={camCx} cy={camCy} r={2.2} fill="#111827" />
+
+            {/* Compass (N) */}
+            <g transform={`translate(${outer / 2}, ${offsetY - 2})`}>
+              <path d="M0,0 L-4,8 L4,8 Z" fill="#9ca3af" />
+              <text
+                x="0"
+                y="15"
+                fontSize="8"
+                textAnchor="middle"
+                fill="#9ca3af"
+              >
+                N
+              </text>
+            </g>
           </svg>
         </>
       )}
