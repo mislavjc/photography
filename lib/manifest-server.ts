@@ -20,10 +20,7 @@ export async function loadManifest(): Promise<Manifest> {
   const manifestUrl = `${R2_PUBLIC_URL.replace(/\/$/, '')}/${R2_VARIANTS_PREFIX}/r2-manifest.json`;
 
   try {
-    const response = await fetch(manifestUrl, {
-      // Cache manifest for 5 minutes at the fetch layer (ISR-like)
-      next: { revalidate: 300 },
-    });
+    const response = await fetch(manifestUrl);
 
     if (!response.ok) {
       console.error(
