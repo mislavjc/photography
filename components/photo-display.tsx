@@ -135,7 +135,18 @@ export function PhotoDisplay({
                 maxHeight: `calc(100vh - var(--headerH))`,
               }}
             >
-              <div className="absolute inset-0">
+              {/* aspect-ratio matched BG underlay sized to actual image box */}
+              <div
+                className="absolute top-0 left-0 z-0"
+                style={{
+                  width: `min(100%, calc((100vh - var(--headerH)) * ${photoData.w / photoData.h}))`,
+                  aspectRatio: `${photoData.w} / ${photoData.h}`,
+                  maxHeight: `calc(100vh - var(--headerH))`,
+                  backgroundColor: dominant,
+                }}
+              />
+
+              <div className="absolute inset-0 z-10">
                 <Picture
                   uuidWithExt={photoName}
                   alt={photoName}
