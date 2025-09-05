@@ -1,6 +1,5 @@
 'use client';
 import type { PlacedItem } from 'lib/layout';
-import { motion } from 'motion/react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest } from 'types';
 
@@ -14,10 +13,11 @@ type MinimapProps = {
   tiles: PlacedItem[];
   manifest: Manifest;
   className?: string;
-  onSetCam: (xy: { x: number; y: number }) => void;
+  onSetCam: (_xy: { x: number; y: number }) => void;
   sampleStep?: number;
   sizePx?: number; // default 160
   pad?: number; // camera padding (default 200)
+  fill?: boolean; // if true, take 100% of container and disable collapse
 };
 
 export function Minimap({
@@ -34,21 +34,54 @@ export function Minimap({
   sampleStep = 1,
   sizePx = 160,
   pad = 200,
+  fill = false,
 }: MinimapProps) {
   const outer = Math.max(120, sizePx);
   const innerPad = 8;
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({
+    w: outer,
+    h: outer,
+  });
+
+  useEffect(() => {
+    if (!fill) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const cr = entry.contentRect;
+        setContainerSize({
+          w: Math.max(1, cr.width),
+          h: Math.max(1, cr.height),
+        });
+      }
+    });
+    ro.observe(el);
+    const rect = el.getBoundingClientRect();
+    setContainerSize({
+      w: Math.max(1, rect.width),
+      h: Math.max(1, rect.height),
+    });
+    return () => ro.disconnect();
+  }, [fill]);
 
   // Effective world incl. padding
   const effectiveWorldW = worldW + pad * 2;
   const effectiveWorldH = worldH + pad * 2;
 
-  // Fit to square
-  const inner = outer - innerPad * 2;
-  const scale = Math.min(inner / effectiveWorldW, inner / effectiveWorldH);
+  // Determine outer box: square by default, container size in fill mode
+  const outerW = fill ? containerSize.w : outer;
+  const outerH = fill ? containerSize.h : outer;
+
+  // Fit world into available box with padding
+  const innerW = Math.max(1, outerW - innerPad * 2);
+  const innerH = Math.max(1, outerH - innerPad * 2);
+  const scale = Math.min(innerW / effectiveWorldW, innerH / effectiveWorldH);
   const drawW = Math.max(1, effectiveWorldW * scale);
   const drawH = Math.max(1, effectiveWorldH * scale);
-  const offsetX = (outer - drawW) / 2;
-  const offsetY = (outer - drawH) / 2;
+  const offsetX = (outerW - drawW) / 2;
+  const offsetY = (outerH - drawH) / 2;
 
   // Viewport rect (minimap space)
   const vx = offsetX + (camX + pad) * scale;
@@ -72,7 +105,6 @@ export function Minimap({
   const [cursor, setCursor] = useState<'grab' | 'grabbing' | 'crosshair'>(
     'crosshair',
   );
-  const [isCollapsed, setIsCollapsed] = useState(true);
 
   function clamp(n: number, min: number, max: number) {
     return Math.max(min, Math.min(max, n));
@@ -215,201 +247,163 @@ export function Minimap({
     return trailRef.current
       .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`)
       .join(' ');
-  }, [camCx, camCy]);
+  }, []);
 
   return (
-    <motion.div
-      layout
-      layoutId="minimap"
-      className={[
-        'rounded-xl shadow-xl ring-2 ring-gray-200/50',
-        'bg-white border border-gray-200/50',
-        'pointer-events-auto',
-        className ?? '',
-      ].join(' ')}
+    <div
+      ref={containerRef}
+      className={[className ?? ''].join(' ')}
       style={{
-        width: isCollapsed ? 40 : outer,
-        height: isCollapsed ? 40 : outer,
+        width: fill ? '100%' : outer,
+        height: fill ? '100%' : outer,
       }}
-      transition={{ layout: { duration: 0.2, ease: 'easeOut' } }}
-      onClick={
-        !isCollapsed
-          ? undefined
-          : (e) => {
-              e.stopPropagation();
-              setIsCollapsed(false);
-            }
-      }
       onPointerDown={(e) => e.stopPropagation()}
       onPointerMove={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
       onPointerCancel={(e) => e.stopPropagation()}
-      whileHover={
-        !isCollapsed
-          ? undefined
-          : { scale: 1.05, transition: { duration: 0.1 } }
-      }
-      whileTap={
-        !isCollapsed
-          ? undefined
-          : { scale: 0.95, transition: { duration: 0.05 } }
-      }
     >
-      {isCollapsed ? (
-        <div className="w-full h-full flex items-center justify-center cursor-pointer">
-          <span className="text-gray-600 text-sm font-bold">🗺️</span>
-        </div>
-      ) : (
-        <>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsCollapsed(true);
-            }}
-            className="absolute top-2 right-2 z-10 w-6 h-6 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-600 transition-colors"
-            title="Collapse minimap"
-          >
-            ×
-          </button>
-
-          <svg
-            width={outer}
-            height={outer}
-            className="block"
-            style={{ cursor }}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerCancel}
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
-            role="img"
-            aria-label="Minimap"
-          >
-            <defs>
-              {/* Spotlight mask: cut a hole where the viewport is */}
-              <mask id="viewport-spotlight">
-                {/* black = hidden, white = visible */}
-                <rect x="0" y="0" width={outer} height={outer} fill="white" />
-                <rect
-                  x={vx}
-                  y={vy}
-                  width={vw}
-                  height={vh}
-                  rx={3}
-                  ry={3}
-                  fill="black"
-                />
-              </mask>
-              {/* Soft pulse for center dot */}
-              <radialGradient id="pulse" cx="50%" cy="50%">
-                <stop offset="0%" stopOpacity="0.35" />
-                <stop offset="100%" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-
-            {/* Frame */}
+      <svg
+        width={fill ? containerSize.w : outer}
+        height={fill ? containerSize.h : outer}
+        className="block"
+        style={{ cursor }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        role="img"
+        aria-label="Minimap"
+      >
+        <defs>
+          {/* Spotlight mask: cut a hole where the viewport is */}
+          <mask id="viewport-spotlight">
+            {/* black = hidden, white = visible */}
             <rect
-              x={0}
-              y={0}
-              width={outer}
-              height={outer}
-              rx={12}
-              ry={12}
-              fill="transparent"
+              x="0"
+              y="0"
+              width={fill ? containerSize.w : outer}
+              height={fill ? containerSize.h : outer}
+              fill="white"
             />
-
-            {/* World bg */}
             <rect
-              x={offsetX}
-              y={offsetY}
-              width={drawW}
-              height={drawH}
-              fill="#fafafa"
-              rx={6}
-              ry={6}
+              x={vx}
+              y={vy}
+              width={vw}
+              height={vh}
+              rx={3}
+              ry={3}
+              fill="black"
             />
+          </mask>
+          {/* Soft pulse for center dot */}
+          <radialGradient id="pulse" cx="50%" cy="50%">
+            <stop offset="0%" stopOpacity="0.35" />
+            <stop offset="100%" stopOpacity="0" />
+          </radialGradient>
+        </defs>
 
-            {/* Content bounds */}
-            <rect
-              x={offsetX + pad * scale}
-              y={offsetY + pad * scale}
-              width={worldW * scale}
-              height={worldH * scale}
+        {/* Frame */}
+        <rect
+          x={0}
+          y={0}
+          width={fill ? containerSize.w : outer}
+          height={fill ? containerSize.h : outer}
+          rx={12}
+          ry={12}
+          fill="transparent"
+        />
+
+        {/* World bg - removed */}
+        {/* <rect
+          x={offsetX}
+          y={offsetY}
+          width={drawW}
+          height={drawH}
+          fill="#fafafa"
+          rx={6}
+          ry={6}
+        /> */}
+
+        {/* Content bounds */}
+        <rect
+          x={offsetX + pad * scale}
+          y={offsetY + pad * scale}
+          width={worldW * scale}
+          height={worldH * scale}
+          fill="none"
+          stroke="#cbd5e1"
+          strokeWidth={0.9}
+        />
+
+        {/* Light grid over content */}
+        <g>{gridLines}</g>
+
+        {/* Tiles */}
+        <g>{rects}</g>
+
+        {/* Breadcrumb trail (path + fading dots) */}
+        {trailRef.current.length > 1 && (
+          <>
+            <path
+              d={trailPath}
               fill="none"
-              stroke="#cbd5e1"
-              strokeWidth={0.9}
+              stroke="#111827"
+              strokeOpacity={0.25}
+              strokeWidth={1.5}
             />
-
-            {/* Light grid over content */}
-            <g>{gridLines}</g>
-
-            {/* Tiles */}
-            <g>{rects}</g>
-
-            {/* Breadcrumb trail (path + fading dots) */}
-            {trailRef.current.length > 1 && (
-              <>
-                <path
-                  d={trailPath}
-                  fill="none"
-                  stroke="#111827"
-                  strokeOpacity={0.25}
-                  strokeWidth={1.5}
-                />
-                {trailRef.current.map((p, i, arr) => (
-                  <circle
-                    key={`t${i}`}
-                    cx={p.x}
-                    cy={p.y}
-                    r={i === arr.length - 1 ? 2.4 : 1.8}
-                    fill="#111827"
-                    opacity={i / arr.length}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* Viewport highlight: bold outline + dim everything else via mask */}
-            <g>
-              <rect
-                x={0}
-                y={0}
-                width={outer}
-                height={outer}
-                fill="#000"
-                opacity={0.18}
-                mask="url(#viewport-spotlight)"
-                pointerEvents="none"
+            {trailRef.current.map((p, i, arr) => (
+              <circle
+                key={`t${i}`}
+                cx={p.x}
+                cy={p.y}
+                r={i === arr.length - 1 ? 2.4 : 1.8}
+                fill="#111827"
+                opacity={i / arr.length}
               />
-              <rect
-                x={vx}
-                y={vy}
-                width={vw}
-                height={vh}
-                fill="none"
-                stroke="#111827"
-                strokeWidth={2.5}
-              />
-              {/* subtle inner stroke for contrast on light backgrounds */}
-              <rect
-                x={vx + 0.5}
-                y={vy + 0.5}
-                width={vw - 1}
-                height={vh - 1}
-                fill="none"
-                stroke="#ffffff"
-                strokeOpacity={0.6}
-                strokeWidth={1}
-              />
-            </g>
+            ))}
+          </>
+        )}
 
-            {/* Center marker with soft pulse */}
-            <circle cx={camCx} cy={camCy} r={6} fill="url(#pulse)" />
-            <circle cx={camCx} cy={camCy} r={2.2} fill="#111827" />
-          </svg>
-        </>
-      )}
-    </motion.div>
+        {/* Viewport highlight: bold outline + dim everything else via mask */}
+        <g>
+          <rect
+            x={0}
+            y={0}
+            width={fill ? containerSize.w : outer}
+            height={fill ? containerSize.h : outer}
+            fill="#000"
+            opacity={0.18}
+            mask="url(#viewport-spotlight)"
+            pointerEvents="none"
+          />
+          <rect
+            x={vx}
+            y={vy}
+            width={vw}
+            height={vh}
+            fill="none"
+            stroke="#111827"
+            strokeWidth={2.5}
+          />
+          {/* subtle inner stroke for contrast on light backgrounds */}
+          <rect
+            x={vx + 0.5}
+            y={vy + 0.5}
+            width={vw - 1}
+            height={vh - 1}
+            fill="none"
+            stroke="#ffffff"
+            strokeOpacity={0.6}
+            strokeWidth={1}
+          />
+        </g>
+
+        {/* Center marker with soft pulse */}
+        <circle cx={camCx} cy={camCy} r={6} fill="url(#pulse)" />
+        <circle cx={camCx} cy={camCy} r={2.2} fill="#111827" />
+      </svg>
+    </div>
   );
 }

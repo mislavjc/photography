@@ -1,19 +1,12 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-const Minimap = dynamic(
-  () => import('components/minimap').then((m) => m.Minimap),
-  { ssr: false },
-);
-const DevHud = dynamic(
-  () => import('components/dev-hud').then((m) => m.DevHud),
-  { ssr: false },
-);
 import { Picture } from 'components/picture';
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest } from 'types';
+
+import { Dock } from './dock';
 
 const SSR_SAFE_VW = 1200;
 const SSR_SAFE_VH = 800;
@@ -402,111 +395,108 @@ export function PannableGrid({
   }, [saveCam]);
 
   return (
-    <div
-      className="fixed inset-0 touch-none overscroll-none select-none bg-neutral-100"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onWheel={(e) => {
-        const WHEEL_GAIN = 0.8;
-        if (e.shiftKey) {
-          setCam((c) => {
-            const nx = clamp(c.x + e.deltaY * WHEEL_GAIN, minX, maxX);
-            camRef.current = { x: nx, y: c.y };
-            return { x: nx, y: c.y };
-          });
-        } else {
-          setCam((c) => {
-            const nx = clamp(c.x + e.deltaX * WHEEL_GAIN, minX, maxX);
-            const ny = clamp(c.y + e.deltaY * WHEEL_GAIN, minY, maxY);
-            camRef.current = { x: nx, y: ny };
-            return { x: nx, y: ny };
-          });
-        }
-        if (wheelSaveTimer.current)
-          cancelAnimationFrame(wheelSaveTimer.current);
-        wheelSaveTimer.current = requestAnimationFrame(() =>
-          saveCam(camRef.current),
-        );
-      }}
-      role="application"
-      aria-label="Pannable photo grid"
-    >
-      {/* World container */}
+    <div>
       <div
-        className="absolute will-change-transform"
-        style={{
-          transform: `translate3d(${-cam.x}px, ${-cam.y}px, 0)`,
-          width: layout.width,
-          height: layout.height,
-        }}
-      >
-        {visibleItems.map((it) => {
-          const meta = manifest[it.filename]; // { w, h, ... } from Manifest
-          const intrinsicW = meta?.w ?? 3; // fallback guards
-          const intrinsicH = meta?.h ?? 2;
-          const isInViewport =
-            it.x < viewRect.x + viewRect.w &&
-            it.x + it.w > viewRect.x &&
-            it.y < viewRect.y + viewRect.h &&
-            it.y + it.h > viewRect.y;
-
-          return (
-            <article
-              key={it.filename}
-              data-filename={it.filename}
-              className="absolute cursor-pointer"
-              style={{ left: it.x, top: it.y, width: it.w, height: it.h }}
-            >
-              <Picture
-                uuidWithExt={it.filename}
-                alt={it.filename}
-                profile="grid"
-                intrinsicWidth={intrinsicW}
-                intrinsicHeight={intrinsicH}
-                pictureClassName="block w-full h-full"
-                imgClassName="block w-full h-full object-cover bg-gray-50"
-                sizes={`${Math.round(it.w)}px`}
-                loading="eager"
-                fetchPriority={isInViewport ? 'high' : 'low'}
-              />
-            </article>
+        className="fixed inset-0 touch-none overscroll-none select-none bg-neutral-100"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onWheel={(e) => {
+          const WHEEL_GAIN = 0.8;
+          if (e.shiftKey) {
+            setCam((c) => {
+              const nx = clamp(c.x + e.deltaY * WHEEL_GAIN, minX, maxX);
+              camRef.current = { x: nx, y: c.y };
+              return { x: nx, y: c.y };
+            });
+          } else {
+            setCam((c) => {
+              const nx = clamp(c.x + e.deltaX * WHEEL_GAIN, minX, maxX);
+              const ny = clamp(c.y + e.deltaY * WHEEL_GAIN, minY, maxY);
+              camRef.current = { x: nx, y: ny };
+              return { x: nx, y: ny };
+            });
+          }
+          if (wheelSaveTimer.current)
+            cancelAnimationFrame(wheelSaveTimer.current);
+          wheelSaveTimer.current = requestAnimationFrame(() =>
+            saveCam(camRef.current),
           );
-        })}
+        }}
+        role="application"
+        aria-label="Pannable photo grid"
+      >
+        {/* World container */}
+        <div
+          className="absolute will-change-transform"
+          style={{
+            transform: `translate3d(${-cam.x}px, ${-cam.y}px, 0)`,
+            width: layout.width,
+            height: layout.height,
+          }}
+        >
+          {visibleItems.map((it) => {
+            const meta = manifest[it.filename]; // { w, h, ... } from Manifest
+            const intrinsicW = meta?.w ?? 3; // fallback guards
+            const intrinsicH = meta?.h ?? 2;
+            const isInViewport =
+              it.x < viewRect.x + viewRect.w &&
+              it.x + it.w > viewRect.x &&
+              it.y < viewRect.y + viewRect.h &&
+              it.y + it.h > viewRect.y;
+
+            return (
+              <article
+                key={it.filename}
+                data-filename={it.filename}
+                className="absolute cursor-pointer"
+                style={{ left: it.x, top: it.y, width: it.w, height: it.h }}
+              >
+                <Picture
+                  uuidWithExt={it.filename}
+                  alt={it.filename}
+                  profile="grid"
+                  intrinsicWidth={intrinsicW}
+                  intrinsicHeight={intrinsicH}
+                  pictureClassName="block w-full h-full"
+                  imgClassName="block w-full h-full object-cover bg-gray-50"
+                  sizes={`${Math.round(it.w)}px`}
+                  loading="eager"
+                  fetchPriority={isInViewport ? 'high' : 'low'}
+                />
+              </article>
+            );
+          })}
+        </div>
       </div>
-
-      {/* Minimap */}
-      <Minimap
-        className="absolute right-4 bottom-4"
-        worldW={layout.width}
-        worldH={layout.height}
-        camX={cam.x}
-        camY={cam.y}
-        viewW={vw}
-        viewH={vh}
-        tiles={layout.items} // {x,y,w,h,filename} in your layout
-        manifest={manifest}
-        onSetCam={jumpCam}
-        sampleStep={1} // increase to 2/3/4 if you have thousands of tiles
-        sizePx={168}
-        pad={PAD}
+      <Dock
+        minimapProps={{
+          worldW: layout.width,
+          worldH: layout.height,
+          camX: cam.x,
+          camY: cam.y,
+          viewW: vw,
+          viewH: vh,
+          tiles: layout.items,
+          manifest,
+          onSetCam: jumpCam,
+          sampleStep: 1,
+          sizePx: 220,
+          pad: PAD,
+        }}
+        devHudProps={{
+          layout,
+          cam,
+          vw,
+          vh,
+          visibleItems,
+          minX,
+          minY,
+          maxX,
+          maxY,
+        }}
       />
-
-      {/* HUD - dev only */}
-      {process.env.NODE_ENV === 'development' && (
-        <DevHud
-          layout={layout}
-          cam={cam}
-          vw={vw}
-          vh={vh}
-          visibleItems={visibleItems}
-          minX={minX}
-          minY={minY}
-          maxX={maxX}
-          maxY={maxY}
-        />
-      )}
     </div>
   );
 }

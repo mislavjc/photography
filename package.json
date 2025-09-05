@@ -17,6 +17,7 @@
     "@aws-sdk/lib-storage": "^3.873.0",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-virtual": "^3.13.12",
     "ai": "^5.0.26",
     "babel-plugin-react-compiler": "19.1.0-rc.2",
