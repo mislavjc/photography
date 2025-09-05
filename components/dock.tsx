@@ -13,10 +13,16 @@ import {
   useTransform,
 } from 'motion/react';
 import { useRouter } from 'next/navigation';
-import React, { ReactNode, useRef, useState } from 'react';
+import React, { ReactNode, useEffect, useRef, useState } from 'react';
 import type { Manifest } from 'types';
 
 import { Minimap } from './minimap';
+
+function getViewportHeight(): number {
+  // Prefer VisualViewport (accounts for collapsing browser chrome)
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+  return vv?.height ?? window.innerHeight;
+}
 
 const SCALE = 1.05; // max scale factor of an icon (barely noticeable)
 const DISTANCE = 48; // pixels before mouse affects an icon
@@ -82,27 +88,74 @@ export const Dock = ({ minimapProps, devHudProps }: DockProps) => {
     isDesktop: false,
   });
 
+  // Drive a --vvh CSS variable globally and update on changes
+  useEffect(() => {
+    const setVvh = () => {
+      const h = getViewportHeight();
+      document.documentElement.style.setProperty('--vvh', `${h}px`);
+    };
+    setVvh();
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', setVvh, { passive: true });
+      vv.addEventListener('scroll', setVvh, { passive: true });
+    }
+    window.addEventListener('resize', setVvh, { passive: true });
+
+    return () => {
+      if (vv) {
+        vv.removeEventListener('resize', setVvh);
+        vv.removeEventListener('scroll', setVvh);
+      }
+      window.removeEventListener('resize', setVvh);
+    };
+  }, []);
+
   React.useEffect(() => {
     const updateAnchor = () => {
       const el = dockRef.current;
       if (!el) return;
+
       const rect = el.getBoundingClientRect();
       const isDesktop = window.innerWidth >= 1280; // xl breakpoint
 
-      // distance above dock (same for both)
-      const bottomOffset = window.innerHeight - rect.top + 16; // 16px gap above dock
+      // Use VisualViewport height so the bottom bar is excluded
+      const vv = window.visualViewport;
+      const viewportH = vv?.height ?? window.innerHeight;
+
+      // If the page is zoomed/panned, adjust by the visual viewport's offset
+      const topInVV = rect.top - (vv ? (vv.offsetTop ?? 0) : 0);
+
+      // Gap above dock: 16px
+      const bottomOffset = Math.max(0, viewportH - topInVV + 16);
 
       setAnchor({
         isDesktop,
-        rightPx: 24, // ~xl:right-6 aesthetic; adjust if you want tighter
+        rightPx: 24,
         bottomPx: bottomOffset,
         centerLeftPx: rect.left + rect.width / 2,
       });
     };
 
     updateAnchor();
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', updateAnchor, { passive: true });
+      vv.addEventListener('scroll', updateAnchor, { passive: true });
+    }
     window.addEventListener('resize', updateAnchor, { passive: true });
-    return () => window.removeEventListener('resize', updateAnchor);
+    window.addEventListener('scroll', updateAnchor, { passive: true });
+
+    return () => {
+      if (vv) {
+        vv.removeEventListener('resize', updateAnchor);
+        vv.removeEventListener('scroll', updateAnchor);
+      }
+      window.removeEventListener('resize', updateAnchor);
+      window.removeEventListener('scroll', updateAnchor);
+    };
   }, []);
 
   return (
@@ -120,7 +173,7 @@ export const Dock = ({ minimapProps, devHudProps }: DockProps) => {
           mouseLeft.set(-Infinity);
           mouseRight.set(-Infinity);
         }}
-        className="fixed bottom-4 left-1/2 transform -translate-x-1/2 xl:right-6 xl:left-auto xl:translate-x-0 flex h-16 items-end gap-3 px-2 pb-3 z-50"
+        className="fixed bottom-4 left-1/2 transform -translate-x-1/2 xl:right-6 xl:left-auto xl:translate-x-0 flex h-16 items-end gap-3 px-2 pb-[max(12px,env(safe-area-inset-bottom))] z-50"
       >
         <motion.div
           className="absolute rounded-2xl inset-y-0 bg-white border border-gray-300 -z-10"
@@ -329,7 +382,9 @@ function MacWindow({
     right: anchorRightPx ?? 24,
     bottom: anchorBottomPx ?? 64 + 16 + gapPx,
     maxWidth: 'min(560px, calc(100vw - 48px))',
-    maxHeight: 'min(80vh, calc(100vh - 160px))',
+    // Prefer the true viewport height; fallback to dynamic viewport units; final fallback to 100vh
+    maxHeight:
+      'min(80vh, min(80svh, min(80dvh, calc(var(--vvh, 100vh) - 160px))))',
   } as const;
 
   // Mobile wrapper style - separate from motion.div to avoid transform conflicts
@@ -338,8 +393,9 @@ function MacWindow({
     bottom: anchorBottomPx ?? 64 + 16 + gapPx,
     transform: 'translateX(-50%)',
     maxWidth: 'calc(100vw - 32px)',
-    maxHeight: 'min(80vh, calc(100vh - 160px))',
-    visibility: anchorCenterLeftPx ? 'visible' : 'hidden', // prevent initial jump
+    maxHeight:
+      'min(80vh, min(80svh, min(80dvh, calc(var(--vvh, 100vh) - 160px))))',
+    visibility: anchorCenterLeftPx ? 'visible' : 'hidden',
   };
 
   if (!anchorAboveDock) {
