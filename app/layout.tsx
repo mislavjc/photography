@@ -28,6 +28,15 @@ const RootLayout = ({
 }>) => {
   return (
     <html lang="en">
+      <head>
+        {/* Resource hints for image CDN */}
+        <link rel="dns-prefetch" href="//r2.photography.mislavjc.com" />
+        <link
+          rel="preconnect"
+          href={process.env.NEXT_PUBLIC_R2_PUBLIC_URL}
+          crossOrigin="anonymous"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

@@ -1,7 +1,14 @@
 'use client';
 
-import { DevHud } from 'components/dev-hud';
-import { Minimap } from 'components/minimap';
+import dynamic from 'next/dynamic';
+const Minimap = dynamic(
+  () => import('components/minimap').then((m) => m.Minimap),
+  { ssr: false },
+);
+const DevHud = dynamic(
+  () => import('components/dev-hud').then((m) => m.DevHud),
+  { ssr: false },
+);
 import { Picture } from 'components/picture';
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
 import { useRouter } from 'next/navigation';
@@ -83,36 +90,8 @@ export function PannableGrid({
   // Track whether we restored from storage to avoid recentering over it
   const restoredFromStorageRef = useRef(false);
 
-  // Initial cam (SSR-safe): prefer saved, else center on SSR_SAFE_*
-  const [cam, setCam] = useState(() => {
-    const saved = readSavedCam(stateKey);
-    if (saved) {
-      restoredFromStorageRef.current = true;
-      return saved;
-    }
-    const minX = -PAD,
-      minY = -PAD;
-    const maxX = Math.max(
-      0,
-      (initialLayout?.width ?? layout.width) - SSR_SAFE_VW + PAD,
-    );
-    const maxY = Math.max(
-      0,
-      (initialLayout?.height ?? layout.height) - SSR_SAFE_VH + PAD,
-    );
-    return {
-      x: clamp(
-        ((initialLayout?.width ?? layout.width) - SSR_SAFE_VW) / 2,
-        minX,
-        maxX,
-      ),
-      y: clamp(
-        ((initialLayout?.height ?? layout.height) - SSR_SAFE_VH) / 2,
-        minY,
-        maxY,
-      ),
-    };
-  });
+  // Initial cam: start at top-left (0,0). Apply saved position AFTER hydrate to avoid SSR mismatch.
+  const [cam, setCam] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const camRef = useRef(cam);
   useEffect(() => {
     camRef.current = cam;
@@ -123,6 +102,26 @@ export function PannableGrid({
   const minY = -PAD;
   const maxX = Math.max(0, layout.width - vw + PAD);
   const maxY = Math.max(0, layout.height - vh + PAD);
+
+  // Initialize camera once: restore saved if present else center
+  const didInitRef = useRef(false);
+  useEffect(() => {
+    if (didInitRef.current) return;
+    const saved = readSavedCam(stateKey);
+    if (saved) {
+      const nx = clamp(saved.x, minX, maxX);
+      const ny = clamp(saved.y, minY, maxY);
+      restoredFromStorageRef.current = true;
+      setCam({ x: nx, y: ny });
+      camRef.current = { x: nx, y: ny };
+    } else {
+      const nx = clamp((layout.width - vw) / 2, minX, maxX);
+      const ny = clamp((layout.height - vh) / 2, minY, maxY);
+      setCam({ x: nx, y: ny });
+      camRef.current = { x: nx, y: ny };
+    }
+    didInitRef.current = true;
+  }, [stateKey, minX, maxX, minY, maxY, layout.width, layout.height, vw, vh]);
 
   // Dragging state
   const draggingRef = useRef(false);
@@ -337,27 +336,12 @@ export function PannableGrid({
     return out;
   }, [layout, virtualRect.x, virtualRect.y, virtualRect.w, virtualRect.h]);
 
-  // On first real viewport/layout paint: clamp to bounds.
-  // If we DID NOT restore from storage, center to live viewport once.
-  const didHydrateCenterRef = useRef(false);
+  // On viewport/layout changes: clamp camera to bounds (no auto-centering)
   useEffect(() => {
-    // Always clamp to new bounds
     const clamped = {
       x: clamp(camRef.current.x, minX, maxX),
       y: clamp(camRef.current.y, minY, maxY),
     };
-
-    // Center only once if no restore happened
-    if (!restoredFromStorageRef.current && !didHydrateCenterRef.current) {
-      didHydrateCenterRef.current = true;
-      const nx = clamp((layout.width - vw) / 2, minX, maxX);
-      const ny = clamp((layout.height - vh) / 2, minY, maxY);
-      setCam({ x: nx, y: ny });
-      camRef.current = { x: nx, y: ny };
-      return;
-    }
-
-    // If we restored or already centered, just clamp (no recenter)
     if (clamped.x !== camRef.current.x || clamped.y !== camRef.current.y) {
       setCam(clamped);
       camRef.current = clamped;
@@ -397,7 +381,7 @@ export function PannableGrid({
 
   useEffect(() => {
     if (saveTimer.current) cancelAnimationFrame(saveTimer.current);
-    saveTimer.current = requestAnimationFrame(() => saveCam(cam));
+    saveTimer.current = requestAnimationFrame(() => saveCam(camRef.current));
     return () => {
       if (saveTimer.current) cancelAnimationFrame(saveTimer.current);
     };
@@ -462,6 +446,11 @@ export function PannableGrid({
           const meta = manifest[it.filename]; // { w, h, ... } from Manifest
           const intrinsicW = meta?.w ?? 3; // fallback guards
           const intrinsicH = meta?.h ?? 2;
+          const isInViewport =
+            it.x < viewRect.x + viewRect.w &&
+            it.x + it.w > viewRect.x &&
+            it.y < viewRect.y + viewRect.h &&
+            it.y + it.h > viewRect.y;
 
           return (
             <article
@@ -479,7 +468,8 @@ export function PannableGrid({
                 pictureClassName="block w-full h-full"
                 imgClassName="block w-full h-full object-cover bg-gray-50"
                 sizes={`${Math.round(it.w)}px`}
-                loading="lazy"
+                loading="eager"
+                fetchPriority={isInViewport ? 'high' : 'low'}
               />
             </article>
           );

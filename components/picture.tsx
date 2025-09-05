@@ -37,6 +37,7 @@ interface PictureProps {
   alt: string;
   profile: Profile;
   loading?: 'lazy' | 'eager';
+  fetchPriority?: 'high' | 'low' | 'auto';
   sizes?: string;
   intrinsicWidth: number;
   intrinsicHeight: number;
@@ -60,6 +61,7 @@ export function Picture({
   alt,
   profile,
   loading = 'lazy',
+  fetchPriority = 'auto',
   sizes,
   intrinsicWidth,
   intrinsicHeight,
@@ -142,6 +144,7 @@ export function Picture({
           sizes={sizes || defaultSizes}
           alt={alt}
           loading={loading}
+          fetchPriority={fetchPriority}
           draggable={false}
           className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${safeImgClass}`}
           style={intrinsicImgStyles}

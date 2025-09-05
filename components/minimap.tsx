@@ -72,7 +72,7 @@ export function Minimap({
   const [cursor, setCursor] = useState<'grab' | 'grabbing' | 'crosshair'>(
     'crosshair',
   );
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   function clamp(n: number, min: number, max: number) {
     return Math.max(min, Math.min(max, n));
@@ -407,20 +407,6 @@ export function Minimap({
             {/* Center marker with soft pulse */}
             <circle cx={camCx} cy={camCy} r={6} fill="url(#pulse)" />
             <circle cx={camCx} cy={camCy} r={2.2} fill="#111827" />
-
-            {/* Compass (N) */}
-            <g transform={`translate(${outer / 2}, ${offsetY - 2})`}>
-              <path d="M0,0 L-4,8 L4,8 Z" fill="#9ca3af" />
-              <text
-                x="0"
-                y="15"
-                fontSize="8"
-                textAnchor="middle"
-                fill="#9ca3af"
-              >
-                N
-              </text>
-            </g>
           </svg>
         </>
       )}
