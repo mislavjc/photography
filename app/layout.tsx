@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'Photography Portfolio',
-  description: 'Photography Portfolio',
+  description: 'A personal archive of my street photography while travelling.',
 };
 
 const RootLayout = ({
