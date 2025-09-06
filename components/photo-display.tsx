@@ -1,5 +1,7 @@
+'use client';
+
 import Link from 'next/link';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import { Picture } from './picture';
 
@@ -42,6 +44,46 @@ interface PhotoDisplayProps {
   showGrid?: boolean;
 }
 
+const mapboxStaticUrl = ({
+  lat,
+  lon,
+  zoom = 14,
+  width = 800,
+  height = 420,
+  colorHex = 'e2001a',
+  // pass either a-z / 0..99 or a known Maki icon. Leave undefined to omit.
+  label,
+  styleId = 'mapbox/light-v11',
+  retina = true,
+}: {
+  lat: number;
+  lon: number;
+  zoom?: number;
+  width?: number;
+  height?: number;
+  colorHex?: string;
+  label?: string; // e.g. "l" or "12"; omit to avoid errors
+  styleId?: string;
+  retina?: boolean;
+}) => {
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
+  const L = lat.toFixed(6);
+  const X = lon.toFixed(6);
+
+  // If label is provided, keep it; else, omit label.
+  // (Safe fallback: alphanumeric like "l" or "1" if you prefer a label.)
+  const pin = label
+    ? `pin-l-${encodeURIComponent(label)}+${colorHex}(${X},${L})`
+    : `pin-l+${colorHex}(${X},${L})`;
+
+  const at2x = retina ? '@2x' : '';
+  return `https://api.mapbox.com/styles/v1/${styleId}/static/${pin}/${X},${L},${zoom}/${width}x${height}${at2x}?access_token=${token}`;
+};
+
+function isPortrait(w: number, h: number) {
+  return h >= w;
+}
+
 export function PhotoDisplay({
   photoName,
   photoData,
@@ -51,6 +93,26 @@ export function PhotoDisplay({
 }: PhotoDisplayProps) {
   const dominant = photoData.exif.dominantColors?.[0]?.hex ?? '#e2001a';
   const headerH = `${dockHeaderRems}rem`;
+  const hasLocation = Boolean(photoData.exif.location);
+
+  const mapUrl = useMemo(() => {
+    if (!hasLocation) return null;
+    const { latitude, longitude } = photoData.exif.location!;
+    // a bit tighter zoom if the photo is portrait (feels nicer)
+    const zoom = isPortrait(photoData.w, photoData.h) ? 15 : 14;
+    return mapboxStaticUrl({
+      lat: latitude,
+      lon: longitude,
+      zoom,
+      width: 800,
+      height: 420,
+      colorHex: (photoData.exif.dominantColors?.[0]?.hex ?? '#e2001a').replace(
+        '#',
+        '',
+      ),
+      // no label → cleaner
+    });
+  }, [hasLocation, photoData]);
 
   return (
     <div
@@ -235,16 +297,79 @@ export function PhotoDisplay({
                 </section>
               )}
 
-              {photoData.exif.location && (
+              {hasLocation && mapUrl && (
                 <section className="space-y-2">
                   <Label>Location</Label>
-                  <div className="font-mono leading-[1.3]">
-                    <div>LAT {photoData.exif.location.latitude.toFixed(6)}</div>
-                    <div>
-                      LNG {photoData.exif.location.longitude.toFixed(6)}
+
+                  {/* Map card: fixed aspect to prevent CLS */}
+                  <div
+                    className="relative rounded-xl overflow-hidden border border-neutral-200"
+                    style={{ aspectRatio: '800 / 420' }} // reserve space up-front
+                    data-mapcard
+                  >
+                    {/* Skeleton (visible until image loads or fails) */}
+                    <div
+                      className="absolute inset-0 bg-neutral-100"
+                      data-skel
+                    />
+
+                    {/* Static map image */}
+                    <img
+                      src={mapUrl}
+                      alt={`Map preview for ${photoName}`}
+                      className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-300"
+                      width={800} // also helps CLS
+                      height={420} // also helps CLS
+                      loading="lazy"
+                      decoding="async"
+                      draggable={false}
+                      onLoad={(e) => {
+                        // hide skeleton when the image is ready
+                        const card = (e.currentTarget.closest(
+                          '[data-mapcard]',
+                        ) as HTMLElement)!;
+                        e.currentTarget.classList.remove('opacity-0');
+                        card
+                          .querySelector<HTMLElement>('[data-skel]')
+                          ?.classList.add('hidden');
+                        card
+                          .querySelector<HTMLElement>('[data-fallback]')
+                          ?.classList.add('hidden');
+                      }}
+                      onError={(e) => {
+                        // hide image, show fallback text (no React state)
+                        const card = (e.currentTarget.closest(
+                          '[data-mapcard]',
+                        ) as HTMLElement)!;
+                        e.currentTarget.classList.add('hidden');
+                        card
+                          .querySelector<HTMLElement>('[data-skel]')
+                          ?.classList.add('hidden');
+                        card
+                          .querySelector<HTMLElement>('[data-fallback]')
+                          ?.classList.remove('hidden');
+                      }}
+                    />
+
+                    {/* Fallback text overlay (hidden by default) */}
+                    <div
+                      className="hidden absolute inset-0 flex items-center justify-center bg-neutral-50"
+                      data-fallback
+                    >
+                      <div className="text-center text-sm text-neutral-600 font-mono px-4">
+                        Map unavailable ·{' '}
+                        {photoData.exif.location!.latitude.toFixed(6)},{' '}
+                        {photoData.exif.location!.longitude.toFixed(6)}
+                      </div>
                     </div>
-                    {photoData.exif.location.altitude != null && (
-                      <div>ALT {photoData.exif.location.altitude}m</div>
+                  </div>
+
+                  {/* Minimal caption with coords (keep tiny, always visible) */}
+                  <div className="font-mono text-sm text-neutral-600">
+                    {photoData.exif.location!.latitude.toFixed(6)},{' '}
+                    {photoData.exif.location!.longitude.toFixed(6)}
+                    {photoData.exif.location!.altitude != null && (
+                      <> · {photoData.exif.location!.altitude}m</>
                     )}
                   </div>
                 </section>
