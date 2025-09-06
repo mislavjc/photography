@@ -83,6 +83,7 @@ export default async function OpengraphImage({ params }: { params: Params }) {
               latitude: number;
               longitude: number;
               altitude?: number;
+              address?: string | null;
             } | null;
           }
         | undefined;
@@ -102,7 +103,7 @@ export default async function OpengraphImage({ params }: { params: Params }) {
               'linear-gradient(180deg,#f5f5f7 0%,#efeff1 60%,#e5e5e8 100%)',
           }}
         >
-          <div tw="flex text-neutral-700 font-mono text-lg">
+          <div tw="flex text-neutral-700 text-xl font-medium">
             Photo not found
           </div>
         </div>
@@ -128,11 +129,11 @@ export default async function OpengraphImage({ params }: { params: Params }) {
   const innerH = H - GRID_INSET_TOP - GRID_INSET_BOTTOM;
 
   // Content paddings inside inner rect
-  const PAD_X = 28;
-  const PAD_Y = 24;
+  const PAD_X = 32;
+  const PAD_Y = 28;
 
   // Two-column metadata widths (no calc())
-  const COL_GAP = 28;
+  const COL_GAP = 32;
   const colW = Math.floor((innerW - PAD_X * 2 - COL_GAP) / 2);
 
   // Meta content
@@ -190,11 +191,17 @@ export default async function OpengraphImage({ params }: { params: Params }) {
   ];
   if (exif.dateTime) rows.push({ label: 'Date', value: exif.dateTime });
   if (loc) {
+    const address = loc.address;
+    const coords = `LAT ${loc.latitude.toFixed(6)}  LNG ${loc.longitude.toFixed(6)}${
+      loc.altitude != null ? `  ALT ${loc.altitude}m` : ''
+    }`;
+
+    // Show address if available, otherwise coordinates
+    const locationValue = address ? address : coords;
+
     rows.push({
       label: 'Location',
-      value: `LAT ${loc.latitude.toFixed(6)}  LNG ${loc.longitude.toFixed(6)}${
-        loc.altitude != null ? `  ALT ${loc.altitude}m` : ''
-      }`,
+      value: locationValue,
     });
   }
 
@@ -214,8 +221,7 @@ export default async function OpengraphImage({ params }: { params: Params }) {
           height: H,
           background:
             'linear-gradient(180deg,#f5f5f7 0%,#efeff1 60%,#e5e5e8 100%)',
-          fontFamily:
-            'system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif',
+          fontFamily: 'Geist, system-ui, -apple-system, sans-serif',
         }}
       >
         {/* GRID LINES — below content */}
@@ -283,21 +289,21 @@ export default async function OpengraphImage({ params }: { params: Params }) {
           <div tw="flex flex-col w-full h-full">
             {/* Title + dims */}
             <div tw="flex items-baseline justify-between">
-              <div tw="flex text-neutral-900 text-3xl font-semibold">
+              <div tw="flex text-neutral-900 text-2xl font-semibold">
                 {title}
               </div>
-              <div tw="flex text-neutral-600 font-mono text-base">{dims}</div>
+              <div tw="flex text-neutral-600 text-sm">{dims}</div>
             </div>
 
             {/* Description */}
             {desc ? (
-              <div tw="flex mt-4 text-lg leading-tight text-neutral-800">
+              <div tw="flex mt-6 text-base leading-relaxed text-neutral-700">
                 {desc}
               </div>
             ) : null}
 
             {/* Meta grid: two fixed-width columns with a fixed gap (no calc) */}
-            <div tw="flex mt-14">
+            <div tw="flex mt-8">
               {/* Left column */}
               <div
                 tw="flex flex-col"
@@ -362,14 +368,14 @@ export default async function OpengraphImage({ params }: { params: Params }) {
 function MetaRow({ label, value }: { label: string; value: string }) {
   const v = value.length > 56 ? value.slice(0, 55).trimEnd() + '…' : value;
   return (
-    <div tw="flex items-baseline mt-2">
+    <div tw="flex items-baseline mt-3">
       <div
-        tw="flex uppercase tracking-[0.14em] text-neutral-600 font-mono text-[13px]"
-        style={{ width: 112 }}
+        tw="flex uppercase tracking-[0.12em] text-neutral-600 text-xs font-medium"
+        style={{ width: 108 }}
       >
         {label}
       </div>
-      <div tw="flex text-neutral-800 font-mono text-[15px]">{v}</div>
+      <div tw="flex text-neutral-800 text-sm">{v}</div>
     </div>
   );
 }
