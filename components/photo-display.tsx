@@ -29,6 +29,7 @@ interface PhotoData {
       latitude: number;
       longitude: number;
       altitude?: number;
+      address?: string | null;
     } | null;
     dominantColors?: Array<{ hex: string }> | null;
   };
@@ -301,6 +302,12 @@ export function PhotoDisplay({
                 <section className="space-y-2">
                   <Label>Location</Label>
 
+                  {photoData.exif.location!.address && (
+                    <div className="font-mono">
+                      {photoData.exif.location!.address}
+                    </div>
+                  )}
+
                   {/* Map card: fixed aspect to prevent CLS */}
                   <div
                     className="relative overflow-hidden border border-neutral-200"
@@ -357,9 +364,23 @@ export function PhotoDisplay({
                       data-fallback
                     >
                       <div className="text-center text-sm text-neutral-600 font-mono px-4">
-                        Map unavailable ·{' '}
-                        {photoData.exif.location!.latitude.toFixed(6)},{' '}
-                        {photoData.exif.location!.longitude.toFixed(6)}
+                        {photoData.exif.location!.address ? (
+                          <>
+                            <div className="font-sans mb-2">
+                              {photoData.exif.location!.address}
+                            </div>
+                            <div>
+                              {photoData.exif.location!.latitude.toFixed(6)},{' '}
+                              {photoData.exif.location!.longitude.toFixed(6)}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            Map unavailable ·{' '}
+                            {photoData.exif.location!.latitude.toFixed(6)},{' '}
+                            {photoData.exif.location!.longitude.toFixed(6)}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

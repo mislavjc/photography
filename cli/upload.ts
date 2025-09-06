@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { groq } from '@ai-sdk/groq';
 import {
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -26,6 +27,8 @@ interface ExifLocation {
   latitude: number;
   longitude: number;
   altitude?: number;
+  /** New: human-readable address from reverse geocoding */
+  address?: string | null;
 }
 interface ExifMetadata {
   camera: string | null;
@@ -69,6 +72,8 @@ const getConfig = Effect.gen(function* () {
   const GEN_AI_DESCRIPTIONS =
     (process.env.GEN_AI_DESCRIPTIONS || 'false') === 'true';
   const VERBOSE = (process.env.VERBOSE || 'false') === 'true';
+  const NOMINATIM_EMAIL = process.env.NOMINATIM_EMAIL || ''; // optional
+  const GEO_RATE_MS = parseInt(process.env.GEO_RATE_MS || '1100', 10); // polite: ~1 req/s
 
   if (
     !R2_ACCOUNT_ID ||
@@ -120,6 +125,8 @@ const getConfig = Effect.gen(function* () {
     BLURHASH_MAX,
     GEN_AI_DESCRIPTIONS,
     VERBOSE,
+    NOMINATIM_EMAIL,
+    GEO_RATE_MS,
     s3,
     PROFILES,
   };
@@ -186,6 +193,88 @@ const putSentinel = (s3: S3Client, Bucket: string, hash: string, key: string) =>
     sha256: hash,
     key,
   });
+
+// ----------------------- S3 getObject + Manifest helpers -----------------------
+const getObject = (s3: S3Client, Bucket: string, Key: string) =>
+  Effect.tryPromise<Buffer, Error>({
+    try: async () => {
+      const out = await s3.send(new GetObjectCommand({ Bucket, Key }));
+      if (!out.Body) {
+        throw new Error(`No body returned for ${Key}`);
+      }
+      const chunks: Buffer[] = [];
+      const stream = out.Body as NodeJS.ReadableStream;
+      return new Promise<Buffer>((res, rej) => {
+        stream.on('data', (c: Buffer) => chunks.push(c));
+        stream.on('end', () => res(Buffer.concat(chunks)));
+        stream.on('error', rej);
+      });
+    },
+    catch: (e) => new Error(`getObject failed for ${Key}: ${e}`),
+  });
+
+const manifestKeys = (variantsPrefix: string) => {
+  const base = cleanPrefix(variantsPrefix);
+  return {
+    compressed: `${base}/r2-manifest.json`,
+    uncompressed: `${base}/r2-manifest-original.json`,
+  };
+};
+
+const backupManifestLocally = (content: Buffer) =>
+  Effect.tryPromise<string, Error>({
+    try: async () => {
+      const dir = path.resolve('./manifest-backups');
+      await fsp.mkdir(dir, { recursive: true });
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const file = path.join(dir, `r2-manifest-backup-${ts}.json`);
+      await fsp.writeFile(file, content);
+      return file;
+    },
+    catch: (e) => new Error(`Backup manifest failed: ${e}`),
+  });
+
+// ----------------------- Reverse Geocoding (Nominatim) -----------------------
+type RevGeo = { address?: string | null };
+const geoCache = new Map<string, string | null>();
+
+const reverseGeocodeNominatim = (
+  lat: number,
+  lon: number,
+  contactEmail?: string,
+) =>
+  Effect.tryPromise<RevGeo, Error>({
+    try: async () => {
+      const key = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+      if (geoCache.has(key)) return { address: geoCache.get(key) ?? null };
+
+      const url = new URL('https://nominatim.openstreetmap.org/reverse');
+      url.searchParams.set('format', 'jsonv2');
+      url.searchParams.set('lat', String(lat));
+      url.searchParams.set('lon', String(lon));
+      url.searchParams.set('zoom', '14'); // neighborhood/city-ish
+      url.searchParams.set('addressdetails', '1');
+
+      const headers: Record<string, string> = {
+        'User-Agent': `photo-manifest-uploader/1.0`,
+      };
+      if (contactEmail) headers['From'] = contactEmail;
+
+      const res = await fetch(url, { headers });
+      if (!res.ok) {
+        // Rate limits or errors: just return null address
+        geoCache.set(key, null);
+        return { address: null };
+      }
+      const data = (await res.json()) as { display_name?: string };
+      const display = data?.display_name || null;
+      geoCache.set(key, display);
+      return { address: display };
+    },
+    catch: (e) => new Error(`Reverse geocoding failed: ${e}`),
+  });
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Determine extension (preserve original). Defaults to .jpg if missing. */
 const getExt = (file: string) =>
@@ -512,9 +601,11 @@ Focus on:
 Write 2-4 sentences that paint a vivid picture. Start with "A photo of..." and make it evocative and descriptive.
 
 ${
-  exif.location?.latitude && exif.location?.longitude
-    ? `Location: Approximate coordinates available.`
-    : 'Location: Unknown.'
+  exif.location?.address
+    ? `Location: ${exif.location.address}`
+    : exif.location?.latitude && exif.location?.longitude
+      ? `Location: Approximate coordinates available.`
+      : 'Location: Unknown.'
 }
 Technical: ${JSON.stringify(
     {
@@ -632,6 +723,13 @@ const discoverFiles = Effect.gen(function* () {
   const isManifestOnly =
     process.argv.includes('--manifest-only') ||
     process.argv.includes('--regenerate-manifest');
+  const isLocationOnly = process.argv.includes('--location-only');
+
+  // If location-only: we won't scan disk, but return empty files list safely.
+  if (isLocationOnly) {
+    return { SRC_DIR, files: [] as string[], isManifestOnly, isLocationOnly };
+  }
+
   const exts = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff'];
   const patterns = exts.flatMap((e) => [
     `${SRC_DIR}/**/*.${e}`,
@@ -646,7 +744,7 @@ const discoverFiles = Effect.gen(function* () {
       new Error(`No images found. Supported: ${exts.join(', ')}`),
     );
 
-  return { SRC_DIR, files: allFiles, isManifestOnly };
+  return { SRC_DIR, files: allFiles, isManifestOnly, isLocationOnly };
 });
 
 // ----------------------- Progress -----------------------
@@ -667,11 +765,14 @@ const createProgressTracker = (total: number) => {
 // ----------------------- Main pipeline per file -----------------------
 const program = Effect.gen(function* () {
   const cfg = yield* getConfig;
-  const { SRC_DIR, files, isManifestOnly } = yield* discoverFiles;
+  const { SRC_DIR, files, isManifestOnly, isLocationOnly } =
+    yield* discoverFiles;
 
   const modeMessage = isManifestOnly ? 'Manifest regeneration' : 'Upload';
   yield* Console.log(
-    `${modeMessage} from ${SRC_DIR} → s3://${cfg.R2_BUCKET}/{${cfg.R2_PREFIX}, ${cfg.R2_VARIANTS_PREFIX}}`,
+    `${modeMessage} from ${SRC_DIR} → s3://${cfg.R2_BUCKET}/{${cfg.R2_PREFIX}, ${
+      cfg.R2_VARIANTS_PREFIX
+    }}`,
   );
   yield* Console.log(
     `Found ${files.length} files | concurrency ${cfg.CONCURRENCY}`,
@@ -869,7 +970,31 @@ const program = Effect.gen(function* () {
         if (cfg.GEN_BLURHASH) {
           const bh = yield* makeBlurhash(file, cfg.BLURHASH_MAX);
           const dominantColors = yield* extractDominantColors(file, 5);
-          const exifForManifest: ExifMetadata = { ...exif, dominantColors };
+
+          // If we have coordinates, enrich with human-readable address (cached)
+          let address: string | null | undefined = undefined;
+          if (
+            exif.location?.latitude != null &&
+            exif.location?.longitude != null
+          ) {
+            const rg = yield* reverseGeocodeNominatim(
+              exif.location.latitude,
+              exif.location.longitude,
+              cfg.NOMINATIM_EMAIL || undefined,
+            );
+            address = rg.address ?? null;
+          }
+
+          const exifForManifest: ExifMetadata = {
+            ...exif,
+            location: exif.location
+              ? {
+                  ...exif.location,
+                  address: address ?? exif.location.address ?? null,
+                }
+              : null,
+            dominantColors,
+          };
           manifest[`${uuid}${ext}`] = {
             blurhash: bh.blurhash,
             w: bh.w,
@@ -889,6 +1014,107 @@ const program = Effect.gen(function* () {
     ),
     { concurrency: cfg.CONCURRENCY },
   );
+
+  // ----------------------- --location-only: update addresses in existing manifest -----------------------
+  if (isLocationOnly) {
+    const { uncompressed } = manifestKeys(cfg.R2_VARIANTS_PREFIX);
+
+    // Load existing uncompressed manifest from R2
+    const raw = yield* getObject(cfg.s3, cfg.R2_BUCKET, uncompressed);
+    // Backup locally before changes
+    const backupPath = yield* backupManifestLocally(raw);
+    yield* Console.log(`🧯 Backed up current manifest → ${backupPath}`);
+
+    let existing: Record<
+      string,
+      {
+        exif?: {
+          location?: {
+            latitude?: number;
+            longitude?: number;
+            address?: string | null;
+          };
+        };
+      }
+    >;
+    try {
+      existing = JSON.parse(raw.toString('utf8'));
+    } catch {
+      return yield* Effect.fail(
+        new Error(`Failed to parse existing manifest JSON`),
+      );
+    }
+
+    const keys = Object.keys(existing);
+    yield* Console.log(
+      `🔎 Scanning ${keys.length} manifest entries for missing addresses...`,
+    );
+
+    let updatedCount = 0;
+    for (const k of keys) {
+      const entry = existing[k];
+      const loc = entry?.exif?.location;
+      if (!loc || loc.address) continue;
+
+      const lat = typeof loc.latitude === 'number' ? loc.latitude : null;
+      const lon = typeof loc.longitude === 'number' ? loc.longitude : null;
+      if (lat == null || lon == null) continue;
+
+      const rg = yield* reverseGeocodeNominatim(
+        lat,
+        lon,
+        cfg.NOMINATIM_EMAIL || undefined,
+      );
+      if (rg.address && entry.exif?.location) {
+        entry.exif.location.address = rg.address;
+        updatedCount++;
+      }
+      // Be nice to Nominatim
+      yield* Effect.promise(() => sleep(cfg.GEO_RATE_MS));
+    }
+
+    // Serialize updated manifest
+    const newBuf = Buffer.from(JSON.stringify(existing, null, 2));
+    // Compress
+    const { compressed: compressedManifest, encoding } =
+      yield* compressManifest(newBuf);
+
+    // Upload both
+    yield* putObject(
+      cfg.s3,
+      cfg.R2_BUCKET,
+      manifestKeys(cfg.R2_VARIANTS_PREFIX).uncompressed,
+      newBuf,
+      'application/json',
+      {
+        note: 'uncompressed-reference',
+        'original-size': String(newBuf.length),
+      },
+      { cacheControl: 'public, max-age=300, s-maxage=300' },
+    );
+    yield* putObject(
+      cfg.s3,
+      cfg.R2_BUCKET,
+      manifestKeys(cfg.R2_VARIANTS_PREFIX).compressed,
+      compressedManifest,
+      'application/json',
+      {
+        'original-size': String(newBuf.length),
+        'compressed-size': String(compressedManifest.length),
+        'compression-encoding': encoding,
+      },
+      {
+        contentEncoding: encoding,
+        cacheControl: 'public, max-age=300, s-maxage=300',
+      },
+    );
+
+    yield* Console.log(
+      `✅ Location-only update complete. Entries updated: ${updatedCount}`,
+    );
+    // Stop here (no further processing)
+    return;
+  }
 
   // Generate AI descriptions if enabled
   if (cfg.GEN_AI_DESCRIPTIONS && cfg.GEN_BLURHASH) {
