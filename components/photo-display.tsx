@@ -303,7 +303,7 @@ export function PhotoDisplay({
 
                   {/* Map card: fixed aspect to prevent CLS */}
                   <div
-                    className="relative rounded-xl overflow-hidden border border-neutral-200"
+                    className="relative overflow-hidden border border-neutral-200"
                     style={{ aspectRatio: '800 / 420' }} // reserve space up-front
                     data-mapcard
                   >
