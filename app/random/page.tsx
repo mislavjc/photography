@@ -2,8 +2,6 @@ import { PhotoDisplay } from 'components/photo-display';
 import { loadManifest } from 'lib/manifest-server';
 import Link from 'next/link';
 
-export const dynamic = 'force-dynamic';
-
 export default async function NotFound() {
   const manifest = await loadManifest();
   const photoNames = Object.keys(manifest);
