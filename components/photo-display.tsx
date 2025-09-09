@@ -1,9 +1,12 @@
 'use client';
 
+import { Shuffle } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import React, { useMemo } from 'react';
 
 import { Picture } from './picture';
+import { Button } from './ui/button';
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -43,6 +46,7 @@ interface PhotoDisplayProps {
   /** header height in rem (space reserved for back area) */
   dockHeaderRems?: number; // default 3.5
   showGrid?: boolean;
+  randomPhotoRoute?: string;
 }
 
 const mapboxStaticUrl = ({
@@ -91,7 +95,9 @@ export function PhotoDisplay({
   backHref = '/grid',
   dockHeaderRems = 3.5,
   showGrid = true,
+  randomPhotoRoute,
 }: PhotoDisplayProps) {
+  const router = useRouter();
   const dominant = photoData.exif.dominantColors?.[0]?.hex ?? '#e2001a';
   const headerH = `${dockHeaderRems}rem`;
   const hasLocation = Boolean(photoData.exif.location);
@@ -171,20 +177,36 @@ export function PhotoDisplay({
       <div className="relative z-10 px-4 sm:px-6 lg:px-12">
         {/* sticky header (back) */}
         <header
-          className="sticky top-[env(safe-area-inset-top)] z-20 gap-16 flex items-center justify-between bg-white/85 backdrop-blur-sm"
+          className="sticky top-[env(safe-area-inset-top)] z-20 bg-white/85 backdrop-blur-sm"
           style={{ height: 'var(--headerH)' }}
         >
-          <Link
-            href={backHref}
-            className="inline-flex items-center gap-2 font-mono text-neutral-800 hover:opacity-80 transition-opacity"
-          >
-            <span
-              className="inline-block h-2 w-8"
-              style={{ backgroundColor: dominant }}
-            />
-            <span>←&nbsp;Back</span>
-          </Link>
-          <div className="font-mono text-neutral-500 truncate">{photoName}</div>
+          <div className="flex items-center justify-between h-full">
+            <Link
+              href={backHref}
+              className="inline-flex items-center gap-2 font-mono text-neutral-800 hover:opacity-80 transition-opacity"
+            >
+              <span
+                className="inline-block h-2 w-8"
+                style={{ backgroundColor: dominant }}
+              />
+              <span>←&nbsp;Back</span>
+            </Link>
+            <div className="flex items-center gap-2">
+              {randomPhotoRoute && (
+                <Button
+                  onClick={() => router.push(randomPhotoRoute)}
+                  variant="ghost"
+                  size="sm"
+                  className="font-mono text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 text-xs sm:text-sm"
+                >
+                  <Shuffle className="w-3 h-3 sm:w-4 sm:h-4" />
+                </Button>
+              )}
+              <div className="font-mono text-neutral-500 truncate text-xs sm:text-sm max-w-[80px] sm:max-w-none">
+                {photoName}
+              </div>
+            </div>
+          </div>
         </header>
 
         {/* layout */}
@@ -360,7 +382,7 @@ export function PhotoDisplay({
 
                     {/* Fallback text overlay (hidden by default) */}
                     <div
-                      className="hidden absolute inset-0 flex items-center justify-center bg-neutral-50"
+                      className="absolute inset-0 flex items-center justify-center bg-neutral-50"
                       data-fallback
                     >
                       <div className="text-center text-sm text-neutral-600 font-mono px-4">

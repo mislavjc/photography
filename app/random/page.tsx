@@ -11,7 +11,8 @@ export default async function NotFound() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6">
         <div className="text-base font-semibold">Photo not found</div>
         <p className="text-base text-neutral-600 text-center">
-          The photo you’re looking for doesn’t exist or may have been moved.
+          The photo you&rsquo;re looking for doesn&rsquo;t exist or may have
+          been moved.
         </p>
         <Link
           href="/grid"
@@ -34,6 +35,7 @@ export default async function NotFound() {
       backHref="/"
       dockHeaderRems={3.5}
       showGrid
+      randomPhotoRoute="/random"
     />
   );
 }
