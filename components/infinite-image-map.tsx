@@ -132,6 +132,7 @@ const InfiniteImageMap = ({ manifest, onHover }: InfiniteImageMapProps) => {
     return rects;
   };
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: WORLD_TILES,
     getScrollElement: () => scrollRef.current,
