@@ -3,6 +3,7 @@
 import React, { useCallback, useState } from 'react';
 
 import type { ImageMetadata, Manifest } from '../types';
+
 import InfiniteImageMap from './infinite-image-map';
 import { MetadataTooltip } from './metadata-tooltip';
 import { PerformanceMonitor } from './performance-monitor';

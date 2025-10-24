@@ -1,6 +1,8 @@
-import { PhotoDisplay } from 'components/photo-display';
-import { loadManifest } from 'lib/manifest-server';
 import { notFound } from 'next/navigation';
+
+import { PhotoDisplay } from 'components/photo-display';
+
+import { loadManifest } from 'lib/manifest-server';
 
 interface PhotoPageProps {
   params: Promise<{ 'photo-name': string }>;

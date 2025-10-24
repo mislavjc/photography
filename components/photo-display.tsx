@@ -1,12 +1,12 @@
 'use client';
 
+import React, { useMemo } from 'react';
 import { Shuffle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import React, { useMemo } from 'react';
 
-import { Picture } from './picture';
 import { Button } from './ui/button';
+import { Picture } from './picture';
 
 function Label({ children }: { children: React.ReactNode }) {
   return (

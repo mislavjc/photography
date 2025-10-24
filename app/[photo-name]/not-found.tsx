@@ -1,6 +1,8 @@
-import { PhotoDisplay } from 'components/photo-display';
-import { loadManifest } from 'lib/manifest-server';
 import Link from 'next/link';
+
+import { PhotoDisplay } from 'components/photo-display';
+
+import { loadManifest } from 'lib/manifest-server';
 
 export default async function NotFound() {
   const manifest = await loadManifest();

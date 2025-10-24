@@ -1,7 +1,7 @@
 'use client';
 
-import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { useCallback, useEffect, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 import {
   CELL_OVERSCAN_PX,
@@ -22,6 +22,7 @@ import type {
   Rect,
   Velocity,
 } from '../types';
+
 import { Tile } from './tile';
 
 interface InfiniteImageMapProps {

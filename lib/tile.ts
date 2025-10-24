@@ -1,5 +1,6 @@
 import { COLUMNS_PER_TILE } from '../config';
 import type { Manifest, Rect } from '../types';
+
 import { getCycledImageByOrientation } from './image-cycling';
 import { getCachedPatterns } from './pattern-cache';
 import { hash2, rng } from './utils';

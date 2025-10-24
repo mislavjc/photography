@@ -3,13 +3,12 @@
 // Generate r2-manifest.json with blurhashes for images in ./images/
 // Uploads manifest directly to R2 (remote only)
 
-import path from 'node:path';
-
 import { config } from 'dotenv';
 import { Console, Effect, pipe } from 'effect';
 import { exiftool, Tags } from 'exiftool-vendored';
 import { FastAverageColor } from 'fast-average-color';
 import fg from 'fast-glob';
+import path from 'node:path';
 
 import { makeBlurhash } from '../lib/blurhash-utils';
 

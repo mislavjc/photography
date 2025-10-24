@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 
 import type { TileProps } from '../types';
+
 import { ImageCell } from './image-cell';
 
 const TileComponent = ({

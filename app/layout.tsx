@@ -1,10 +1,11 @@
-import './globals.css';
-
-import { SITE_CONFIG } from 'lib/constants';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import PlausibleProvider from 'next-plausible';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
+
+import { SITE_CONFIG } from 'lib/constants';
+
+import './globals.css';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -17,6 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(`https://${SITE_CONFIG.domain}`),
   title: 'Photography Portfolio',
   description: 'A personal archive of my street photography while travelling.',
 };

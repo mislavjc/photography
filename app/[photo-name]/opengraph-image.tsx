@@ -1,6 +1,7 @@
 // app/(photos)/[photo-name]/opengraph-image.tsx
-import { loadManifest } from 'lib/manifest-server';
 import { ImageResponse } from 'next/og';
+
+import { loadManifest } from 'lib/manifest-server';
 
 export const runtime = 'nodejs';
 export const contentType = 'image/png';

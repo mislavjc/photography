@@ -1,10 +1,12 @@
 'use client';
 
-import { Picture } from 'components/picture';
-import { computeNearSquareLayout, type Layout } from 'lib/layout';
-import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Manifest } from 'types';
+
+import { Picture } from 'components/picture';
+
+import { computeNearSquareLayout, type Layout } from 'lib/layout';
 
 import { Dock } from './dock';
 

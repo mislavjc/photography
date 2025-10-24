@@ -1,7 +1,8 @@
 'use client';
-import type { PlacedItem } from 'lib/layout';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest } from 'types';
+
+import type { PlacedItem } from 'lib/layout';
 
 type MinimapProps = {
   worldW: number;

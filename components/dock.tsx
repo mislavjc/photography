@@ -1,7 +1,7 @@
 'use client';
 
+import React, { ReactNode, useEffect, useRef, useState } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import type { Layout, PlacedItem } from 'lib/layout';
 import { Info, Map, Shuffle } from 'lucide-react';
 import {
   animate,
@@ -14,8 +14,9 @@ import {
   useTransform,
 } from 'motion/react';
 import { useRouter } from 'next/navigation';
-import React, { ReactNode, useEffect, useRef, useState } from 'react';
 import type { Manifest } from 'types';
+
+import type { Layout, PlacedItem } from 'lib/layout';
 
 import { Minimap } from './minimap';
 
