@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { PhotoDisplay } from 'components/photo-display';
 
 import { loadManifest } from 'lib/manifest-server';
+import { selectRandomPhoto } from 'lib/manifest-utils';
 
 export default async function NotFound() {
   const manifest = await loadManifest();
@@ -13,7 +14,8 @@ export default async function NotFound() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6">
         <div className="text-base font-semibold">Photo not found</div>
         <p className="text-base text-neutral-600 text-center">
-          The photo you’re looking for doesn’t exist or may have been moved.
+          The photo you&apos;re looking for doesn&apos;t exist or may have been
+          moved.
         </p>
         <Link
           href="/grid"
@@ -25,8 +27,7 @@ export default async function NotFound() {
     );
   }
 
-  const randomPhotoName =
-    photoNames[Math.floor(Math.random() * photoNames.length)];
+  const randomPhotoName = selectRandomPhoto(photoNames);
   const photoData = manifest[randomPhotoName];
 
   return (

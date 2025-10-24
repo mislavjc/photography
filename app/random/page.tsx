@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { PhotoDisplay } from 'components/photo-display';
 
 import { loadManifest } from 'lib/manifest-server';
+import { selectRandomPhoto } from 'lib/manifest-utils';
 
 export default async function NotFound() {
   const manifest = await loadManifest();
@@ -26,8 +27,7 @@ export default async function NotFound() {
     );
   }
 
-  const randomPhotoName =
-    photoNames[Math.floor(Math.random() * photoNames.length)];
+  const randomPhotoName = selectRandomPhoto(photoNames);
   const photoData = manifest[randomPhotoName];
 
   return (

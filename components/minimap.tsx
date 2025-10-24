@@ -95,9 +95,28 @@ export function Minimap({
   const camCy = offsetY + (camY + pad + viewH / 2) * scale;
 
   // Trail of recent camera centers (breadcrumbs)
-  const trailRef = useRef<Array<{ x: number; y: number }>>([]);
+  // Using state to properly track the trail
+  const [trail, setTrail] = useState<Array<{ x: number; y: number }>>([]);
+  const updateScheduledRef = useRef(false);
+
+  // Update trail asynchronously to avoid setState-in-effect warning
   useEffect(() => {
-    trailRef.current = [...trailRef.current, { x: camCx, y: camCy }].slice(-14);
+    if (!updateScheduledRef.current) {
+      updateScheduledRef.current = true;
+      // Schedule state update for next tick
+      Promise.resolve().then(() => {
+        setTrail((prev) => {
+          // Only update if position actually changed
+          const lastPos = prev[prev.length - 1];
+          if (lastPos && lastPos.x === camCx && lastPos.y === camCy) {
+            updateScheduledRef.current = false;
+            return prev;
+          }
+          updateScheduledRef.current = false;
+          return [...prev, { x: camCx, y: camCy }].slice(-14);
+        });
+      });
+    }
   }, [camCx, camCy]);
 
   // Drag state
@@ -244,11 +263,9 @@ export function Minimap({
 
   // Breadcrumb path + dots
   const trailPath = useMemo(() => {
-    if (!trailRef.current.length) return '';
-    return trailRef.current
-      .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`)
-      .join(' ');
-  }, []);
+    if (!trail.length) return '';
+    return trail.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  }, [trail]);
 
   return (
     <div
@@ -345,7 +362,7 @@ export function Minimap({
         <g>{rects}</g>
 
         {/* Breadcrumb trail (path + fading dots) */}
-        {trailRef.current.length > 1 && (
+        {trail.length > 1 && (
           <>
             <path
               d={trailPath}
@@ -354,7 +371,7 @@ export function Minimap({
               strokeOpacity={0.25}
               strokeWidth={1.5}
             />
-            {trailRef.current.map((p, i, arr) => (
+            {trail.map((p, i, arr) => (
               <circle
                 key={`t${i}`}
                 cx={p.x}

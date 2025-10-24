@@ -1,22 +1,18 @@
 import { Manifest } from 'types';
 
 const AVAILABLE_WIDTHS = [160, 240, 320, 480, 640, 800, 960] as const;
-const FORMATS = ['avif', 'webp', 'jpeg'] as const;
+type FORMATS = 'avif' | 'webp' | 'jpeg';
 
 function getImageBaseName(filename: string): string {
   return filename.replace(/\.[^.]+$/, '');
 }
 
-function r2VariantUrl(
-  filename: string,
-  width: number,
-  format: (typeof FORMATS)[number],
-) {
+function r2VariantUrl(filename: string, width: number, format: FORMATS) {
   const base = getImageBaseName(filename);
   return `https://r2.photography.mislavjc.com/variants/${format}/${width}/${base}.${format}`;
 }
 
-function buildSrcSet(filename: string, format: (typeof FORMATS)[number]) {
+function buildSrcSet(filename: string, format: FORMATS) {
   return AVAILABLE_WIDTHS.map(
     (w) => `${r2VariantUrl(filename, w, format)} ${w}w`,
   ).join(', ');

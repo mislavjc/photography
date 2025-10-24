@@ -355,6 +355,49 @@ function AppIcon({
 
 // ----------------------------- macOS-style window -----------------------------
 
+// Frame component extracted to avoid creating components during render
+function WindowFrame({
+  children,
+  className,
+  title,
+  onClose,
+  startDrag,
+}: {
+  children: ReactNode;
+  className: string;
+  title: string;
+  onClose: () => void;
+  startDrag: (e: React.PointerEvent) => void;
+}) {
+  return (
+    <div
+      className={`bg-white rounded-lg shadow-2xl border border-gray-300 overflow-hidden ${className}`}
+    >
+      <div
+        className="bg-gray-100 px-3 py-3 flex items-center border-b border-gray-300 select-none"
+        onPointerDown={startDrag}
+        style={{ touchAction: 'none' }}
+      >
+        <div className="flex items-center space-x-2">
+          <div className="flex space-x-1">
+            <button
+              onClick={onClose}
+              className="w-3.5 h-3.5 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
+              aria-label="Close"
+            />
+            <div className="w-3.5 h-3.5 rounded-full bg-yellow-500" />
+            <div className="w-3.5 h-3.5 rounded-full bg-green-500" />
+          </div>
+          <span className="text-sm font-medium text-gray-700 ml-2">
+            {title}
+          </span>
+        </div>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
 function MacWindow({
   title,
   children,
@@ -412,34 +455,6 @@ function MacWindow({
     overscrollBehavior: 'contain',
   };
 
-  const Frame = ({ children }: { children: ReactNode }) => (
-    <div
-      className={`bg-white rounded-lg shadow-2xl border border-gray-300 overflow-hidden ${className}`}
-    >
-      <div
-        className="bg-gray-100 px-3 py-3 flex items-center border-b border-gray-300 select-none" // NEW: larger hit area + select-none
-        onPointerDown={startDrag} // NEW: header is the drag handle (desktop)
-        style={{ touchAction: 'none' }} // NEW: prevent touch scroll on header
-      >
-        <div className="flex items-center space-x-2">
-          <div className="flex space-x-1">
-            <button
-              onClick={onClose}
-              className="w-3.5 h-3.5 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
-              aria-label="Close"
-            />
-            <div className="w-3.5 h-3.5 rounded-full bg-yellow-500" />
-            <div className="w-3.5 h-3.5 rounded-full bg-green-500" />
-          </div>
-          <span className="text-sm font-medium text-gray-700 ml-2">
-            {title}
-          </span>
-        </div>
-      </div>
-      <div>{children}</div>
-    </div>
-  );
-
   if (!anchorAboveDock) {
     // Free/drag position (desktop only, header-drag)
     return (
@@ -458,7 +473,14 @@ function MacWindow({
         dragMomentum={false}
         dragElastic={0}
       >
-        <Frame>{children}</Frame>
+        <WindowFrame
+          className={className}
+          title={title}
+          onClose={onClose}
+          startDrag={startDrag}
+        >
+          {children}
+        </WindowFrame>
       </motion.div>
     );
   }
@@ -474,7 +496,14 @@ function MacWindow({
         className="fixed z-[75]"
         style={anchoredStyleDesktop}
       >
-        <Frame>{children}</Frame>
+        <WindowFrame
+          className={className}
+          title={title}
+          onClose={onClose}
+          startDrag={startDrag}
+        >
+          {children}
+        </WindowFrame>
       </motion.div>
     );
   }
@@ -492,7 +521,14 @@ function MacWindow({
         transition={{ duration: 0.15, ease: 'easeOut' }}
         className="pointer-events-auto"
       >
-        <Frame>{children}</Frame>
+        <WindowFrame
+          className={className}
+          title={title}
+          onClose={onClose}
+          startDrag={startDrag}
+        >
+          {children}
+        </WindowFrame>
       </motion.div>
     </div>
   );

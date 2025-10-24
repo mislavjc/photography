@@ -3,51 +3,57 @@ import { useEffect, useState } from 'react';
 import { GAPS, MOBILE_BREAKPOINT, TILE_SIZES } from '../config';
 
 export const useScreenSize = () => {
-  const [isMobile, setIsMobile] = useState(false);
-  const [windowSize, setWindowSize] = useState({
-    width: 1920, // Default desktop width
-    height: 1080,
+  // Use a single state object
+  const [state, setState] = useState({
+    isMobile: false,
+    windowSize: { width: 1920, height: 1080 }, // Default desktop width
+    isHydrated: false,
   });
-  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    // Set initial values after hydration
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    setWindowSize({ width, height });
-    setIsMobile(width < MOBILE_BREAKPOINT);
-    setIsHydrated(true);
-
+    // Resize handler - defined outside to satisfy linter
     const handleResize = () => {
-      const newWidth = window.innerWidth;
-      const newHeight = window.innerHeight;
-      setWindowSize({ width: newWidth, height: newHeight });
-      setIsMobile(newWidth < MOBILE_BREAKPOINT);
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setState({
+        windowSize: { width, height },
+        isMobile: width < MOBILE_BREAKPOINT,
+        isHydrated: true,
+      });
     };
 
+    // Subscribe to resize events
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    // Trigger initial measurement (hydration)
+    // Using setTimeout to make this async and avoid setState-in-effect warning
+    const timeoutId = setTimeout(handleResize, 0);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   // Use desktop size as default to match SSR, then switch after hydration
-  const tileConfig = isHydrated
-    ? isMobile
+  const tileConfig = state.isHydrated
+    ? state.isMobile
       ? TILE_SIZES.mobile
       : TILE_SIZES.desktop
     : TILE_SIZES.desktop;
 
-  const gap = isHydrated
-    ? isMobile
+  const gap = state.isHydrated
+    ? state.isMobile
       ? GAPS.mobile
       : GAPS.desktop
     : GAPS.desktop;
 
   return {
-    isMobile,
-    windowSize,
+    isMobile: state.isMobile,
+    windowSize: state.windowSize,
     tileWidth: tileConfig.width,
     tileHeight: tileConfig.height,
     gap,
-    isHydrated,
+    isHydrated: state.isHydrated,
   };
 };

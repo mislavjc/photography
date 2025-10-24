@@ -10,11 +10,14 @@ export const PerformanceMonitor = ({
   enabled = false,
 }: PerformanceMonitorProps) => {
   const frameCount = useRef(0);
-  const lastTime = useRef(performance.now());
+  const lastTime = useRef(0);
   const fpsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!enabled) return;
+
+    // Initialize lastTime inside the effect to avoid calling performance.now() during render
+    lastTime.current = performance.now();
 
     let animationId: number;
 

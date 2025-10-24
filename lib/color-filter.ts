@@ -143,17 +143,6 @@ function colorMatchesRange(
   return hsl.h >= minHue && hsl.h <= maxHue;
 }
 
-// Calculate color similarity using Euclidean distance in RGB space
-function calculateColorSimilarity(
-  color1: { r: number; g: number; b: number },
-  color2: { r: number; g: number; b: number },
-): number {
-  const dr = color1.r - color2.r;
-  const dg = color1.g - color2.g;
-  const db = color1.b - color2.b;
-  return Math.sqrt(dr * dr + dg * dg + db * db);
-}
-
 export function filterManifestByColorRange(
   manifest: Manifest,
   colorRange: ColorRange,

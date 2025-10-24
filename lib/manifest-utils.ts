@@ -4,6 +4,14 @@ export function getManifestKeys(manifest: Manifest): string[] {
   return Object.keys(manifest);
 }
 
+/**
+ * Selects a random photo from an array of photo names.
+ * Uses Math.random() so it should be called once per request in server components.
+ */
+export function selectRandomPhoto(photoNames: string[]): string {
+  return photoNames[Math.floor(Math.random() * photoNames.length)];
+}
+
 export function getImageByIndex(
   manifest: Manifest,
   index: number,
