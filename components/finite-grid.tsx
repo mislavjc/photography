@@ -1,6 +1,13 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import type { Manifest } from 'types';
 
@@ -8,7 +15,8 @@ import { Picture } from 'components/picture';
 
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
 
-import { Dock } from './dock';
+// Lazy load Dock to defer heavy dependencies (motion, radix-ui, lucide-react)
+const Dock = lazy(() => import('./dock').then((m) => ({ default: m.Dock })));
 
 const SSR_SAFE_VW = 1200;
 const SSR_SAFE_VH = 800;
@@ -438,7 +446,7 @@ export function PannableGrid({
             height: layout.height,
           }}
         >
-          {visibleItems.map((it) => {
+          {visibleItems.map((it, idx) => {
             const meta = manifest[it.filename]; // { w, h, ... } from Manifest
             const intrinsicW = meta?.w ?? 3; // fallback guards
             const intrinsicH = meta?.h ?? 2;
@@ -447,6 +455,8 @@ export function PannableGrid({
               it.x + it.w > viewRect.x &&
               it.y < viewRect.y + viewRect.h &&
               it.y + it.h > viewRect.y;
+            // Only first 4 viewport images get high priority for LCP
+            const isLCPCandidate = isInViewport && idx < 4;
 
             return (
               <article
@@ -464,41 +474,43 @@ export function PannableGrid({
                   pictureClassName="block w-full h-full"
                   imgClassName="block w-full h-full object-cover bg-gray-50"
                   sizes={`${Math.round(it.w)}px`}
-                  loading="eager"
-                  fetchPriority={isInViewport ? 'high' : 'low'}
+                  loading={isInViewport ? 'eager' : 'lazy'}
+                  fetchPriority={isLCPCandidate ? 'high' : 'auto'}
                 />
               </article>
             );
           })}
         </div>
       </div>
-      <Dock
-        minimapProps={{
-          worldW: layout.width,
-          worldH: layout.height,
-          camX: cam.x,
-          camY: cam.y,
-          viewW: vw,
-          viewH: vh,
-          tiles: layout.items,
-          manifest,
-          onSetCam: jumpCam,
-          sampleStep: 1,
-          sizePx: 220,
-          pad: PAD,
-        }}
-        devHudProps={{
-          layout,
-          cam,
-          vw,
-          vh,
-          visibleItems,
-          minX,
-          minY,
-          maxX,
-          maxY,
-        }}
-      />
+      <Suspense fallback={null}>
+        <Dock
+          minimapProps={{
+            worldW: layout.width,
+            worldH: layout.height,
+            camX: cam.x,
+            camY: cam.y,
+            viewW: vw,
+            viewH: vh,
+            tiles: layout.items,
+            manifest,
+            onSetCam: jumpCam,
+            sampleStep: 1,
+            sizePx: 220,
+            pad: PAD,
+          }}
+          devHudProps={{
+            layout,
+            cam,
+            vw,
+            vh,
+            visibleItems,
+            minX,
+            minY,
+            maxX,
+            maxY,
+          }}
+        />
+      </Suspense>
     </div>
   );
 }

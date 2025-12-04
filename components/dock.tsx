@@ -257,7 +257,7 @@ export const Dock = ({ minimapProps, devHudProps }: DockProps) => {
             />
           ))}
         </div>
-        <p className="mt-4 text-center text-xs font-medium text-gray-300">
+        <p className="mt-4 text-center text-xs font-medium text-gray-500">
           View at 640px with a mouse
           <br /> to see the interaction.
         </p>
@@ -311,6 +311,7 @@ function AppIcon({
         <Tooltip.Trigger asChild>
           <motion.button
             ref={ref}
+            aria-label={children as string}
             style={{ x: xSpring, scale: scaleSpring, y }}
             onClick={() => {
               if (href) {

@@ -10,11 +10,13 @@ import './globals.css';
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
+  display: 'swap',
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -42,7 +44,10 @@ const RootLayout = ({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <PlausibleProvider domain={SITE_CONFIG.domain}>
+        <PlausibleProvider
+          domain={SITE_CONFIG.domain}
+          scriptProps={{ strategy: 'lazyOnload' } as never}
+        >
           <NuqsAdapter>{children}</NuqsAdapter>
         </PlausibleProvider>
       </body>

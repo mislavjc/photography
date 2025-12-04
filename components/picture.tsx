@@ -72,7 +72,9 @@ export function Picture({
   mode = 'intrinsic',
   fit = 'contain',
 }: PictureProps) {
-  const [isLoaded, setIsLoaded] = useState(false);
+  // Priority images should be visible immediately for LCP - no fade-in
+  const isPriority = fetchPriority === 'high';
+  const [isLoaded, setIsLoaded] = useState(isPriority);
 
   const widths = profile === 'grid' ? GRID_WIDTHS : LARGE_WIDTHS;
   const defaultSizes =
@@ -145,10 +147,11 @@ export function Picture({
           alt={alt}
           loading={loading}
           fetchPriority={fetchPriority}
+          decoding={isPriority ? 'sync' : 'async'}
           draggable={false}
-          className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${safeImgClass}`}
+          className={`${isPriority ? '' : 'transition-opacity duration-300'} ${isLoaded ? 'opacity-100' : 'opacity-0'} ${safeImgClass}`}
           style={intrinsicImgStyles}
-          onLoad={() => setIsLoaded(true)}
+          onLoad={isPriority ? undefined : () => setIsLoaded(true)}
         />
       </picture>
     </div>
