@@ -163,118 +163,116 @@ export default async function OpengraphImage() {
     .sort((a, b) => a.z - b.z);
 
   return new ImageResponse(
-    (
-      <div
-        tw="flex relative items-center justify-center"
-        style={{
-          width: W,
-          height: H,
-          background:
-            'linear-gradient(180deg, #f5f5f7 0%, #efeff1 60%, #e5e5e8 100%)',
-        }}
-      >
-        {/* GRID LINES (below photos) */}
-        <div tw="flex absolute inset-0">
-          {/* Top */}
-          <div
-            tw="flex"
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: GRID_INSET_TOP,
-              height: GRID_THICKNESS,
-              background: GRID_COLOR,
-            }}
-          />
-          {/* Bottom */}
-          <div
-            tw="flex"
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: GRID_INSET_BOTTOM,
-              height: GRID_THICKNESS,
-              background: GRID_COLOR,
-            }}
-          />
-          {/* Left */}
-          <div
-            tw="flex"
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: GRID_INSET_LEFT,
-              width: GRID_THICKNESS,
-              background: GRID_COLOR,
-            }}
-          />
-          {/* Right */}
-          <div
-            tw="flex"
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              right: GRID_INSET_RIGHT,
-              width: GRID_THICKNESS,
-              background: GRID_COLOR,
-            }}
-          />
-        </div>
-
-        {/* PHOTOS */}
-        <div tw="flex absolute inset-0">
-          {photos.map((p, i) => (
-            <div
-              key={i}
-              tw="flex overflow-hidden"
-              style={{
-                position: 'absolute',
-                left: p.x,
-                top: p.y,
-                width: p.w,
-                height: p.h,
-                transform: `rotate(${p.rotate}deg)`,
-                background: '#000',
-              }}
-            >
-              <div tw="flex w-full h-full">
-                <img
-                  src={p.src}
-                  alt=""
-                  width={p.w}
-                  height={p.h}
-                  tw="block w-full h-full object-cover"
-                  style={{ objectFit: 'cover' }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* LABEL — monospace; right-aligned; centered in bottom band; left of right Y line */}
+    <div
+      tw="flex relative items-center justify-center"
+      style={{
+        width: W,
+        height: H,
+        background:
+          'linear-gradient(180deg, #f5f5f7 0%, #efeff1 60%, #e5e5e8 100%)',
+      }}
+    >
+      {/* GRID LINES (below photos) */}
+      <div tw="flex absolute inset-0">
+        {/* Top */}
         <div
-          tw="flex absolute"
+          tw="flex"
           style={{
-            right: GRID_INSET_RIGHT + SAFE_PAD,
-            bottom: labelBottomOffset,
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: GRID_INSET_TOP,
+            height: GRID_THICKNESS,
+            background: GRID_COLOR,
           }}
-        >
-          <span
-            tw="text-gray-800 text-lg"
+        />
+        {/* Bottom */}
+        <div
+          tw="flex"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: GRID_INSET_BOTTOM,
+            height: GRID_THICKNESS,
+            background: GRID_COLOR,
+          }}
+        />
+        {/* Left */}
+        <div
+          tw="flex"
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: GRID_INSET_LEFT,
+            width: GRID_THICKNESS,
+            background: GRID_COLOR,
+          }}
+        />
+        {/* Right */}
+        <div
+          tw="flex"
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            right: GRID_INSET_RIGHT,
+            width: GRID_THICKNESS,
+            background: GRID_COLOR,
+          }}
+        />
+      </div>
+
+      {/* PHOTOS */}
+      <div tw="flex absolute inset-0">
+        {photos.map((p, i) => (
+          <div
+            key={i}
+            tw="flex overflow-hidden"
             style={{
-              fontFamily:
-                'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+              position: 'absolute',
+              left: p.x,
+              top: p.y,
+              width: p.w,
+              height: p.h,
+              transform: `rotate(${p.rotate}deg)`,
+              background: '#000',
             }}
           >
-            ~/users/mislav/photos
-          </span>
-        </div>
+            <div tw="flex w-full h-full">
+              <img
+                src={p.src}
+                alt=""
+                width={p.w}
+                height={p.h}
+                tw="block w-full h-full object-cover"
+                style={{ objectFit: 'cover' }}
+              />
+            </div>
+          </div>
+        ))}
       </div>
-    ),
+
+      {/* LABEL — monospace; right-aligned; centered in bottom band; left of right Y line */}
+      <div
+        tw="flex absolute"
+        style={{
+          right: GRID_INSET_RIGHT + SAFE_PAD,
+          bottom: labelBottomOffset,
+        }}
+      >
+        <span
+          tw="text-gray-800 text-lg"
+          style={{
+            fontFamily:
+              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          }}
+        >
+          ~/users/mislav/photos
+        </span>
+      </div>
+    </div>,
     { ...size },
   );
 }

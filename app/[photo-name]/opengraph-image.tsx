@@ -94,21 +94,19 @@ export default async function OpengraphImage({ params }: { params: Params }) {
   const photo = manifest[photoName];
   if (!photo) {
     return new ImageResponse(
-      (
-        <div
-          tw="flex items-center justify-center"
-          style={{
-            width: size.width,
-            height: size.height,
-            background:
-              'linear-gradient(180deg,#f5f5f7 0%,#efeff1 60%,#e5e5e8 100%)',
-          }}
-        >
-          <div tw="flex text-neutral-700 text-xl font-medium">
-            Photo not found
-          </div>
+      <div
+        tw="flex items-center justify-center"
+        style={{
+          width: size.width,
+          height: size.height,
+          background:
+            'linear-gradient(180deg,#f5f5f7 0%,#efeff1 60%,#e5e5e8 100%)',
+        }}
+      >
+        <div tw="flex text-neutral-700 text-xl font-medium">
+          Photo not found
         </div>
-      ),
+      </div>,
       size,
     );
   }
@@ -214,153 +212,149 @@ export default async function OpengraphImage({ params }: { params: Params }) {
   }
 
   return new ImageResponse(
-    (
+    <div
+      tw="flex relative"
+      style={{
+        width: W,
+        height: H,
+        background:
+          'linear-gradient(180deg,#f5f5f7 0%,#efeff1 60%,#e5e5e8 100%)',
+        fontFamily: 'Geist, system-ui, -apple-system, sans-serif',
+      }}
+    >
+      {/* GRID LINES — below content */}
+      <div tw="flex absolute inset-0">
+        <div
+          tw="flex"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: GRID_INSET_TOP,
+            height: GRID_THICKNESS,
+            background: GRID_COLOR,
+          }}
+        />
+        <div
+          tw="flex"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: GRID_INSET_BOTTOM,
+            height: GRID_THICKNESS,
+            background: GRID_COLOR,
+          }}
+        />
+        <div
+          tw="flex"
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: GRID_INSET_LEFT,
+            width: GRID_THICKNESS,
+            background: GRID_COLOR,
+          }}
+        />
+        <div
+          tw="flex"
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            right: GRID_INSET_RIGHT,
+            width: GRID_THICKNESS,
+            background: GRID_COLOR,
+          }}
+        />
+      </div>
+
+      {/* CONTENT inside inner border */}
       <div
-        tw="flex relative"
+        tw="flex absolute"
         style={{
-          width: W,
-          height: H,
-          background:
-            'linear-gradient(180deg,#f5f5f7 0%,#efeff1 60%,#e5e5e8 100%)',
-          fontFamily: 'Geist, system-ui, -apple-system, sans-serif',
+          left: GRID_INSET_LEFT,
+          top: GRID_INSET_TOP,
+          width: innerW,
+          height: innerH,
+          paddingLeft: PAD_X,
+          paddingRight: PAD_X,
+          paddingTop: PAD_Y,
+          paddingBottom: PAD_Y,
         }}
       >
-        {/* GRID LINES — below content */}
-        <div tw="flex absolute inset-0">
-          <div
-            tw="flex"
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: GRID_INSET_TOP,
-              height: GRID_THICKNESS,
-              background: GRID_COLOR,
-            }}
-          />
-          <div
-            tw="flex"
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: GRID_INSET_BOTTOM,
-              height: GRID_THICKNESS,
-              background: GRID_COLOR,
-            }}
-          />
-          <div
-            tw="flex"
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: GRID_INSET_LEFT,
-              width: GRID_THICKNESS,
-              background: GRID_COLOR,
-            }}
-          />
-          <div
-            tw="flex"
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              right: GRID_INSET_RIGHT,
-              width: GRID_THICKNESS,
-              background: GRID_COLOR,
-            }}
-          />
-        </div>
-
-        {/* CONTENT inside inner border */}
-        <div
-          tw="flex absolute"
-          style={{
-            left: GRID_INSET_LEFT,
-            top: GRID_INSET_TOP,
-            width: innerW,
-            height: innerH,
-            paddingLeft: PAD_X,
-            paddingRight: PAD_X,
-            paddingTop: PAD_Y,
-            paddingBottom: PAD_Y,
-          }}
-        >
-          <div tw="flex flex-col w-full h-full">
-            {/* Title + dims */}
-            <div tw="flex items-baseline justify-between">
-              <div tw="flex text-neutral-900 text-2xl font-semibold">
-                {title}
-              </div>
-              <div tw="flex text-neutral-600 text-sm">{dims}</div>
-            </div>
-
-            {/* Description */}
-            {desc ? (
-              <div tw="flex mt-6 text-base leading-relaxed text-neutral-700">
-                {desc}
-              </div>
-            ) : null}
-
-            {/* Meta grid: two fixed-width columns with a fixed gap (no calc) */}
-            <div tw="flex mt-8">
-              {/* Left column */}
-              <div
-                tw="flex flex-col"
-                style={{ width: colW, marginRight: COL_GAP }}
-              >
-                {leftRows.map((r, i) => (
-                  <MetaRow key={`l-${i}`} label={r.label} value={r.value} />
-                ))}
-              </div>
-              {/* Right column */}
-              <div tw="flex flex-col" style={{ width: colW }}>
-                {rightRows.map((r, i) => (
-                  <MetaRow key={`r-${i}`} label={r.label} value={r.value} />
-                ))}
-              </div>
-            </div>
-
-            <div tw="flex mt-auto" />
+        <div tw="flex flex-col w-full h-full">
+          {/* Title + dims */}
+          <div tw="flex items-baseline justify-between">
+            <div tw="flex text-neutral-900 text-2xl font-semibold">{title}</div>
+            <div tw="flex text-neutral-600 text-sm">{dims}</div>
           </div>
-        </div>
 
-        {/* PHOTO: bottom-right, only ~20% visible */}
-        <div
-          tw="flex absolute overflow-hidden"
-          style={{
-            right: 0,
-            bottom: 0,
-            width: visibleW,
-            height: visibleH,
-            background: '#000',
-          }}
-        >
-          <div tw="flex w-full h-full" style={{ position: 'relative' }}>
-            {dataUri ? (
-              <img
-                src={dataUri}
-                alt=""
-                width={renderW}
-                height={renderH}
-                tw="block"
-                style={{
-                  position: 'absolute',
-                  left: -offsetX,
-                  top: -offsetY,
-                  width: renderW,
-                  height: renderH,
-                  objectFit: 'cover',
-                }}
-              />
-            ) : (
-              <div tw="flex w-full h-full bg-neutral-300" />
-            )}
+          {/* Description */}
+          {desc ? (
+            <div tw="flex mt-6 text-base leading-relaxed text-neutral-700">
+              {desc}
+            </div>
+          ) : null}
+
+          {/* Meta grid: two fixed-width columns with a fixed gap (no calc) */}
+          <div tw="flex mt-8">
+            {/* Left column */}
+            <div
+              tw="flex flex-col"
+              style={{ width: colW, marginRight: COL_GAP }}
+            >
+              {leftRows.map((r, i) => (
+                <MetaRow key={`l-${i}`} label={r.label} value={r.value} />
+              ))}
+            </div>
+            {/* Right column */}
+            <div tw="flex flex-col" style={{ width: colW }}>
+              {rightRows.map((r, i) => (
+                <MetaRow key={`r-${i}`} label={r.label} value={r.value} />
+              ))}
+            </div>
           </div>
+
+          <div tw="flex mt-auto" />
         </div>
       </div>
-    ),
+
+      {/* PHOTO: bottom-right, only ~20% visible */}
+      <div
+        tw="flex absolute overflow-hidden"
+        style={{
+          right: 0,
+          bottom: 0,
+          width: visibleW,
+          height: visibleH,
+          background: '#000',
+        }}
+      >
+        <div tw="flex w-full h-full" style={{ position: 'relative' }}>
+          {dataUri ? (
+            <img
+              src={dataUri}
+              alt=""
+              width={renderW}
+              height={renderH}
+              tw="block"
+              style={{
+                position: 'absolute',
+                left: -offsetX,
+                top: -offsetY,
+                width: renderW,
+                height: renderH,
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            <div tw="flex w-full h-full bg-neutral-300" />
+          )}
+        </div>
+      </div>
+    </div>,
     size,
   );
 }

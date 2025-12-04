@@ -5,7 +5,7 @@ interface ImageLoaderProps {
 }
 
 // Available widths from the upload script
-const AVAILABLE_WIDTHS = [160, 240, 320, 480, 640, 800, 960];
+const AVAILABLE_WIDTHS = [160, 240, 320, 360, 480, 640, 800, 960];
 
 // Format preference order (AVIF > WebP > JPEG)
 const FORMATS = ['avif', 'webp', 'jpeg'] as const;
