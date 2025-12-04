@@ -1,11 +1,15 @@
 import Link from 'next/link';
+import { connection } from 'next/server';
 
 import { PhotoDisplay } from 'components/photo-display';
 
 import { loadManifest } from 'lib/manifest-server';
 import { selectRandomPhoto } from 'lib/manifest-utils';
 
-export default async function NotFound() {
+export default async function RandomPage() {
+  // Defer to request time since we use Math.random()
+  await connection();
+
   const manifest = await loadManifest();
   const photoNames = Object.keys(manifest);
 
