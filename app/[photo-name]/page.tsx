@@ -1,3 +1,4 @@
+import { cacheLife } from 'next/cache';
 import { notFound } from 'next/navigation';
 
 import { PhotoDisplay } from 'components/photo-display';
@@ -9,6 +10,9 @@ interface PhotoPageProps {
 }
 
 export default async function PhotoPage({ params }: PhotoPageProps) {
+  'use cache';
+  cacheLife('days');
+
   const { 'photo-name': photoName } = await params;
   const manifest = await loadManifest();
 
