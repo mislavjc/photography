@@ -472,10 +472,11 @@ export function PannableGrid({
                   intrinsicWidth={intrinsicW}
                   intrinsicHeight={intrinsicH}
                   pictureClassName="block w-full h-full"
-                  imgClassName="block w-full h-full object-cover bg-gray-50"
+                  imgClassName="block w-full h-full object-cover"
                   sizes={`${Math.round(it.w)}px`}
                   loading={isInViewport ? 'eager' : 'lazy'}
                   fetchPriority={isLCPCandidate ? 'high' : 'auto'}
+                  dominantColor={meta?.exif?.dominantColors?.[0]?.hex ?? '#f9fafb'}
                 />
               </article>
             );

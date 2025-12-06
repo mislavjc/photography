@@ -8,7 +8,7 @@ const R2_VARIANTS_PREFIX = process.env.R2_VARIANTS_PREFIX || 'variants';
 
 export async function loadManifest(): Promise<Manifest> {
   'use cache';
-  cacheLife('hours');
+  cacheLife('days');
   cacheTag('manifest');
 
   if (!R2_PUBLIC_URL) {

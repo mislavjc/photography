@@ -7,7 +7,7 @@ import { PannableGrid } from '../components/finite-grid';
 
 export default async function Page() {
   'use cache';
-  cacheLife('hours');
+  cacheLife('days');
 
   const manifest = await loadManifest();
 
