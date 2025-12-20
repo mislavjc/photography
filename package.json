@@ -40,7 +40,7 @@
     "lucide-react": "^0.555.0",
     "mime-types": "^3.0.2",
     "motion": "^12.23.25",
-    "next": "16.0.7",
+    "next": "16.0.10",
     "next-plausible": "^3.12.5",
     "nuqs": "^2.8.2",
     "p-limit": "^7.2.0",
