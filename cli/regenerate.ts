@@ -181,7 +181,10 @@ const program = Effect.gen(function* () {
         const msg = e instanceof Error ? e.message : String(e);
         // Only treat "not found" style errors as acceptable
         if (msg.includes('getObject failed') || msg.includes('No body')) {
-          return Effect.succeed({ ok: false as const, manifest: {} as Manifest });
+          return Effect.succeed({
+            ok: false as const,
+            manifest: {} as Manifest,
+          });
         }
         // Re-throw actual errors (network issues, parse failures, etc.)
         return Effect.fail(e);

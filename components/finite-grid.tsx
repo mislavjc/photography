@@ -476,7 +476,9 @@ export function PannableGrid({
                   sizes={`${Math.round(it.w)}px`}
                   loading={isInViewport ? 'eager' : 'lazy'}
                   fetchPriority={isLCPCandidate ? 'high' : 'auto'}
-                  dominantColor={meta?.exif?.dominantColors?.[0]?.hex ?? '#f9fafb'}
+                  dominantColor={
+                    meta?.exif?.dominantColors?.[0]?.hex ?? '#f9fafb'
+                  }
                 />
               </article>
             );
