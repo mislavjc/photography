@@ -2,7 +2,7 @@
 
 import React, { ReactNode, useEffect, useRef, useState } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { Info, Map, Shuffle } from 'lucide-react';
+import { Calendar, Info, Map, Shuffle } from 'lucide-react';
 import {
   animate,
   AnimatePresence,
@@ -32,6 +32,7 @@ const SPRING = { mass: 0.16, stiffness: 300, damping: 30 };
 
 const APPS = [
   { name: 'Minimap', href: null, icon: Map, component: 'MinimapWindow' },
+  { name: 'Timeline', href: '/timeline', icon: Calendar, component: null },
   { name: 'Dev Info', href: null, icon: Info, component: 'DevInfoWindow' },
   { name: 'Random Photo', href: '/random', icon: Shuffle, component: null },
 ];
