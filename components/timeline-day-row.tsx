@@ -36,7 +36,7 @@ export function TimelineDayRow({
   }, [day.photos, containerWidth]);
 
   const handlePhotoClick = (filename: string) => {
-    router.push(`/${encodeURIComponent(filename)}`);
+    router.push(`/${encodeURIComponent(filename)}?from=timeline`);
   };
 
   return (
