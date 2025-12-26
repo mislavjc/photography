@@ -1,9 +1,9 @@
 import { cacheLife } from 'next/cache';
 import { notFound } from 'next/navigation';
 
-import { loadManifest } from 'lib/manifest-server';
-
 import { PhotoDisplay } from 'components/photo-display';
+
+import { loadManifest } from 'lib/manifest-server';
 
 interface PhotoPageProps {
   params: Promise<{ 'photo-name': string }>;

@@ -30,6 +30,7 @@ import {
   getImageDimensions,
   getObject,
   headObject,
+  loadManifestFromR2,
   makeBlurhash,
   makePreviewJpeg,
   manifestKeys,
@@ -222,7 +223,28 @@ const program = Effect.gen(function* () {
   }
 
   const progress = createEnhancedProgressTracker(filesToProcess.length);
-  const manifest: Manifest = { ...checkpoint.getManifestEntries() };
+
+  // Load existing manifest from R2 and merge with checkpoint entries
+  const existingManifest = yield* loadManifestFromR2(
+    cfg.s3,
+    cfg.R2_BUCKET,
+    cfg.R2_VARIANTS_PREFIX,
+  ).pipe(
+    Effect.catchAll(() => {
+      // No existing manifest or failed to load - start fresh
+      return Effect.succeed({} as Manifest);
+    }),
+  );
+
+  const checkpointEntries = checkpoint.getManifestEntries();
+  const manifest: Manifest = { ...existingManifest, ...checkpointEntries };
+
+  if (Object.keys(existingManifest).length > 0) {
+    yield* Console.log(
+      `📂 Loaded existing manifest: ${Object.keys(existingManifest).length} entries`,
+    );
+  }
+
   const failedFiles: Array<{ file: string; error: string }> = [];
   const t0 = Date.now();
 
@@ -473,8 +495,24 @@ const processFile = (
     checkpoint.addVariants(needed.length, bytesUploaded);
 
     // Save checkpoint every 10 files
-    if (checkpoint.getData().processedFiles.length % 10 === 0) {
+    const processedCount = checkpoint.getData().processedFiles.length;
+    if (processedCount % 10 === 0) {
       yield* Effect.promise(() => checkpoint.save());
+    }
+
+    // Save manifest to R2 every 50 files so photos appear incrementally
+    if (processedCount % 50 === 0 && processedCount > 0) {
+      yield* saveManifestToR2(
+        cfg.s3,
+        cfg.R2_BUCKET,
+        cfg.R2_VARIANTS_PREFIX,
+        manifest,
+      );
+      if (cfg.VERBOSE) {
+        yield* Console.log(
+          `\n📄 Incremental manifest saved (${processedCount} files)`,
+        );
+      }
     }
 
     progress.update({

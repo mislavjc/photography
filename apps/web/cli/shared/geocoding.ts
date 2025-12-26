@@ -8,7 +8,7 @@ export const reverseGeocodeNominatim = (
   lat: number,
   lon: number,
   contactEmail?: string,
-) =>
+): Effect.Effect<RevGeo, never> =>
   Effect.tryPromise<RevGeo, Error>({
     try: async () => {
       const key = `${lat.toFixed(6)},${lon.toFixed(6)}`;
@@ -38,4 +38,7 @@ export const reverseGeocodeNominatim = (
       return { address: display };
     },
     catch: (e) => new Error(`Reverse geocoding failed: ${e}`),
-  });
+  }).pipe(
+    // On any error, gracefully return null address instead of crashing
+    Effect.catchAll(() => Effect.succeed({ address: null })),
+  );
