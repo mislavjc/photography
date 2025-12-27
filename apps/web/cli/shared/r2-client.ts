@@ -37,6 +37,38 @@ export const getObject = (s3: S3Client, Bucket: string, Key: string) =>
     catch: (e) => new Error(`getObject failed for ${Key}: ${e}`),
   });
 
+// Helper for retry with exponential backoff
+const withRetry = async <T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelayMs = 500,
+): Promise<T> => {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const errMsg = String(err);
+      // Retry on EPIPE, ECONNRESET, or timeout errors
+      if (
+        errMsg.includes('EPIPE') ||
+        errMsg.includes('ECONNRESET') ||
+        errMsg.includes('socket hang up') ||
+        errMsg.includes('timeout')
+      ) {
+        if (attempt < maxRetries) {
+          const delay = baseDelayMs * Math.pow(2, attempt);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+};
+
 export const putObject = (
   s3: S3Client,
   Bucket: string,
@@ -48,19 +80,21 @@ export const putObject = (
 ) =>
   Effect.tryPromise({
     try: () =>
-      s3.send(
-        new PutObjectCommand({
-          Bucket,
-          Key,
-          Body,
-          ContentType,
-          CacheControl:
-            options?.cacheControl || 'public, max-age=31536000, immutable',
-          Metadata,
-          ...(options?.contentEncoding && {
-            ContentEncoding: options.contentEncoding,
+      withRetry(() =>
+        s3.send(
+          new PutObjectCommand({
+            Bucket,
+            Key,
+            Body,
+            ContentType,
+            CacheControl:
+              options?.cacheControl || 'public, max-age=31536000, immutable',
+            Metadata,
+            ...(options?.contentEncoding && {
+              ContentEncoding: options.contentEncoding,
+            }),
           }),
-        }),
+        ),
       ),
     catch: (e) => new Error(`putObject failed for ${Key}: ${e}`),
   });
@@ -85,23 +119,28 @@ export const uploadLargeFile = (
   Metadata?: Record<string, string>,
 ) =>
   Effect.tryPromise({
-    try: () => {
-      const up = new Upload({
-        client: s3,
-        params: {
-          Bucket,
-          Key,
-          Body,
-          ContentType,
-          CacheControl: 'public, max-age=31536000, immutable',
-          Metadata,
+    try: () =>
+      withRetry(
+        () => {
+          const up = new Upload({
+            client: s3,
+            params: {
+              Bucket,
+              Key,
+              Body,
+              ContentType,
+              CacheControl: 'public, max-age=31536000, immutable',
+              Metadata,
+            },
+            queueSize: 2, // Reduced from 4 to prevent connection exhaustion
+            partSize: 8 * 1024 * 1024,
+            leavePartsOnError: false,
+          });
+          return up.done();
         },
-        queueSize: 4,
-        partSize: 8 * 1024 * 1024,
-        leavePartsOnError: false,
-      });
-      return up.done();
-    },
+        3,
+        1000,
+      ),
     catch: (e) => new Error(`upload failed for ${Key}: ${e}`),
   });
 

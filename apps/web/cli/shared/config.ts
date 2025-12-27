@@ -44,7 +44,7 @@ export const getConfig = Effect.gen(function* () {
   const R2_BUCKET = process.env.R2_BUCKET;
   const R2_PREFIX = process.env.R2_PREFIX || 'originals';
   const R2_VARIANTS_PREFIX = process.env.R2_VARIANTS_PREFIX || 'variants';
-  const CONCURRENCY = parseInt(process.env.CONCURRENCY || '4', 10);
+  const CONCURRENCY = parseInt(process.env.CONCURRENCY || '2', 10); // Reduced default to prevent EPIPE
   const FORMATS = (process.env.FORMATS || 'avif,webp,jpeg')
     .split(',')
     .map((s) => s.trim().toLowerCase() as Formats);

@@ -1,10 +1,11 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "globalDependencies": ["**/.env.*local"],
+  "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
       "env": ["R2_PUBLIC_URL", "NEXT_PUBLIC_R2_URL", "R2_VARIANTS_PREFIX"]
     },
     "typecheck": {
@@ -15,6 +16,10 @@
     },
     "dev": {
       "persistent": true,
+      "cache": false
+    },
+    "deploy": {
+      "dependsOn": ["^build"],
       "cache": false
     }
   }
