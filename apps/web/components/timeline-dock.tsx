@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { Calendar, Grid, Shuffle } from 'lucide-react';
 import type { MotionValue } from 'motion/react';
@@ -45,6 +45,37 @@ export function TimelineDock({
   const rightSpring = useSpring(right, SPRING);
   const dockRef = useRef<HTMLDivElement>(null);
 
+  // Drive CSS vars for visual viewport (handles mobile browser chrome)
+  useEffect(() => {
+    const updateViewportVars = () => {
+      const vv = window.visualViewport;
+      const vvh = vv?.height ?? window.innerHeight;
+      const vvOffsetTop = vv?.offsetTop ?? 0;
+      const layoutHeight = window.innerHeight;
+      const bottomOffset = layoutHeight - vvh - vvOffsetTop;
+
+      document.documentElement.style.setProperty('--vvh', `${vvh}px`);
+      document.documentElement.style.setProperty(
+        '--vv-bottom-offset',
+        `${Math.max(0, bottomOffset)}px`,
+      );
+    };
+    updateViewportVars();
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', updateViewportVars, { passive: true });
+      vv.addEventListener('scroll', updateViewportVars, { passive: true });
+    }
+    window.addEventListener('resize', updateViewportVars, { passive: true });
+    return () => {
+      if (vv) {
+        vv.removeEventListener('resize', updateViewportVars);
+        vv.removeEventListener('scroll', updateViewportVars);
+      }
+      window.removeEventListener('resize', updateViewportVars);
+    };
+  }, []);
+
   return (
     <motion.div
       ref={dockRef}
@@ -56,7 +87,12 @@ export function TimelineDock({
       onMouseLeave={() => {
         mouseLeft.set(-Infinity);
       }}
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 xl:right-6 xl:left-auto xl:translate-x-0 flex h-16 items-end gap-3 px-2 pb-[max(12px,env(safe-area-inset-bottom))] z-[70]"
+      className="fixed left-1/2 -translate-x-1/2 xl:right-6 xl:left-auto xl:translate-x-0 flex h-16 items-end gap-3 px-2 pb-3 z-[70]"
+      style={{
+        // Adjust bottom position based on visual viewport offset (mobile browser chrome)
+        bottom:
+          'calc(var(--vv-bottom-offset, 0px) + max(16px, env(safe-area-inset-bottom)))',
+      }}
     >
       <motion.div
         className="absolute rounded-2xl inset-y-0 bg-white border border-gray-300 -z-10"
@@ -80,7 +116,7 @@ export function TimelineDock({
             }
           }}
         >
-          <SelectTrigger className="w-[100px] h-10 bg-gray-100 border-0 rounded-lg shadow">
+          <SelectTrigger className="w-auto min-w-[110px] h-10 bg-gray-100 border-0 rounded-lg shadow">
             <Calendar className="w-4 h-4 mr-1 text-gray-700" />
             <SelectValue placeholder="Year" />
           </SelectTrigger>

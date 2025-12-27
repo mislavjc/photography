@@ -99,25 +99,35 @@ export const Dock = ({ minimapProps, devHudProps }: DockProps) => {
     }
   }, [openWindows]);
 
-  // Drive a --vvh CSS var (stable viewport height)
+  // Drive CSS vars for visual viewport (handles mobile browser chrome)
   useEffect(() => {
-    const setVvh = () => {
-      const h = getViewportHeight();
-      document.documentElement.style.setProperty('--vvh', `${h}px`);
+    const updateViewportVars = () => {
+      const vv = window.visualViewport;
+      const vvh = vv?.height ?? window.innerHeight;
+      // Offset from bottom of layout viewport to bottom of visual viewport
+      const vvOffsetTop = vv?.offsetTop ?? 0;
+      const layoutHeight = window.innerHeight;
+      const bottomOffset = layoutHeight - vvh - vvOffsetTop;
+
+      document.documentElement.style.setProperty('--vvh', `${vvh}px`);
+      document.documentElement.style.setProperty(
+        '--vv-bottom-offset',
+        `${Math.max(0, bottomOffset)}px`,
+      );
     };
-    setVvh();
+    updateViewportVars();
     const vv = window.visualViewport;
     if (vv) {
-      vv.addEventListener('resize', setVvh, { passive: true });
-      vv.addEventListener('scroll', setVvh, { passive: true });
+      vv.addEventListener('resize', updateViewportVars, { passive: true });
+      vv.addEventListener('scroll', updateViewportVars, { passive: true });
     }
-    window.addEventListener('resize', setVvh, { passive: true });
+    window.addEventListener('resize', updateViewportVars, { passive: true });
     return () => {
       if (vv) {
-        vv.removeEventListener('resize', setVvh);
-        vv.removeEventListener('scroll', setVvh);
+        vv.removeEventListener('resize', updateViewportVars);
+        vv.removeEventListener('scroll', updateViewportVars);
       }
-      window.removeEventListener('resize', setVvh);
+      window.removeEventListener('resize', updateViewportVars);
     };
   }, []);
 
@@ -188,7 +198,12 @@ export const Dock = ({ minimapProps, devHudProps }: DockProps) => {
           mouseLeft.set(-Infinity);
           mouseRight.set(-Infinity);
         }}
-        className="fixed bottom-4 left-1/2 -translate-x-1/2 xl:right-6 xl:left-auto xl:translate-x-0 flex h-16 items-end gap-3 px-2 pb-[max(12px,env(safe-area-inset-bottom))] z-[70]" // z-up
+        className="fixed left-1/2 -translate-x-1/2 xl:right-6 xl:left-auto xl:translate-x-0 flex h-16 items-end gap-3 px-2 pb-3 z-[70]"
+        style={{
+          // Adjust bottom position based on visual viewport offset (mobile browser chrome)
+          bottom:
+            'calc(var(--vv-bottom-offset, 0px) + max(16px, env(safe-area-inset-bottom)))',
+        }}
       >
         <motion.div
           className="absolute rounded-2xl inset-y-0 bg-white border border-gray-300 -z-10"
