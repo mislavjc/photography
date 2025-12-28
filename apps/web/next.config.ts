@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'r2.photography.mislavjc.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'pub-0c0ced8cca504a779995fa0289895697.r2.dev',
+      },
     ],
   },
 };
