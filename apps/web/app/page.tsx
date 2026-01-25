@@ -3,7 +3,30 @@ import { cacheLife } from 'next/cache';
 import { computeNearSquareLayout } from 'lib/layout';
 import { loadManifest } from 'lib/manifest-server';
 
-import { PannableGrid } from '../components/finite-grid';
+import { HomeGrid } from '../components/home-grid';
+
+// Get LCP candidate images (center of the grid, visible on initial load)
+function getLcpCandidates(
+  layout: ReturnType<typeof computeNearSquareLayout>,
+  count = 4,
+) {
+  const centerX = layout.width / 2;
+  const centerY = layout.height / 2;
+  // Approximate initial viewport size
+  const viewW = 1400;
+  const viewH = 900;
+
+  // Find images near center that will be visible first
+  return layout.items
+    .filter(
+      (it) =>
+        it.x < centerX + viewW / 2 &&
+        it.x + it.w > centerX - viewW / 2 &&
+        it.y < centerY + viewH / 2 &&
+        it.y + it.h > centerY - viewH / 2,
+    )
+    .slice(0, count);
+}
 
 export default async function Page() {
   'use cache';
@@ -12,14 +35,26 @@ export default async function Page() {
   const manifest = await loadManifest();
 
   const layout = computeNearSquareLayout(manifest);
+  const lcpCandidates = getLcpCandidates(layout);
 
   return (
-    <div>
-      <PannableGrid
-        manifest={manifest}
-        initialLayout={layout}
-        stateKey={`grid`}
-      />
-    </div>
+    <>
+      {/* Preload LCP candidate images for faster initial paint */}
+      {lcpCandidates.map((candidate) => {
+        const base = candidate.filename.replace(/\.[^.]+$/, '');
+        return (
+          <link
+            key={candidate.filename}
+            rel="preload"
+            as="image"
+            href={`https://r2.photography.mislavjc.com/variants/grid/avif/480/${base}.avif`}
+            type="image/avif"
+          />
+        );
+      })}
+      <div>
+        <HomeGrid manifest={manifest} initialLayout={layout} />
+      </div>
+    </>
   );
 }

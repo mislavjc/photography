@@ -8,15 +8,25 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type { Manifest } from 'types';
 
 import { Picture } from 'components/picture';
 
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
 
-// Lazy load Dock to defer heavy dependencies (motion, radix-ui, lucide-react)
-const Dock = lazy(() => import('./dock').then((m) => ({ default: m.Dock })));
+// Lazy load Navbar with idle callback to defer heavy dependencies until after LCP
+const Navbar = lazy(() =>
+  new Promise<typeof import('./navbar')>((resolve) => {
+    // Use requestIdleCallback to defer loading until browser is idle
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(() => resolve(import('./navbar')), { timeout: 3000 });
+    } else {
+      // Fallback for Safari
+      setTimeout(() => resolve(import('./navbar')), 100);
+    }
+  }).then((m) => ({ default: m.Navbar })),
+);
 
 const SSR_SAFE_VW = 1200;
 const SSR_SAFE_VH = 800;
@@ -76,19 +86,67 @@ type Props = {
   manifest: Manifest;
   initialLayout?: Layout;
   stateKey?: string;
+  filteredIds?: Set<string> | null;
+  onSearch?: (query: string) => void;
+  onClearSearch?: () => void;
+  isSearching?: boolean;
+  searchResultCount?: number;
 };
 
 export function PannableGrid({
   manifest,
   initialLayout,
   stateKey = 'grid:default',
+  filteredIds,
+  onSearch,
+  onClearSearch,
+  isSearching,
+  searchResultCount,
 }: Props) {
-  const router = useRouter();
   const { vw, vh } = useViewportSize();
+
+  // Filter manifest if search results provided
+  const filteredManifest = useMemo(() => {
+    if (!filteredIds || filteredIds.size === 0) return manifest;
+    const filtered: Manifest = {};
+    for (const [filename, entry] of Object.entries(manifest)) {
+      const id = filename.replace(/\.[^.]+$/, '');
+      if (filteredIds.has(id)) {
+        filtered[filename] = entry;
+      }
+    }
+    return filtered;
+  }, [manifest, filteredIds]);
+
   const layout = useMemo(
-    () => initialLayout ?? computeNearSquareLayout(manifest),
-    [manifest, initialLayout],
+    () =>
+      filteredIds && filteredIds.size > 0
+        ? computeNearSquareLayout(filteredManifest)
+        : (initialLayout ?? computeNearSquareLayout(manifest)),
+    [filteredManifest, filteredIds, initialLayout, manifest],
   );
+
+  // Disable browser back/forward gestures on this page
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+
+    // Store original values
+    const origHtmlOverscroll = html.style.overscrollBehavior;
+    const origBodyOverscroll = body.style.overscrollBehavior;
+    const origTouchAction = body.style.touchAction;
+
+    // Disable overscroll (prevents swipe back/forward)
+    html.style.overscrollBehavior = 'none';
+    body.style.overscrollBehavior = 'none';
+    body.style.touchAction = 'none';
+
+    return () => {
+      html.style.overscrollBehavior = origHtmlOverscroll;
+      body.style.overscrollBehavior = origBodyOverscroll;
+      body.style.touchAction = origTouchAction;
+    };
+  }, []);
 
   // Track whether we restored from storage to avoid recentering over it
   const restoredFromStorageRef = useRef(false);
@@ -197,14 +255,21 @@ export function PannableGrid({
     t: number;
     element?: HTMLElement;
   } | null>(null);
+  // Track if we just finished dragging (to block Link clicks)
+  const wasJustDraggingRef = useRef(false);
+  // For deferred pointer capture
+  const pointerCaptureTargetRef = useRef<HTMLElement | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
 
   // Pointer handlers
   function onPointerDown(e: React.PointerEvent) {
     const target = e.target as HTMLElement;
     const isPhotoClick = target.closest('article') !== null;
 
-    // Always prepare for potential dragging
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Store the container for potential pointer capture later
+    pointerCaptureTargetRef.current = e.currentTarget as HTMLElement;
+    pointerIdRef.current = e.pointerId;
+
     draggingRef.current = false; // Start as false, will become true on move
     lastPosRef.current = { x: e.clientX, y: e.clientY, t: performance.now() };
     velRef.current = { vx: 0, vy: 0 };
@@ -237,6 +302,14 @@ export function PannableGrid({
       draggingRef.current = true;
       // Clear click start info when we start dragging
       clickStartRef.current = null;
+      // Now capture the pointer for smooth dragging
+      if (pointerCaptureTargetRef.current && pointerIdRef.current !== null) {
+        try {
+          pointerCaptureTargetRef.current.setPointerCapture(
+            pointerIdRef.current,
+          );
+        } catch {}
+      }
     }
 
     if (!draggingRef.current) return;
@@ -266,11 +339,18 @@ export function PannableGrid({
   }
 
   function onPointerUp(e: React.PointerEvent) {
-    try {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {}
+    // Release pointer capture if we had it
+    if (pointerCaptureTargetRef.current && pointerIdRef.current !== null) {
+      try {
+        pointerCaptureTargetRef.current.releasePointerCapture(
+          pointerIdRef.current,
+        );
+      } catch {}
+    }
+    pointerCaptureTargetRef.current = null;
+    pointerIdRef.current = null;
 
-    // [click-to-open] save immediately BEFORE navigating
+    // [click-to-open] save cam position before Link navigation
     if (!draggingRef.current && clickStartRef.current) {
       const clickDuration = performance.now() - clickStartRef.current.t;
       const clickDistance = Math.hypot(
@@ -279,14 +359,8 @@ export function PannableGrid({
       );
 
       if (clickDuration < 300 && clickDistance < 10) {
-        const photoElement = clickStartRef.current.element;
-        if (photoElement) {
-          const filename = photoElement.getAttribute('data-filename');
-          if (filename) {
-            saveCam(camRef.current); // <— ensure persisted before route change
-            router.push(`/${encodeURIComponent(filename)}`);
-          }
-        }
+        // Save camera position - Link click will handle navigation
+        saveCam(camRef.current);
       }
     }
 
@@ -300,6 +374,12 @@ export function PannableGrid({
           : null;
       // also save right after a drag ends (snappier persistence)
       saveCam(camRef.current);
+      // Mark that we just dragged so click handler can block navigation
+      wasJustDraggingRef.current = true;
+      // Reset after a tick so only the immediate click is blocked
+      requestAnimationFrame(() => {
+        wasJustDraggingRef.current = false;
+      });
     }
 
     draggingRef.current = false;
@@ -308,6 +388,8 @@ export function PannableGrid({
   }
 
   function onPointerCancel() {
+    pointerCaptureTargetRef.current = null;
+    pointerIdRef.current = null;
     draggingRef.current = false;
     lastPosRef.current = null;
     inertiaRef.current = null;
@@ -339,7 +421,7 @@ export function PannableGrid({
     return out;
   }, [layout, virtualRect.x, virtualRect.y, virtualRect.w, virtualRect.h]);
 
-  // On viewport/layout changes: clamp camera to bounds (no auto-centering)
+  // On bounds changes: clamp camera
   useEffect(() => {
     const clamped = {
       x: clamp(camRef.current.x, minX, maxX),
@@ -349,7 +431,7 @@ export function PannableGrid({
       setCam(clamped);
       camRef.current = clamped;
     }
-  }, [vw, vh, layout.width, layout.height, minX, maxX, minY, maxY]);
+  }, [minX, maxX, minY, maxY]);
 
   // Persist helpers
   const saveCam = React.useCallback(
@@ -376,20 +458,39 @@ export function PannableGrid({
     [minX, maxX, minY, maxY, stateKey],
   );
 
-  // Debounced saver (kept)
-  const saveTimer = useRef<number | null>(null);
+  // Defer navbar rendering until after initial paint for better LCP
+  const [showNavbar, setShowNavbar] = useState(false);
+  useEffect(() => {
+    // Use requestIdleCallback to show navbar after browser is idle
+    let id: number | ReturnType<typeof setTimeout>;
 
-  // Optional: also save during wheel pan "idle" (coarse heuristic)
+    if (typeof requestIdleCallback !== 'undefined') {
+      id = requestIdleCallback(() => setShowNavbar(true), { timeout: 2000 });
+    } else {
+      id = setTimeout(() => setShowNavbar(true), 100);
+    }
+
+    return () => {
+      if (typeof cancelIdleCallback !== 'undefined' && typeof id === 'number') {
+        cancelIdleCallback(id);
+      } else {
+        clearTimeout(id as ReturnType<typeof setTimeout>);
+      }
+    };
+  }, []);
+
+  // Debounced saver on camera changes
+  const saveTimer = useRef<number | null>(null);
   const wheelSaveTimer = useRef<number | null>(null);
 
+  // Save camera position when it changes (debounced via RAF)
   useEffect(() => {
     if (saveTimer.current) cancelAnimationFrame(saveTimer.current);
     saveTimer.current = requestAnimationFrame(() => saveCam(camRef.current));
     return () => {
       if (saveTimer.current) cancelAnimationFrame(saveTimer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cam.x, cam.y, stateKey]);
+  }, [saveCam]);
 
   // Save on visibility/pagehide/beforeunload (BFCache safe)
   useEffect(() => {
@@ -403,6 +504,59 @@ export function PannableGrid({
       window.removeEventListener('pagehide', onFreeze);
     };
   }, [saveCam]);
+
+  // Arrow key navigation
+  useEffect(() => {
+    const ARROW_SPEED = 100;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if user is typing in an input
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      let dx = 0;
+      let dy = 0;
+
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+          dy = -ARROW_SPEED;
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+          dy = ARROW_SPEED;
+          break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          dx = -ARROW_SPEED;
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          dx = ARROW_SPEED;
+          break;
+        default:
+          return;
+      }
+
+      e.preventDefault();
+      setCam((c) => {
+        const nx = clamp(c.x + dx, minX, maxX);
+        const ny = clamp(c.y + dy, minY, maxY);
+        camRef.current = { x: nx, y: ny };
+        return { x: nx, y: ny };
+      });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [minX, maxX, minY, maxY]);
 
   return (
     <div>
@@ -462,58 +616,66 @@ export function PannableGrid({
               <article
                 key={it.filename}
                 data-filename={it.filename}
-                className="absolute cursor-pointer"
+                className="absolute"
                 style={{ left: it.x, top: it.y, width: it.w, height: it.h }}
               >
-                <Picture
-                  uuidWithExt={it.filename}
-                  alt={it.filename}
-                  profile="grid"
-                  intrinsicWidth={intrinsicW}
-                  intrinsicHeight={intrinsicH}
-                  pictureClassName="block w-full h-full"
-                  imgClassName="block w-full h-full object-cover"
-                  sizes={`${Math.round(it.w)}px`}
-                  loading={isInViewport ? 'eager' : 'lazy'}
-                  fetchPriority={isLCPCandidate ? 'high' : 'auto'}
-                  dominantColor={
-                    meta?.exif?.dominantColors?.[0]?.hex ?? '#f9fafb'
-                  }
-                />
+                <Link
+                  href={`/photo/${encodeURIComponent(it.filename)}`}
+                  className="block w-full h-full cursor-pointer"
+                  onClick={(e) => {
+                    // Block navigation if we just finished dragging
+                    if (wasJustDraggingRef.current || draggingRef.current) {
+                      e.preventDefault();
+                    }
+                  }}
+                  draggable={false}
+                >
+                  <Picture
+                    uuidWithExt={it.filename}
+                    alt={it.filename}
+                    profile="grid"
+                    intrinsicWidth={intrinsicW}
+                    intrinsicHeight={intrinsicH}
+                    pictureClassName="block w-full h-full"
+                    imgClassName="block w-full h-full object-cover"
+                    sizes={`${Math.round(it.w)}px`}
+                    loading={isInViewport ? 'eager' : 'lazy'}
+                    fetchPriority={isLCPCandidate ? 'high' : 'auto'}
+                    dominantColor={
+                      meta?.exif?.dominantColors?.[0]?.hex ?? '#f9fafb'
+                    }
+                  />
+                </Link>
               </article>
             );
           })}
         </div>
       </div>
-      <Suspense fallback={null}>
-        <Dock
-          minimapProps={{
-            worldW: layout.width,
-            worldH: layout.height,
-            camX: cam.x,
-            camY: cam.y,
-            viewW: vw,
-            viewH: vh,
-            tiles: layout.items,
-            manifest,
-            onSetCam: jumpCam,
-            sampleStep: 1,
-            sizePx: 220,
-            pad: PAD,
-          }}
-          devHudProps={{
-            layout,
-            cam,
-            vw,
-            vh,
-            visibleItems,
-            minX,
-            minY,
-            maxX,
-            maxY,
-          }}
-        />
-      </Suspense>
+      {showNavbar && (
+        <Suspense fallback={null}>
+          <Navbar
+            minimapProps={{
+              worldW: layout.width,
+              worldH: layout.height,
+              camX: cam.x,
+              camY: cam.y,
+              viewW: vw,
+              viewH: vh,
+              tiles: layout.items,
+              manifest: filteredManifest,
+              onSetCam: jumpCam,
+              sampleStep: 1,
+              sizePx: 220,
+              pad: PAD,
+            }}
+            activePage="canvas"
+            onSearch={onSearch}
+            onClearSearch={onClearSearch}
+            isSearching={isSearching}
+            searchResultCount={searchResultCount}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
