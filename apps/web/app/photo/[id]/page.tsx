@@ -10,12 +10,6 @@ interface PhotoPageProps {
   searchParams: Promise<{ from?: string }>;
 }
 
-// Generate static pages for all photos at build time
-export async function generateStaticParams() {
-  const manifest = await loadManifest();
-  return Object.keys(manifest).map((id) => ({ id }));
-}
-
 async function getPhotoData(photoId: string) {
   'use cache';
   cacheLife('days');
