@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
       '@radix-ui/react-tooltip',
       '@radix-ui/react-select',
     ],
+    // Enable CSS optimization for smaller bundles
+    optimizeCss: true,
   },
   async redirects() {
     return [

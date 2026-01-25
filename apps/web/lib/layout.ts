@@ -27,6 +27,20 @@ export type Layout = {
   columnWidth: number;
 };
 
+// Layout cache - keyed by manifest signature (count + first/last filenames)
+const layoutCache = new Map<string, Layout>();
+const MAX_CACHE_SIZE = 10;
+
+function getManifestSignature(manifest: Manifest): string {
+  const entries = Object.keys(manifest);
+  const count = entries.length;
+  if (count === 0) return 'empty';
+  // Use count + first and last filenames as a quick signature
+  const first = entries[0];
+  const last = entries[count - 1];
+  return `${count}:${first}:${last}`;
+}
+
 function estimateOptimalColumns(manifest: Manifest) {
   // est cols ≈ sqrt(sum(1/ar)) where ar = w/h
   let sumInvAR = 0;
@@ -38,6 +52,11 @@ function estimateOptimalColumns(manifest: Manifest) {
 }
 
 export function computeNearSquareLayout(manifest: Manifest): Layout {
+  // Check cache first
+  const signature = getManifestSignature(manifest);
+  const cached = layoutCache.get(signature);
+  if (cached) return cached;
+
   const entries = Object.entries(manifest);
   const ars = entries.map(([filename, m]) => ({
     filename,
@@ -89,6 +108,14 @@ export function computeNearSquareLayout(manifest: Manifest): Layout {
       };
     }
   }
+
+  // Cache the result (with LRU eviction)
+  if (layoutCache.size >= MAX_CACHE_SIZE) {
+    // Remove oldest entry
+    const firstKey = layoutCache.keys().next().value;
+    if (firstKey) layoutCache.delete(firstKey);
+  }
+  layoutCache.set(signature, best!);
 
   return best!;
 }
