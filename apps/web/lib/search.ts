@@ -48,6 +48,7 @@ export async function searchPhotos(query: string): Promise<SearchResult[]> {
 
 export async function getSimilarPhotos(
   photoId: string,
+  signal?: AbortSignal,
 ): Promise<SearchResult[]> {
   const url = `${SEARCH_API_URL}/similar?id=${encodeURIComponent(photoId)}`;
 
@@ -56,6 +57,7 @@ export async function getSimilarPhotos(
     headers: {
       Accept: 'application/json',
     },
+    signal,
   });
 
   if (!response.ok) {

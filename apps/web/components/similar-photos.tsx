@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
 
 import { getSimilarPhotos, type SearchResult } from 'lib/search';
@@ -9,24 +9,28 @@ interface SimilarPhotosProps {
   photoId: string;
 }
 
-export function SimilarPhotos({ photoId }: SimilarPhotosProps) {
+export const SimilarPhotos = memo(function SimilarPhotos({
+  photoId,
+}: SimilarPhotosProps) {
   const [similar, setSimilar] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function fetchSimilar() {
       setLoading(true);
       try {
-        const results = await getSimilarPhotos(photoId);
-        if (!cancelled) {
-          setSimilar(results);
-        }
+        const results = await getSimilarPhotos(photoId, controller.signal);
+        setSimilar(results);
       } catch (error) {
+        // Ignore abort errors
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
         console.error('Failed to fetch similar photos:', error);
       } finally {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
@@ -35,7 +39,7 @@ export function SimilarPhotos({ photoId }: SimilarPhotosProps) {
     fetchSimilar();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [photoId]);
 
@@ -89,4 +93,4 @@ export function SimilarPhotos({ photoId }: SimilarPhotosProps) {
       </div>
     </section>
   );
-}
+});
