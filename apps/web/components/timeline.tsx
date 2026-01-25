@@ -115,33 +115,49 @@ export function Timeline({
     return { ...data, years: filteredYears };
   }, [data, filteredIds]);
 
-  // Calculate the width available for photos
-  // Mobile: timeline 1px + gap-3 (12px) + safety buffer (16px) = 29px (date stacks above, padding handled by container px-4)
+  // Calculate the width available for photos (memoized)
+  // Mobile: timeline 1px + gap-3 (12px) + safety buffer (16px) = 29px
   // Desktop: timeline 1px + gap-6 (24px) + date w-20 (80px) + gap-6 (24px) = 129px
-  const sidebarWidth = isMobile ? 1 + 12 + 16 : 1 + 24 + 80 + 24;
-  const photoContainerWidth = Math.max(150, (innerWidth ?? 800) - sidebarWidth);
+  const sidebarWidth = useMemo(() => (isMobile ? 29 : 129), [isMobile]);
+  const photoContainerWidth = useMemo(
+    () => Math.max(150, (innerWidth ?? 800) - sidebarWidth),
+    [innerWidth, sidebarWidth],
+  );
 
-  // Update dimensions on mount and resize
+  // Update viewport dimensions on resize (uses ResizeObserver for container width)
   useEffect(() => {
-    const updateDimensions = () => {
+    let lastIsMobile = window.innerWidth < 640;
+
+    const updateViewport = () => {
       setViewportHeight(window.innerHeight);
-      // sm breakpoint is 640px
-      setIsMobile(window.innerWidth < 640);
-      if (innerContainerRef.current) {
-        // Measure the inner container (after padding is applied)
-        const style = getComputedStyle(innerContainerRef.current);
-        const paddingLeft = parseFloat(style.paddingLeft) || 0;
-        const paddingRight = parseFloat(style.paddingRight) || 0;
-        const contentWidth =
-          innerContainerRef.current.clientWidth - paddingLeft - paddingRight;
-        setInnerWidth(contentWidth);
+      // Only update isMobile when crossing threshold
+      const nowMobile = window.innerWidth < 640;
+      if (nowMobile !== lastIsMobile) {
+        lastIsMobile = nowMobile;
+        setIsMobile(nowMobile);
       }
     };
 
-    updateDimensions();
+    updateViewport();
     setIsHydrated(true);
-    window.addEventListener('resize', updateDimensions, { passive: true });
-    return () => window.removeEventListener('resize', updateDimensions);
+    window.addEventListener('resize', updateViewport, { passive: true });
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  // Use ResizeObserver for container width (avoids expensive getComputedStyle)
+  useEffect(() => {
+    const container = innerContainerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // contentRect is more widely supported and gives us content width
+        setInnerWidth(entry.contentRect.width);
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
   }, []);
 
   // Restore scroll position from sessionStorage
@@ -199,44 +215,16 @@ export function Timeline({
   }, []);
 
   // Pre-calculate heights for all items to enable virtualization
-  // Use SSR values initially to prevent CLS, then recalculate on client
+  // Split into smaller memos for better cache invalidation
   const isSearchActive = filteredIds && filteredIds.size > 0;
 
-  const itemsWithPositions = useMemo(() => {
-    // Before hydration, use SSR-precomputed values if available (but not when searching)
-    if (!isHydrated && ssrItems && ssrTotalHeight && !isSearchActive) {
-      // Merge SSR items with actual data references
-      const items = ssrItems.map((ssrItem) => {
-        let itemData: YearGroup | MonthGroup | DayGroup | undefined;
+  // Determine if we should use SSR items (before hydration, not searching)
+  const useSSRItems = !isHydrated && ssrItems && ssrTotalHeight && !isSearchActive;
 
-        if (ssrItem.type === 'year') {
-          itemData = filteredData.years.find((y) => y.key === ssrItem.yearKey);
-        } else if (ssrItem.type === 'month') {
-          const year = filteredData.years.find(
-            (y) => y.key === ssrItem.yearKey,
-          );
-          itemData = year?.months.find((m) => m.key === ssrItem.monthKey);
-        } else if (ssrItem.type === 'day') {
-          const year = filteredData.years.find(
-            (y) => y.key === ssrItem.yearKey,
-          );
-          const month = year?.months.find((m) => m.key === ssrItem.monthKey);
-          itemData = month?.days.find((d) => {
-            const fullKey = `${ssrItem.yearKey}-${ssrItem.monthKey}-${d.key}`;
-            return fullKey === ssrItem.key.replace('day-', '');
-          });
-        }
+  // Compute layout items from filtered data (only when not using SSR items)
+  const computedItems = useMemo(() => {
+    if (useSSRItems) return null; // Skip computation when using SSR items
 
-        return {
-          ...ssrItem,
-          data: itemData as YearGroup | MonthGroup | DayGroup,
-        };
-      });
-
-      return { items, totalHeight: ssrTotalHeight };
-    }
-
-    // After hydration (or when searching), calculate based on actual container width
     const items: Array<{
       type: 'year' | 'month' | 'day';
       key: string;
@@ -251,8 +239,8 @@ export function Timeline({
     let currentTop = 0;
     const YEAR_HEADER_HEIGHT = 80;
     const MONTH_HEADER_HEIGHT = 56;
-    const DAY_ROW_PADDING = 24; // vertical padding for day rows
-    const MOBILE_DATE_HEIGHT = isMobile ? 32 : 0; // extra height for stacked date label + padding (pt-3 + pb-1.5 + text) on mobile
+    const DAY_ROW_PADDING = 24;
+    const MOBILE_DATE_HEIGHT = isMobile ? 32 : 0;
 
     for (const year of filteredData.years) {
       items.push({
@@ -279,7 +267,6 @@ export function Timeline({
         currentTop += MONTH_HEADER_HEIGHT;
 
         for (const day of month.days) {
-          // Calculate day row height based on photos
           const rows = computeJustifiedRows(
             day.photos,
             photoContainerWidth,
@@ -287,10 +274,7 @@ export function Timeline({
             GAP,
           );
           const photosHeight = calculateTotalHeight(rows, GAP);
-          const dayHeight = Math.max(
-            48,
-            photosHeight + DAY_ROW_PADDING + MOBILE_DATE_HEIGHT,
-          );
+          const dayHeight = Math.max(48, photosHeight + DAY_ROW_PADDING + MOBILE_DATE_HEIGHT);
 
           const dayUniqueKey = `${year.key}-${month.key}-${day.key}`;
           items.push({
@@ -309,15 +293,40 @@ export function Timeline({
     }
 
     return { items, totalHeight: currentTop };
-  }, [
-    filteredData,
-    photoContainerWidth,
-    isMobile,
-    isHydrated,
-    ssrItems,
-    ssrTotalHeight,
-    isSearchActive,
-  ]);
+  }, [filteredData, photoContainerWidth, isMobile, useSSRItems]);
+
+  // Merge SSR items with data references (only when using SSR items)
+  const ssrMergedItems = useMemo(() => {
+    if (!useSSRItems || !ssrItems || !ssrTotalHeight) return null;
+
+    const items = ssrItems.map((ssrItem) => {
+      let itemData: YearGroup | MonthGroup | DayGroup | undefined;
+
+      if (ssrItem.type === 'year') {
+        itemData = filteredData.years.find((y) => y.key === ssrItem.yearKey);
+      } else if (ssrItem.type === 'month') {
+        const year = filteredData.years.find((y) => y.key === ssrItem.yearKey);
+        itemData = year?.months.find((m) => m.key === ssrItem.monthKey);
+      } else if (ssrItem.type === 'day') {
+        const year = filteredData.years.find((y) => y.key === ssrItem.yearKey);
+        const month = year?.months.find((m) => m.key === ssrItem.monthKey);
+        itemData = month?.days.find((d) => {
+          const fullKey = `${ssrItem.yearKey}-${ssrItem.monthKey}-${d.key}`;
+          return fullKey === ssrItem.key.replace('day-', '');
+        });
+      }
+
+      return {
+        ...ssrItem,
+        data: itemData as YearGroup | MonthGroup | DayGroup,
+      };
+    });
+
+    return { items, totalHeight: ssrTotalHeight };
+  }, [useSSRItems, ssrItems, ssrTotalHeight, filteredData]);
+
+  // Final items - either SSR merged or computed
+  const itemsWithPositions = ssrMergedItems ?? computedItems ?? { items: [], totalHeight: 0 };
 
   // Find visible items
   const visibleItems = useMemo(() => {
