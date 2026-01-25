@@ -129,11 +129,11 @@ export function PhotoDisplay({
 
       {/* Color swatches - top right on mobile, bottom left on desktop */}
       {dominantColors.length > 0 && (
-        <div className="fixed z-40 flex gap-2 top-4 right-4 lg:top-auto lg:right-auto lg:bottom-4 lg:left-4 flex-row lg:flex-col">
+        <div className="fixed flex gap-1.5 top-4 right-4 lg:top-auto lg:right-auto lg:bottom-4 lg:left-4 flex-row lg:flex-col">
           {dominantColors.slice(0, 5).map((color) => (
             <div
               key={color.hex}
-              className="w-6 h-6 rounded-full shadow-sm"
+              className="w-5 h-5 rounded-full shadow-sm ring-1 ring-black/10"
               style={{ backgroundColor: color.hex }}
               title={color.hex}
             />
