@@ -11,9 +11,12 @@ import React, {
 import Link from 'next/link';
 import type { Manifest } from 'types';
 
+import { Folder } from 'lucide-react';
+
 import { Picture } from 'components/picture';
 
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
+import { SEARCH_CATEGORIES } from 'lib/search-categories';
 
 // Lazy load Navbar with idle callback to defer heavy dependencies until after LCP
 const Navbar = lazy(() =>
@@ -653,6 +656,52 @@ export function PannableGrid({
           })}
         </div>
       </div>
+
+      {/* Empty state when search returns no results */}
+      {searchResultCount === 0 && searchQuery && !isSearching && (
+        <div className="fixed inset-0 z-[40] flex items-center justify-center bg-neutral-100 pt-14">
+          <div className="max-w-2xl px-6 text-center">
+            <div className="mb-6">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-200">
+                <Folder className="h-8 w-8 text-neutral-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-neutral-800">
+                No photos found
+              </h2>
+              <p className="mt-2 text-sm text-neutral-500">
+                No results for "{searchQuery}". Try one of these instead:
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {SEARCH_CATEGORIES.slice(0, 6).map((cat) => {
+                const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewId}.avif`;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => onSearch?.(cat.query)}
+                    className="group relative overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-neutral-200 transition-all hover:shadow-md hover:ring-neutral-300"
+                  >
+                    <div className="aspect-[4/3] overflow-hidden">
+                      <img
+                        src={imageUrl}
+                        alt=""
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3 pt-8">
+                      <span className="text-sm font-medium text-white">
+                        {cat.label}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showNavbar && (
         <Suspense fallback={null}>
           <Navbar
