@@ -57,6 +57,11 @@ type TimelineNavProps = {
   onJumpToYear: (year: number | null) => void;
 };
 
+type SearchPreview = {
+  id: string;
+  score: number;
+};
+
 type NavbarProps = {
   minimapProps?: MinimapProps;
   activePage?: string;
@@ -66,6 +71,7 @@ type NavbarProps = {
   isSearching?: boolean;
   searchResultCount?: number;
   searchQuery?: string;
+  searchPreview?: SearchPreview[];
 };
 
 export const Navbar = ({
@@ -77,14 +83,15 @@ export const Navbar = ({
   isSearching,
   searchResultCount,
   searchQuery: initialQuery = '',
+  searchPreview,
 }: NavbarProps) => {
   const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
-  // Local input state - only used while typing, reset to initialQuery on blur/submit
   const [inputValue, setInputValue] = useState(initialQuery);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const searchRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect mobile for logo animation
   React.useEffect(() => {
@@ -94,32 +101,59 @@ export const Navbar = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Derive display value: show local input while focused, otherwise show the committed query
-  const displayValue = searchOpen ? inputValue : initialQuery;
+  // Sync input with URL when it changes externally
+  React.useEffect(() => {
+    if (!searchOpen) {
+      setInputValue(initialQuery);
+    }
+  }, [initialQuery, searchOpen]);
 
   const anyWindowOpen = openWindows.size > 0;
   const hasActiveSearch = initialQuery.length > 0;
 
-  const handleSearch = (query: string) => {
-    if (onSearch && query.trim()) {
-      onSearch(query.trim());
-      setSearchOpen(false);
+  const handleSearch = React.useCallback(
+    (query: string) => {
+      if (onSearch && query.trim()) {
+        onSearch(query.trim());
+      }
+    },
+    [onSearch],
+  );
+
+  // Debounced search - triggers after 300ms of no typing
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+
+    // Clear pending debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Debounce the search
+    if (value.trim()) {
+      debounceRef.current = setTimeout(() => {
+        handleSearch(value);
+      }, 400);
+    } else if (hasActiveSearch) {
+      // Immediately clear if input is empty and there was a search
+      onClearSearch?.();
     }
   };
 
   const handleClear = React.useCallback(() => {
     setInputValue('');
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
     onClearSearch?.();
   }, [onClearSearch]);
 
   const handleFocus = () => {
     setSearchOpen(true);
-    setInputValue(initialQuery); // Reset to current query when focusing
   };
 
   const handleBlur = () => {
-    // Reset input to committed query if user didn't submit
-    setInputValue(initialQuery);
+    // Keep the current input value, don't reset
   };
 
   const toggleWindow = (component: string) => {
@@ -234,14 +268,20 @@ export const Navbar = ({
                 ref={inputRef}
                 type="text"
                 placeholder="Search..."
-                value={displayValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                value={inputValue}
+                onChange={(e) => handleInputChange(e.target.value)}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
+                    // Cancel debounce and search immediately
+                    if (debounceRef.current) {
+                      clearTimeout(debounceRef.current);
+                    }
                     handleSearch(inputValue);
+                    setSearchOpen(false);
+                    inputRef.current?.blur();
                   }
                 }}
                 className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 outline-none placeholder:text-neutral-400"
@@ -255,7 +295,7 @@ export const Navbar = ({
                   {searchResultCount} results
                 </span>
               ) : null}
-              {(displayValue || hasActiveSearch) && (
+              {(inputValue || hasActiveSearch) && (
                 <button
                   type="button"
                   onClick={handleClear}
@@ -276,33 +316,85 @@ export const Navbar = ({
                   transition={{ duration: 0.15 }}
                   className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-neutral-200 bg-neutral-100 p-2"
                 >
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {SEARCH_CATEGORIES.map((cat) => {
-                      const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => {
-                            setInputValue(cat.query);
-                            handleSearch(cat.query);
-                          }}
-                          className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50"
-                        >
-                          <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
-                            <img
-                              src={imageUrl}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                          <span className="text-[15px] font-medium text-neutral-800">
-                            {cat.label}
-                          </span>
-                        </button>
+                  {/* Show matching categories as autocomplete when typing */}
+                  {inputValue.trim() ? (
+                    (() => {
+                      const matchingCategories = SEARCH_CATEGORIES.filter(
+                        (cat) =>
+                          cat.label
+                            .toLowerCase()
+                            .includes(inputValue.toLowerCase()) ||
+                          cat.query
+                            .toLowerCase()
+                            .includes(inputValue.toLowerCase()),
                       );
-                    })}
-                  </div>
+                      if (matchingCategories.length > 0) {
+                        return (
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {matchingCategories.map((cat) => {
+                              const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
+                              return (
+                                <button
+                                  key={cat.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setInputValue(cat.query);
+                                    handleSearch(cat.query);
+                                  }}
+                                  className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50"
+                                >
+                                  <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
+                                    <img
+                                      src={imageUrl}
+                                      alt=""
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                  <span className="text-[15px] font-medium text-neutral-800">
+                                    {cat.label}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="py-4 text-center text-sm text-neutral-500">
+                          Press Enter to search for &ldquo;{inputValue}&rdquo;
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    /* Show category suggestions when input is empty */
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {SEARCH_CATEGORIES.map((cat) => {
+                        const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => {
+                              setInputValue(cat.query);
+                              handleSearch(cat.query);
+                            }}
+                            className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50"
+                          >
+                            <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
+                              <img
+                                src={imageUrl}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <span className="text-[15px] font-medium text-neutral-800">
+                              {cat.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -354,11 +446,26 @@ export const Navbar = ({
       <motion.nav
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fixed bottom-0 left-0 right-0 z-[70] bg-white border-t border-neutral-200 md:hidden"
+        className="fixed bottom-0 left-0 right-0 z-[70] md:hidden border-t border-neutral-200 bg-white"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <div className="flex items-center justify-around px-2 py-2">
-          {/* Year selector for timeline (mobile) */}
+        <div className="flex items-center justify-around px-6 py-3">
+          {APPS.filter(
+            (app) =>
+              (app.component !== 'MinimapWindow' || minimapProps) &&
+              app.id !== 'minimap', // Hide minimap on mobile
+          ).map((app) => (
+            <MobileNavButton
+              key={app.id}
+              href={app.href}
+              icon={app.icon}
+              isActive={app.id === activePage}
+              componentName={app.component || ''}
+              isOpen={openWindows.has(app.component || '')}
+              onToggleWindow={toggleWindow}
+            />
+          ))}
+          {/* Year selector for timeline */}
           {timelineProps && (
             <select
               value={timelineProps.currentYear?.toString() ?? 'all'}
@@ -370,7 +477,7 @@ export const Navbar = ({
                   timelineProps.onJumpToYear(parseInt(value, 10));
                 }
               }}
-              className="appearance-none rounded-lg bg-neutral-100 pl-2 pr-6 py-1.5 text-xs font-medium text-neutral-700 outline-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23737373%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_6px_center] bg-no-repeat"
+              className="appearance-none bg-transparent text-neutral-900 font-semibold text-base outline-none text-center"
             >
               <option value="all">All</option>
               {timelineProps.years.map((year) => (
@@ -380,21 +487,6 @@ export const Navbar = ({
               ))}
             </select>
           )}
-          {APPS.filter(
-            (app) =>
-              (app.component !== 'MinimapWindow' || minimapProps) &&
-              app.id !== activePage,
-          ).map((app) => (
-            <MobileNavButton
-              key={app.id}
-              href={app.href}
-              icon={app.icon}
-              label={app.name}
-              componentName={app.component || ''}
-              isOpen={openWindows.has(app.component || '')}
-              onToggleWindow={toggleWindow}
-            />
-          ))}
         </div>
       </motion.nav>
 
@@ -456,24 +548,24 @@ function NavbarButton({
 function MobileNavButton({
   href,
   icon: Icon,
-  label,
+  isActive,
   componentName,
   isOpen,
   onToggleWindow,
 }: {
   href?: string | null;
   icon?: React.ComponentType<{ className?: string }>;
-  label: string;
+  isActive?: boolean;
   componentName?: string;
   isOpen?: boolean;
   onToggleWindow?: (_component: string) => void;
 }) {
   const router = useRouter();
+  const active = isActive || isOpen;
 
   return (
     <button
       type="button"
-      aria-label={label}
       onClick={() => {
         if (href) {
           router.push(href);
@@ -481,12 +573,15 @@ function MobileNavButton({
           onToggleWindow(componentName || '');
         }
       }}
-      className={`flex flex-col items-center gap-1 rounded-lg px-3 py-1.5 transition-colors ${
-        isOpen ? 'text-neutral-900' : 'text-neutral-500'
-      }`}
+      className="p-2 transition-colors active:opacity-60"
     >
-      {Icon && <Icon className="h-5 w-5" />}
-      <span className="text-[10px] font-medium">{label}</span>
+      {Icon && (
+        <Icon
+          className={`h-6 w-6 transition-colors ${
+            active ? 'text-neutral-900' : 'text-neutral-400'
+          }`}
+        />
+      )}
     </button>
   );
 }
