@@ -209,54 +209,69 @@ export function PannableGrid({
 
   const rafRef = useRef<number | null>(null);
 
-  // RAF loop: handle inertia (time-based kinematics)
-  useEffect(() => {
+  // Inertia tick function - only called when inertia is active
+  const runInertiaTick = React.useCallback(() => {
     const tick = () => {
       const inert = inertiaRef.current;
-      if (inert && inert.active) {
-        const now = performance.now();
-        const dt = Math.max(0, now - inert.lastTick); // ms
-
-        // Exponential velocity decay: v(t+dt) = v * exp(-dt/τ)
-        const k = Math.exp(-dt / INERTIA_TAU_MS);
-
-        // Displacement under exp decay over dt: s = v * τ * (1 - k)
-        const dx = inert.vx * INERTIA_TAU_MS * (1 - k);
-        const dy = inert.vy * INERTIA_TAU_MS * (1 - k);
-
-        const nextX = camRef.current.x - dx;
-        const nextY = camRef.current.y - dy;
-
-        // Clamp & kill the axis that hits bounds
-        const clampedX = clamp(nextX, minX, maxX);
-        const clampedY = clamp(nextY, minY, maxY);
-
-        // Update velocities for next frame
-        let nextVx = inert.vx * k;
-        let nextVy = inert.vy * k;
-
-        if (clampedX !== nextX) nextVx = 0;
-        if (clampedY !== nextY) nextVy = 0;
-
-        setCam({ x: clampedX, y: clampedY });
-        camRef.current = { x: clampedX, y: clampedY };
-
-        inertiaRef.current = {
-          active: Math.hypot(nextVx, nextVy) > 0.01, // stop quickly
-          lastTick: now,
-          vx: nextVx,
-          vy: nextVy,
-        };
+      if (!inert || !inert.active) {
+        rafRef.current = null;
+        return; // Stop the loop when inertia becomes inactive
       }
 
-      rafRef.current = requestAnimationFrame(tick);
+      const now = performance.now();
+      const dt = Math.max(0, now - inert.lastTick); // ms
+
+      // Exponential velocity decay: v(t+dt) = v * exp(-dt/τ)
+      const k = Math.exp(-dt / INERTIA_TAU_MS);
+
+      // Displacement under exp decay over dt: s = v * τ * (1 - k)
+      const dx = inert.vx * INERTIA_TAU_MS * (1 - k);
+      const dy = inert.vy * INERTIA_TAU_MS * (1 - k);
+
+      const nextX = camRef.current.x - dx;
+      const nextY = camRef.current.y - dy;
+
+      // Clamp & kill the axis that hits bounds
+      const clampedX = clamp(nextX, minX, maxX);
+      const clampedY = clamp(nextY, minY, maxY);
+
+      // Update velocities for next frame
+      let nextVx = inert.vx * k;
+      let nextVy = inert.vy * k;
+
+      if (clampedX !== nextX) nextVx = 0;
+      if (clampedY !== nextY) nextVy = 0;
+
+      setCam({ x: clampedX, y: clampedY });
+      camRef.current = { x: clampedX, y: clampedY };
+
+      const stillActive = Math.hypot(nextVx, nextVy) > 0.01;
+      inertiaRef.current = {
+        active: stillActive,
+        lastTick: now,
+        vx: nextVx,
+        vy: nextVy,
+      };
+
+      if (stillActive) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+      }
     };
 
-    rafRef.current = requestAnimationFrame(tick);
+    // Start the loop if not already running
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(tick);
+    }
+  }, [minX, maxX, minY, maxY]);
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [minX, maxX, minY, maxY]);
+  }, []);
 
   // Click detection state
   const clickStartRef = useRef<{
@@ -374,14 +389,16 @@ export function PannableGrid({
       }
     }
 
-    // inertia start (unchanged) ...
+    // inertia start - only start RAF loop if we have meaningful velocity
     if (draggingRef.current) {
       const { vx, vy } = velRef.current;
       const speed = Math.hypot(vx, vy);
-      inertiaRef.current =
-        speed >= MIN_INERTIA_SPEED
-          ? { active: true, lastTick: performance.now(), vx, vy }
-          : null;
+      if (speed >= MIN_INERTIA_SPEED) {
+        inertiaRef.current = { active: true, lastTick: performance.now(), vx, vy };
+        runInertiaTick(); // Start the RAF loop
+      } else {
+        inertiaRef.current = null;
+      }
       // also save right after a drag ends (snappier persistence)
       saveCam(camRef.current);
       // Mark that we just dragged so click handler can block navigation
@@ -489,18 +506,27 @@ export function PannableGrid({
     };
   }, []);
 
-  // Debounced saver on camera changes
-  const saveTimer = useRef<number | null>(null);
-  const wheelSaveTimer = useRef<number | null>(null);
+  // Consolidated RAF-based save timer (shared between camera changes and wheel events)
+  const saveTimerRef = useRef<number | null>(null);
+  const pendingSaveRef = useRef(false);
+
+  const scheduleSave = React.useCallback(() => {
+    if (pendingSaveRef.current) return; // Already scheduled
+    pendingSaveRef.current = true;
+    if (saveTimerRef.current) cancelAnimationFrame(saveTimerRef.current);
+    saveTimerRef.current = requestAnimationFrame(() => {
+      saveCam(camRef.current);
+      pendingSaveRef.current = false;
+    });
+  }, [saveCam]);
 
   // Save camera position when it changes (debounced via RAF)
   useEffect(() => {
-    if (saveTimer.current) cancelAnimationFrame(saveTimer.current);
-    saveTimer.current = requestAnimationFrame(() => saveCam(camRef.current));
+    scheduleSave();
     return () => {
-      if (saveTimer.current) cancelAnimationFrame(saveTimer.current);
+      if (saveTimerRef.current) cancelAnimationFrame(saveTimerRef.current);
     };
-  }, [saveCam]);
+  }, [scheduleSave]);
 
   // Save on visibility/pagehide/beforeunload (BFCache safe)
   useEffect(() => {
@@ -564,7 +590,8 @@ export function PannableGrid({
       });
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    // passive: false because we call preventDefault for arrow keys
+    window.addEventListener('keydown', handleKeyDown, { passive: false });
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [minX, maxX, minY, maxY]);
 
@@ -592,11 +619,7 @@ export function PannableGrid({
               return { x: nx, y: ny };
             });
           }
-          if (wheelSaveTimer.current)
-            cancelAnimationFrame(wheelSaveTimer.current);
-          wheelSaveTimer.current = requestAnimationFrame(() =>
-            saveCam(camRef.current),
-          );
+          scheduleSave();
         }}
         role="application"
         aria-label="Pannable photo grid"
