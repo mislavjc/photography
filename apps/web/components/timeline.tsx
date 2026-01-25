@@ -52,6 +52,8 @@ interface TimelineProps {
   isSearching?: boolean;
   searchResultCount?: number;
   searchQuery?: string;
+  /** Preview of search results for dropdown */
+  searchPreview?: { id: string; score: number }[];
 }
 
 // SSR-safe default width (reasonable desktop width minus typical sidebar)
@@ -68,6 +70,7 @@ export function Timeline({
   isSearching,
   searchResultCount,
   searchQuery,
+  searchPreview,
 }: TimelineProps) {
   const innerContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -504,6 +507,7 @@ export function Timeline({
         isSearching={isSearching}
         searchResultCount={searchResultCount}
         searchQuery={searchQuery}
+        searchPreview={searchPreview}
       />
 
       {/* Scroll to top button */}

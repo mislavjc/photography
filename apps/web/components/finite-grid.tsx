@@ -83,6 +83,11 @@ function useViewportSize() {
   return { vw, vh };
 }
 
+type SearchPreview = {
+  id: string;
+  score: number;
+};
+
 type Props = {
   manifest: Manifest;
   initialLayout?: Layout;
@@ -93,6 +98,7 @@ type Props = {
   isSearching?: boolean;
   searchResultCount?: number;
   searchQuery?: string;
+  searchPreview?: SearchPreview[];
 };
 
 export function PannableGrid({
@@ -105,6 +111,7 @@ export function PannableGrid({
   isSearching,
   searchResultCount,
   searchQuery,
+  searchPreview,
 }: Props) {
   const { vw, vh } = useViewportSize();
 
@@ -744,6 +751,7 @@ export function PannableGrid({
             isSearching={isSearching}
             searchResultCount={searchResultCount}
             searchQuery={searchQuery}
+            searchPreview={searchPreview}
           />
         </Suspense>
       )}
