@@ -1,6 +1,7 @@
 interface Env {
   VECTORIZE: VectorizeIndex;
   REPLICATE_API_TOKEN: string;
+  EMBEDDING_CACHE: KVNamespace;
 }
 
 interface SearchResult {
@@ -11,6 +12,7 @@ interface SearchResult {
 const IMAGEBIND_VERSION =
   '0383f62e173dc821ec52663ed22a076d9c970549c209666ac3db181618b7a304';
 const MAX_RESULTS = 100; // Vectorize limit without metadata
+const CACHE_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -25,10 +27,26 @@ interface ReplicatePrediction {
   error?: string;
 }
 
+function getCacheKey(text: string): string {
+  // Normalize: lowercase, trim, collapse whitespace
+  const normalized = text.toLowerCase().trim().replace(/\s+/g, ' ');
+  return `emb:${normalized}`;
+}
+
 async function getTextEmbedding(
   text: string,
   apiToken: string,
-): Promise<number[]> {
+  cache: KVNamespace,
+): Promise<{ embedding: number[]; cached: boolean }> {
+  const cacheKey = getCacheKey(text);
+
+  // Check cache first
+  const cached = await cache.get(cacheKey, 'json');
+  if (cached && Array.isArray(cached)) {
+    return { embedding: cached as number[], cached: true };
+  }
+
+  // Fetch from Replicate
   const response = await fetch('https://api.replicate.com/v1/predictions', {
     method: 'POST',
     headers: {
@@ -53,32 +71,41 @@ async function getTextEmbedding(
     throw new Error(`Replicate prediction failed: ${prediction.error}`);
   }
 
+  let embedding: number[];
+
   if (prediction.output) {
-    return prediction.output;
+    embedding = prediction.output;
+  } else {
+    // Poll if not ready (rare with Prefer: wait)
+    let result = prediction;
+    for (
+      let i = 0;
+      i < 30 && result.status !== 'succeeded' && result.status !== 'failed';
+      i++
+    ) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const pollResponse = await fetch(
+        `https://api.replicate.com/v1/predictions/${result.id}`,
+        { headers: { Authorization: `Bearer ${apiToken}` } },
+      );
+      result = (await pollResponse.json()) as ReplicatePrediction;
+    }
+
+    if (result.status !== 'succeeded') {
+      throw new Error(
+        `Replicate prediction failed: ${result.error || result.status}`,
+      );
+    }
+
+    embedding = result.output!;
   }
 
-  // Poll if not ready (rare with Prefer: wait)
-  let result = prediction;
-  for (
-    let i = 0;
-    i < 30 && result.status !== 'succeeded' && result.status !== 'failed';
-    i++
-  ) {
-    await new Promise((r) => setTimeout(r, 1000));
-    const pollResponse = await fetch(
-      `https://api.replicate.com/v1/predictions/${result.id}`,
-      { headers: { Authorization: `Bearer ${apiToken}` } },
-    );
-    result = (await pollResponse.json()) as ReplicatePrediction;
-  }
+  // Store in cache (don't await, fire and forget)
+  cache.put(cacheKey, JSON.stringify(embedding), {
+    expirationTtl: CACHE_TTL_SECONDS,
+  });
 
-  if (result.status !== 'succeeded') {
-    throw new Error(
-      `Replicate prediction failed: ${result.error || result.status}`,
-    );
-  }
-
-  return result.output!;
+  return { embedding, cached: false };
 }
 
 async function handleSearch(
@@ -86,7 +113,11 @@ async function handleSearch(
   minScore: number,
   env: Env,
 ): Promise<Response> {
-  const embedding = await getTextEmbedding(query, env.REPLICATE_API_TOKEN);
+  const { embedding, cached } = await getTextEmbedding(
+    query,
+    env.REPLICATE_API_TOKEN,
+    env.EMBEDDING_CACHE,
+  );
 
   const results = await env.VECTORIZE.query(embedding, {
     topK: MAX_RESULTS,
@@ -98,7 +129,7 @@ async function handleSearch(
     .map((m) => ({ id: m.id, score: m.score }));
 
   return Response.json(
-    { results: searchResults, query },
+    { results: searchResults, query, cached },
     { headers: CORS_HEADERS },
   );
 }

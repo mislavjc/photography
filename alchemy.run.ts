@@ -1,5 +1,10 @@
 import alchemy from 'alchemy';
-import { R2Bucket, VectorizeIndex, Worker } from 'alchemy/cloudflare';
+import {
+  KVNamespace,
+  R2Bucket,
+  VectorizeIndex,
+  Worker,
+} from 'alchemy/cloudflare';
 
 const app = await alchemy('photography', {
   phase: process.argv.includes('--destroy') ? 'destroy' : 'up',
@@ -33,6 +38,15 @@ export const searchIndex = await VectorizeIndex('photo-search', {
 });
 
 // =============================================================================
+// KV Namespace (Embedding Cache)
+// =============================================================================
+
+// Cache for text embeddings to avoid repeated Replicate API calls
+export const embeddingCache = await KVNamespace('embedding-cache', {
+  title: 'photography-embedding-cache',
+});
+
+// =============================================================================
 // Search API Worker
 // =============================================================================
 
@@ -48,6 +62,7 @@ export const searchWorker = replicateApiToken
         VECTORIZE: searchIndex,
         PHOTOS_BUCKET: photosBucket,
         REPLICATE_API_TOKEN: alchemy.secret(replicateApiToken),
+        EMBEDDING_CACHE: embeddingCache,
       },
       url: true, // Enable workers.dev URL
     })
