@@ -46,10 +46,10 @@
     "tailwind-merge": "^3.4.0"
   },
   "browserslist": [
-    "last 2 Chrome versions",
-    "last 2 Firefox versions",
-    "last 2 Safari versions",
-    "last 2 Edge versions"
+    "Chrome >= 100",
+    "Firefox >= 100",
+    "Safari >= 15.4",
+    "Edge >= 100"
   ],
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

@@ -9,6 +9,7 @@ import { Picture } from 'components/picture';
 import {
   computeJustifiedRows,
   GAP,
+  type JustifiedRow,
   TARGET_ROW_HEIGHT,
 } from 'lib/timeline-layout';
 import type { DayGroup } from 'lib/timeline-utils';
@@ -17,26 +18,30 @@ interface TimelineDayRowProps {
   day: DayGroup;
   manifest: Manifest;
   containerWidth: number;
+  precomputedRows?: JustifiedRow[];
 }
 
 export function TimelineDayRow({
   day,
   manifest,
   containerWidth,
+  precomputedRows,
 }: TimelineDayRowProps) {
   const router = useRouter();
 
+  // Use precomputed rows if available, otherwise compute (fallback for edge cases)
   const rows = useMemo(() => {
+    if (precomputedRows) return precomputedRows;
     return computeJustifiedRows(
       day.photos,
       containerWidth,
       TARGET_ROW_HEIGHT,
       GAP,
     );
-  }, [day.photos, containerWidth]);
+  }, [day.photos, containerWidth, precomputedRows]);
 
   const handlePhotoClick = (filename: string) => {
-    router.push(`/${encodeURIComponent(filename)}?from=timeline`);
+    router.push(`/photo/${encodeURIComponent(filename)}?from=timeline`);
   };
 
   return (
@@ -48,7 +53,7 @@ export function TimelineDayRow({
       <div className="flex-1 min-w-0">
         {/* Date label - mobile only */}
         <div className="pt-3 pb-1.5 sm:hidden">
-          <span className="font-mono text-[11px] text-neutral-400">
+          <span className="font-mono text-[11px] text-neutral-500">
             {day.label}
           </span>
         </div>

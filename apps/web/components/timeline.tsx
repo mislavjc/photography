@@ -1,20 +1,14 @@
 'use client';
 
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronUp } from 'lucide-react';
 import type { Manifest } from 'types';
 
 import {
   calculateTotalHeight,
   computeJustifiedRows,
   GAP,
+  type JustifiedRow,
   TARGET_ROW_HEIGHT,
 } from 'lib/timeline-layout';
 import type {
@@ -24,28 +18,47 @@ import type {
   YearGroup,
 } from 'lib/timeline-utils';
 
+import { Navbar } from './navbar';
 import { TimelineDayRow } from './timeline-day-row';
-
-// Lazy load the dock
-const TimelineDock = lazy(() =>
-  import('./timeline-dock').then((m) => ({ default: m.TimelineDock })),
-);
 
 // Virtualization settings
 const VIRTUAL_MARGIN = 600; // px above/below viewport to render
 
+// Type for SSR-precomputed items
+interface SSRItem {
+  type: 'year' | 'month' | 'day';
+  key: string;
+  top: number;
+  height: number;
+  yearKey: string;
+  monthKey?: string;
+  precomputedRows?: JustifiedRow[];
+}
+
 interface TimelineProps {
   data: TimelineData;
   manifest: Manifest;
+  /** SSR-precomputed items for initial render (reduces CLS) */
+  ssrItems?: SSRItem[];
+  /** SSR-precomputed total height */
+  ssrTotalHeight?: number;
 }
 
-export function Timeline({ data, manifest }: TimelineProps) {
+// SSR-safe default width (reasonable desktop width minus typical sidebar)
+const DEFAULT_CONTAINER_WIDTH = 1024;
+
+export function Timeline({
+  data,
+  manifest,
+  ssrItems,
+  ssrTotalHeight,
+}: TimelineProps) {
   const innerContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(800);
-  const [innerWidth, setInnerWidth] = useState<number | null>(null);
+  const [innerWidth, setInnerWidth] = useState<number>(DEFAULT_CONTAINER_WIDTH);
   const [isMobile, setIsMobile] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Calculate the width available for photos
   // Mobile: timeline 1px + gap-3 (12px) + safety buffer (16px) = 29px (date stacks above, padding handled by container px-4)
@@ -67,27 +80,107 @@ export function Timeline({ data, manifest }: TimelineProps) {
         const contentWidth =
           innerContainerRef.current.clientWidth - paddingLeft - paddingRight;
         setInnerWidth(contentWidth);
-        setIsReady(true);
       }
     };
 
     updateDimensions();
+    setIsHydrated(true);
     window.addEventListener('resize', updateDimensions, { passive: true });
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
-  // Handle scroll
+  // Restore scroll position from sessionStorage
   useEffect(() => {
+    const savedScroll = sessionStorage.getItem('timeline:scroll');
+    if (savedScroll) {
+      const scrollY = parseInt(savedScroll, 10);
+      if (!isNaN(scrollY)) {
+        window.scrollTo(0, scrollY);
+      }
+    }
+  }, []);
+
+  // Save scroll position to sessionStorage
+  useEffect(() => {
+    const saveScroll = () => {
+      sessionStorage.setItem('timeline:scroll', String(window.scrollY));
+    };
+
+    // Save on visibility change and before unload
+    document.addEventListener('visibilitychange', saveScroll);
+    window.addEventListener('beforeunload', saveScroll);
+    window.addEventListener('pagehide', saveScroll);
+
+    return () => {
+      document.removeEventListener('visibilitychange', saveScroll);
+      window.removeEventListener('beforeunload', saveScroll);
+      window.removeEventListener('pagehide', saveScroll);
+    };
+  }, []);
+
+  // Handle scroll with RAF for smoother updates
+  useEffect(() => {
+    let rafId: number | null = null;
+    let lastKnownScrollY = window.scrollY;
+
     const handleScroll = () => {
-      setScrollTop(window.scrollY);
+      lastKnownScrollY = window.scrollY;
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          setScrollTop(lastKnownScrollY);
+          rafId = null;
+        });
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
   }, []);
 
   // Pre-calculate heights for all items to enable virtualization
+  // Use SSR values initially to prevent CLS, then recalculate on client
   const itemsWithPositions = useMemo(() => {
+    // Before hydration, use SSR-precomputed values if available
+    if (!isHydrated && ssrItems && ssrTotalHeight) {
+      // Merge SSR items with actual data references
+      const items = ssrItems.map((ssrItem) => {
+        let itemData: YearGroup | MonthGroup | DayGroup | undefined;
+
+        if (ssrItem.type === 'year') {
+          itemData = data.years.find((y) => y.key === ssrItem.yearKey);
+        } else if (ssrItem.type === 'month') {
+          const year = data.years.find((y) => y.key === ssrItem.yearKey);
+          itemData = year?.months.find((m) => m.key === ssrItem.monthKey);
+        } else if (ssrItem.type === 'day') {
+          const year = data.years.find((y) => y.key === ssrItem.yearKey);
+          const month = year?.months.find((m) => m.key === ssrItem.monthKey);
+          const dayKey = ssrItem.key
+            .replace('day-', '')
+            .split('-')
+            .slice(-3)
+            .join('-');
+          itemData = month?.days.find((d) => {
+            const fullKey = `${ssrItem.yearKey}-${ssrItem.monthKey}-${d.key}`;
+            return fullKey === ssrItem.key.replace('day-', '');
+          });
+        }
+
+        return {
+          ...ssrItem,
+          data: itemData as YearGroup | MonthGroup | DayGroup,
+        };
+      });
+
+      return { items, totalHeight: ssrTotalHeight };
+    }
+
+    // After hydration, calculate based on actual container width
     const items: Array<{
       type: 'year' | 'month' | 'day';
       key: string;
@@ -96,6 +189,7 @@ export function Timeline({ data, manifest }: TimelineProps) {
       data: YearGroup | MonthGroup | DayGroup;
       yearKey: string;
       monthKey?: string;
+      precomputedRows?: JustifiedRow[];
     }> = [];
 
     let currentTop = 0;
@@ -151,6 +245,7 @@ export function Timeline({ data, manifest }: TimelineProps) {
             data: day,
             yearKey: year.key,
             monthKey: month.key,
+            precomputedRows: rows,
           });
           currentTop += dayHeight;
         }
@@ -158,7 +253,14 @@ export function Timeline({ data, manifest }: TimelineProps) {
     }
 
     return { items, totalHeight: currentTop };
-  }, [data, photoContainerWidth, isMobile]);
+  }, [
+    data,
+    photoContainerWidth,
+    isMobile,
+    isHydrated,
+    ssrItems,
+    ssrTotalHeight,
+  ]);
 
   // Find visible items
   const visibleItems = useMemo(() => {
@@ -205,78 +307,91 @@ export function Timeline({ data, manifest }: TimelineProps) {
   );
 
   return (
-    <div className="min-h-screen bg-white pb-24 overflow-x-hidden">
+    <div className="min-h-screen bg-white pt-14 pb-24 overflow-x-hidden">
       {/* Virtual scroll container */}
       <div
         ref={innerContainerRef}
         className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-12"
-        style={{ height: isReady ? itemsWithPositions.totalHeight : 'auto' }}
+        style={{ height: itemsWithPositions.totalHeight }}
       >
-        {isReady &&
-          visibleItems.map((item) => {
-            if (item.type === 'year') {
-              const yearData = item.data as YearGroup;
-              return (
-                <div
-                  key={item.key}
-                  className="absolute left-0 right-0 px-4 sm:px-6 lg:px-12"
-                  style={{ top: item.top, height: item.height }}
-                >
-                  <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-sm py-4 sm:py-6">
-                    <h2 className="font-mono text-xl sm:text-2xl font-semibold text-neutral-900 tracking-tight">
-                      {yearData.label}
-                    </h2>
-                  </div>
+        {visibleItems.map((item) => {
+          if (item.type === 'year') {
+            const yearData = item.data as YearGroup;
+            return (
+              <div
+                key={item.key}
+                className="absolute left-0 right-0 px-4 sm:px-6 lg:px-12"
+                style={{ top: item.top, height: item.height }}
+              >
+                <div className="sticky top-14 z-20 bg-white/90 backdrop-blur-sm py-4 sm:py-6">
+                  <h2 className="font-mono text-xl sm:text-2xl font-semibold text-neutral-900 tracking-tight">
+                    {yearData.label}
+                  </h2>
                 </div>
-              );
-            }
+              </div>
+            );
+          }
 
-            if (item.type === 'month') {
-              const monthData = item.data as MonthGroup;
-              return (
-                <div
-                  key={item.key}
-                  className="absolute left-0 right-0 px-4 sm:px-6 lg:px-12"
-                  style={{ top: item.top, height: item.height }}
-                >
-                  <div className="sticky top-12 sm:top-14 z-10 bg-white/90 backdrop-blur-sm py-2 sm:py-3">
-                    <h3 className="font-mono text-xs sm:text-sm uppercase tracking-[0.14em] text-neutral-500">
-                      {monthData.label}
-                    </h3>
-                  </div>
+          if (item.type === 'month') {
+            const monthData = item.data as MonthGroup;
+            return (
+              <div
+                key={item.key}
+                className="absolute left-0 right-0 px-4 sm:px-6 lg:px-12"
+                style={{ top: item.top, height: item.height }}
+              >
+                <div className="sticky top-[88px] z-10 bg-white/90 backdrop-blur-sm py-2 sm:py-3">
+                  <h3 className="font-mono text-xs sm:text-sm uppercase tracking-[0.14em] text-neutral-500">
+                    {monthData.label}
+                  </h3>
                 </div>
-              );
-            }
+              </div>
+            );
+          }
 
-            if (item.type === 'day') {
-              const dayData = item.data as DayGroup;
-              return (
-                <div
-                  key={item.key}
-                  className="absolute left-0 right-0 px-4 sm:px-6 lg:px-12 sm:py-3"
-                  style={{ top: item.top, height: item.height }}
-                >
-                  <TimelineDayRow
-                    day={dayData}
-                    manifest={manifest}
-                    containerWidth={photoContainerWidth}
-                  />
-                </div>
-              );
-            }
+          if (item.type === 'day') {
+            const dayData = item.data as DayGroup;
+            return (
+              <div
+                key={item.key}
+                className="absolute left-0 right-0 px-4 sm:px-6 lg:px-12 sm:py-3"
+                style={{ top: item.top, height: item.height }}
+              >
+                <TimelineDayRow
+                  day={dayData}
+                  manifest={manifest}
+                  containerWidth={photoContainerWidth}
+                  precomputedRows={item.precomputedRows}
+                />
+              </div>
+            );
+          }
 
-            return null;
-          })}
+          return null;
+        })}
       </div>
 
-      {/* Dock */}
-      <Suspense fallback={null}>
-        <TimelineDock
-          years={data.allYears}
-          currentYear={currentYear}
-          onJumpToYear={handleJumpToYear}
-        />
-      </Suspense>
+      {/* Navbar with year selector */}
+      <Navbar
+        activePage="timeline"
+        timelineProps={{
+          years: data.allYears,
+          currentYear,
+          onJumpToYear: handleJumpToYear,
+        }}
+      />
+
+      {/* Scroll to top button */}
+      {scrollTop > 500 && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-20 right-4 md:bottom-6 z-[60] flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200"
+          aria-label="Scroll to top"
+        >
+          <ChevronUp className="h-5 w-5" />
+        </button>
+      )}
     </div>
   );
 }
