@@ -1,159 +1,220 @@
 export function PhotoSkeleton() {
   return (
-    <div className="relative w-full min-h-[100svh] bg-white text-neutral-900">
-      {/* GRID OVERLAY — matches the main component */}
-      <>
-        {/* mobile/tablet: 6 columns */}
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-0 px-4 sm:px-6 lg:hidden z-0"
-          style={{
-            backgroundImage: `
-              repeating-linear-gradient(
-                to right,
-                rgba(0,0,0,0.14) 0px,
-                rgba(0,0,0,0.14) 1px,
-                transparent 1px,
-                transparent calc(100vw/6)
-              )
-            `,
-            backgroundSize: '100vw 100vh',
-            backgroundPosition: '0 0',
-            backgroundRepeat: 'repeat',
-            paddingBottom: 'env(safe-area-inset-bottom)',
-          }}
-        />
-        {/* desktop: 12 columns */}
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-0 px-12 hidden lg:block z-0"
-          style={{
-            backgroundImage: `
-              repeating-linear-gradient(
-                to right,
-                rgba(0,0,0,0.14) 0px,
-                rgba(0,0,0,0.14) 1px,
-                transparent 1px,
-                transparent calc(100vw/12)
-              )
-            `,
-            backgroundSize: '100vw 100vh',
-            backgroundPosition: '0 0',
-            backgroundRepeat: 'repeat',
-            paddingBottom: 'env(safe-area-inset-bottom)',
-          }}
-        />
-      </>
+    <div className="min-h-[100svh] bg-white">
+      {/* Close button skeleton - top left */}
+      <div className="fixed top-4 left-4 z-50 w-10 h-10 rounded-full bg-neutral-100 animate-pulse" />
 
-      {/* content container */}
-      <div className="relative z-10 px-4 sm:px-6 lg:px-12">
-        {/* sticky header skeleton */}
-        <header className="sticky top-[env(safe-area-inset-top)] z-20 gap-16 flex items-center justify-between bg-white/85 backdrop-blur-sm h-14">
-          <div className="inline-flex items-center gap-2 font-mono text-neutral-800">
-            <div className="h-2 w-8 bg-neutral-300 animate-pulse rounded" />
-            <span>←&nbsp;Back</span>
-          </div>
-          <div className="font-mono text-neutral-500 bg-neutral-300 animate-pulse h-4 w-32 rounded" />
-        </header>
-
-        {/* layout skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-6 gap-y-2">
-          {/* IMAGE PLACEHOLDER — mobile: auto height; desktop: viewport minus header */}
-          <div className="lg:col-span-8">
+      {/* Color swatches skeleton - bottom left, sheet covers on mobile */}
+      <div className="fixed z-40 flex gap-2 bottom-4 left-4 flex-col">
+        {['swatch-1', 'swatch-2', 'swatch-3', 'swatch-4', 'swatch-5'].map(
+          (id) => (
             <div
-              className="relative w-full overflow-hidden bg-neutral-100 animate-pulse"
-              style={{
-                aspectRatio: '4 / 3', // reasonable default aspect ratio
-                maxHeight: 'calc(100vh - 3.5rem)',
-              }}
-            >
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-neutral-400 font-mono text-sm uppercase tracking-wider">
-                  Loading photo...
-                </div>
-              </div>
+              key={id}
+              className="w-6 h-6 rounded-full bg-neutral-200 animate-pulse"
+            />
+          ),
+        )}
+      </div>
+
+      {/* Desktop layout */}
+      <div className="hidden lg:flex min-h-[100svh]">
+        {/* Image area skeleton */}
+        <div className="flex-1 flex items-center justify-center p-16 pl-8">
+          <div
+            className="bg-neutral-100 animate-pulse rounded-lg flex items-center justify-center"
+            style={{
+              aspectRatio: '4 / 3',
+              width: '100%',
+              maxHeight: 'calc(100vh - 8rem)',
+            }}
+          >
+            <div className="text-neutral-400 font-mono text-sm uppercase tracking-wider">
+              Loading photo...
             </div>
           </div>
+        </div>
 
-          {/* META SKELETON — sits right under the image on mobile; scrolls independently on desktop */}
-          <aside className="lg:col-span-4 lg:overflow-y-auto">
-            <div className="pt-2 sm:pt-3 lg:pt-4 pb-6 sm:pb-8 space-y-6">
+        {/* Sidebar skeleton - floating card */}
+        <aside className="w-96 p-4">
+          <div className="rounded-2xl bg-neutral-100 p-5 space-y-5">
+            {/* Date skeleton */}
+            <div className="h-4 w-24 bg-neutral-200 animate-pulse rounded" />
+
+            {/* Description skeleton */}
+            <section>
+              <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                Description
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-neutral-200 animate-pulse rounded w-full" />
+                <div className="h-4 bg-neutral-200 animate-pulse rounded w-3/4" />
+              </div>
+            </section>
+
+            {/* Dimensions skeleton */}
+            <section>
+              <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                Dimensions
+              </div>
+              <div className="h-4 w-24 bg-neutral-200 animate-pulse rounded" />
+            </section>
+
+            {/* Camera & Lens skeleton */}
+            <div className="grid grid-cols-1 gap-4">
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  Camera
+                </div>
+                <div className="h-4 w-32 bg-neutral-200 animate-pulse rounded" />
+              </section>
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  Lens
+                </div>
+                <div className="h-4 w-28 bg-neutral-200 animate-pulse rounded" />
+              </section>
+            </div>
+
+            {/* Technical details skeleton */}
+            <div className="grid grid-cols-2 gap-4">
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  Focal Length
+                </div>
+                <div className="h-4 w-12 bg-neutral-200 animate-pulse rounded" />
+              </section>
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  Aperture
+                </div>
+                <div className="h-4 w-8 bg-neutral-200 animate-pulse rounded" />
+              </section>
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  Shutter
+                </div>
+                <div className="h-4 w-10 bg-neutral-200 animate-pulse rounded" />
+              </section>
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  ISO
+                </div>
+                <div className="h-4 w-8 bg-neutral-200 animate-pulse rounded" />
+              </section>
+            </div>
+
+            {/* Location skeleton */}
+            <section>
+              <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                Location
+              </div>
+              <div className="h-4 w-40 bg-neutral-200 animate-pulse rounded mb-2" />
+              <div
+                className="bg-neutral-200 animate-pulse rounded-lg"
+                style={{ aspectRatio: '600 / 300' }}
+              />
+              <div className="h-3 w-32 bg-neutral-200 animate-pulse rounded mt-2" />
+            </section>
+          </div>
+        </aside>
+      </div>
+
+      {/* Mobile layout - fixed image with bottom sheet */}
+      <div className="lg:hidden h-[100svh] overflow-y-auto">
+        {/* Image skeleton - fixed */}
+        <div className="fixed inset-0 flex items-center justify-center p-4 pt-16 pb-[35svh] pointer-events-none">
+          <div
+            className="bg-neutral-100 animate-pulse rounded-lg flex items-center justify-center w-full"
+            style={{
+              aspectRatio: '4 / 3',
+              maxHeight: '100%',
+              maxWidth: '100%',
+            }}
+          >
+            <div className="text-neutral-400 font-mono text-sm uppercase tracking-wider">
+              Loading photo...
+            </div>
+          </div>
+        </div>
+
+        {/* Spacer */}
+        <div className="h-[60svh]" />
+
+        {/* Bottom sheet skeleton */}
+        <div className="bg-neutral-100 rounded-t-3xl min-h-[60svh] relative z-[45]">
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 rounded-full bg-neutral-300" />
+            </div>
+
+            <div className="p-5 pt-2 space-y-5">
+              {/* Date skeleton */}
+              <div className="h-4 w-24 bg-neutral-200 animate-pulse rounded" />
+
               {/* Description skeleton */}
-              <section className="space-y-2">
-                <div className="uppercase tracking-[0.14em] text-neutral-600 font-mono text-xs">
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
                   Description
                 </div>
-                <div className="font-sans leading-[1.45] space-y-2">
+                <div className="space-y-2">
                   <div className="h-4 bg-neutral-200 animate-pulse rounded w-full" />
                   <div className="h-4 bg-neutral-200 animate-pulse rounded w-3/4" />
-                  <div className="h-4 bg-neutral-200 animate-pulse rounded w-1/2" />
                 </div>
               </section>
 
               {/* Dimensions skeleton */}
-              <section className="space-y-2">
-                <div className="uppercase tracking-[0.14em] text-neutral-600 font-mono text-xs">
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
                   Dimensions
                 </div>
-                <div className="font-mono font-semibold h-5 bg-neutral-200 animate-pulse rounded w-24" />
+                <div className="h-4 w-24 bg-neutral-200 animate-pulse rounded" />
               </section>
 
-              {/* Camera/Lens skeleton */}
-              <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div className="uppercase tracking-[0.14em] text-neutral-600 font-mono text-xs">
+              {/* Camera & Lens skeleton */}
+              <div className="grid grid-cols-2 gap-4">
+                <section>
+                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
                     Camera
                   </div>
-                  <div className="font-mono h-4 bg-neutral-200 animate-pulse rounded w-20" />
-                </div>
-                <div className="space-y-2">
-                  <div className="uppercase tracking-[0.14em] text-neutral-600 font-mono text-xs">
+                  <div className="h-4 w-24 bg-neutral-200 animate-pulse rounded" />
+                </section>
+                <section>
+                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
                     Lens
                   </div>
-                  <div className="font-mono h-4 bg-neutral-200 animate-pulse rounded w-16" />
-                </div>
-              </section>
+                  <div className="h-4 w-20 bg-neutral-200 animate-pulse rounded" />
+                </section>
+              </div>
 
-              {/* EXIF data skeleton */}
-              <section className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <div className="uppercase tracking-[0.14em] text-neutral-600 font-mono text-xs">
+              {/* Technical details skeleton */}
+              <div className="grid grid-cols-2 gap-4">
+                <section>
+                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
                     Focal Length
                   </div>
-                  <div className="font-mono h-4 bg-neutral-200 animate-pulse rounded w-12" />
-                </div>
-                <div className="space-y-2">
-                  <div className="uppercase tracking-[0.14em] text-neutral-600 font-mono text-xs">
+                  <div className="h-4 w-12 bg-neutral-200 animate-pulse rounded" />
+                </section>
+                <section>
+                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
                     Aperture
                   </div>
-                  <div className="font-mono h-4 bg-neutral-200 animate-pulse rounded w-8" />
-                </div>
-                <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-                  <div className="uppercase tracking-[0.14em] text-neutral-600 font-mono text-xs">
+                  <div className="h-4 w-8 bg-neutral-200 animate-pulse rounded" />
+                </section>
+                <section>
+                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
                     Shutter
                   </div>
-                  <div className="font-mono h-4 bg-neutral-200 animate-pulse rounded w-10" />
-                </div>
-                <div className="space-y-2 sm:col-span-2 lg:col-span-3">
-                  <div className="uppercase tracking-[0.14em] text-neutral-600 font-mono text-xs">
+                  <div className="h-4 w-10 bg-neutral-200 animate-pulse rounded" />
+                </section>
+                <section>
+                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
                     ISO
                   </div>
-                  <div className="font-mono h-4 bg-neutral-200 animate-pulse rounded w-8" />
-                </div>
-              </section>
-
-              {/* Date skeleton */}
-              <section className="space-y-2">
-                <div className="uppercase tracking-[0.14em] text-neutral-600 font-mono text-xs">
-                  Date Captured
-                </div>
-                <div className="font-mono h-4 bg-neutral-200 animate-pulse rounded w-32" />
-              </section>
+                  <div className="h-4 w-8 bg-neutral-200 animate-pulse rounded" />
+                </section>
+              </div>
             </div>
-          </aside>
-        </div>
-
-        <div className="h-[env(safe-area-inset-bottom)]" />
+          </div>
       </div>
     </div>
   );

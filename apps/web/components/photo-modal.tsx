@@ -1,9 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import React, { useMemo } from 'react';
 import { X } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { Picture } from './picture';
 
@@ -38,10 +37,9 @@ interface PhotoData {
   description?: string;
 }
 
-interface PhotoDisplayProps {
+interface PhotoModalProps {
   photoName: string;
   photoData: PhotoData;
-  backHref?: string;
 }
 
 const mapboxStaticUrl = ({
@@ -75,11 +73,8 @@ function isPortrait(w: number, h: number) {
   return h >= w;
 }
 
-export function PhotoDisplay({
-  photoName,
-  photoData,
-  backHref = '/',
-}: PhotoDisplayProps) {
+export function PhotoModal({ photoName, photoData }: PhotoModalProps) {
+  const router = useRouter();
   const dominantColors = photoData.exif.dominantColors ?? [];
   const dominant = dominantColors[0]?.hex ?? '#e2001a';
   const hasLocation = Boolean(photoData.exif.location);
@@ -116,19 +111,25 @@ export function PhotoDisplay({
   }, [photoData.exif.dateTime]);
 
   return (
-    <div className="min-h-[100svh] bg-white lg:bg-white">
+    <div
+      className="fixed inset-0 z-[100] bg-white lg:overflow-hidden overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Photo: ${photoName}`}
+    >
       {/* Close button - top left */}
-      <Link
-        href={backHref}
-        className="fixed top-4 left-4 z-50 w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors"
-        aria-label="Back to gallery"
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="fixed top-4 left-4 z-[110] w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors"
+        aria-label="Close"
       >
         <X className="w-5 h-5 text-neutral-600" />
-      </Link>
+      </button>
 
       {/* Color swatches - bottom left, sheet covers on mobile when pulled up */}
       {dominantColors.length > 0 && (
-        <div className="fixed z-40 flex gap-2 bottom-4 left-4 flex-col">
+        <div className="fixed z-[105] flex gap-2 bottom-4 left-4 flex-col">
           {dominantColors.slice(0, 5).map((color) => (
             <div
               key={color.hex}
@@ -141,7 +142,7 @@ export function PhotoDisplay({
       )}
 
       {/* Desktop layout */}
-      <div className="hidden lg:flex min-h-[100svh]">
+      <div className="hidden lg:flex h-full">
         {/* Image area */}
         <div className="flex-1 flex items-center justify-center p-16 pl-8">
           <div
@@ -159,8 +160,8 @@ export function PhotoDisplay({
               loading="eager"
               intrinsicWidth={photoData.w}
               intrinsicHeight={photoData.h}
-              imgClassName="block max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain"
-              pictureClassName="block"
+              imgClassName="block w-full h-full object-contain"
+              pictureClassName="block w-full h-full"
               sizes="70vw"
               dominantColor={dominant}
             />
@@ -323,7 +324,7 @@ export function PhotoDisplay({
       </div>
 
       {/* Mobile layout - fixed image with scrolling bottom sheet */}
-      <div className="lg:hidden min-h-[100svh] overflow-y-auto overscroll-contain">
+      <div className="lg:hidden">
         {/* Image - fixed in place */}
         <div className="fixed inset-x-0 top-0 bottom-[40svh] flex items-center justify-center p-4 pt-16 pointer-events-none">
           <div
@@ -353,7 +354,7 @@ export function PhotoDisplay({
         <div className="h-[60svh]" />
 
         {/* Bottom sheet - scrolls up over the image */}
-        <div className="bg-neutral-100 rounded-t-3xl min-h-[60svh] relative z-[45]">
+        <div className="bg-neutral-100 rounded-t-3xl min-h-[60svh] relative z-[106]">
           {/* Drag handle */}
           <div className="flex justify-center pt-3 pb-2">
             <div className="w-10 h-1 rounded-full bg-neutral-300" />

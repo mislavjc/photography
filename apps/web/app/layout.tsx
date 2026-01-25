@@ -11,12 +11,14 @@ const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
   display: 'swap',
+  preload: true,
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
   display: 'swap',
+  preload: false, // Defer loading - mono font is less critical
 });
 
 export const metadata: Metadata = {
@@ -27,8 +29,10 @@ export const metadata: Metadata = {
 
 const RootLayout = ({
   children,
+  modal,
 }: Readonly<{
   children: React.ReactNode;
+  modal: React.ReactNode;
 }>) => {
   return (
     <html lang="en">
@@ -48,7 +52,10 @@ const RootLayout = ({
           domain={SITE_CONFIG.domain}
           scriptProps={{ strategy: 'lazyOnload' } as never}
         >
-          <NuqsAdapter>{children}</NuqsAdapter>
+          <NuqsAdapter>
+            {children}
+            {modal}
+          </NuqsAdapter>
         </PlausibleProvider>
       </body>
     </html>

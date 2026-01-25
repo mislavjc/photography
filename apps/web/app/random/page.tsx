@@ -22,10 +22,10 @@ export default async function RandomPage() {
           been moved.
         </p>
         <Link
-          href="/grid"
+          href="/"
           className="inline-flex items-center gap-2 font-mono text-base hover:opacity-80 transition-opacity"
         >
-          <span>←</span> <span>Back to Grid</span>
+          <span>←</span> <span>Back to Canvas</span>
         </Link>
       </div>
     );
@@ -39,9 +39,6 @@ export default async function RandomPage() {
       photoName={randomPhotoName}
       photoData={photoData}
       backHref="/"
-      dockHeaderRems={3.5}
-      showGrid
-      randomPhotoRoute="/random"
     />
   );
 }

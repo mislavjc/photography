@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 export const contentType = 'image/png';
 export const size = { width: 1200, height: 630 };
 
-type Params = { 'photo-name': string };
+type Params = { id: string };
 
 function r2VariantUrl(
   uuidWithExt: string,
@@ -63,7 +63,7 @@ function truncate(s: string | null | undefined, max: number) {
 }
 
 export default async function OpengraphImage({ params }: { params: Params }) {
-  const photoName = params['photo-name'];
+  const photoName = params.id;
 
   const manifest = (await loadManifest()) as Record<
     string,

@@ -1,6 +1,5 @@
 // components/picture.tsx
-'use client';
-import React, { useState } from 'react';
+import type React from 'react';
 
 type Formats = 'avif' | 'webp' | 'jpeg';
 type Profile = 'grid' | 'large';
@@ -74,18 +73,12 @@ export function Picture({
 }: PictureProps) {
   // Priority images should be visible immediately for LCP - no fade-in
   const isPriority = fetchPriority === 'high';
-  const [isLoaded, setIsLoaded] = useState(isPriority);
 
   const widths = profile === 'grid' ? GRID_WIDTHS : LARGE_WIDTHS;
   const defaultSizes =
     profile === 'grid'
       ? '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 220px'
       : '(max-width: 1024px) calc(100vw - 2rem), 100vw';
-
-  // Background color logic
-  const backgroundColor = isLoaded
-    ? 'transparent'
-    : dominantColor || 'transparent';
 
   // Image styles based on mode
   const intrinsicImgStyles: React.CSSProperties = {
@@ -108,7 +101,7 @@ export function Picture({
 
   // Wrapper styles to match img sizing in intrinsic mode
   const wrapperStyles: React.CSSProperties = {
-    backgroundColor,
+    backgroundColor: dominantColor || 'transparent',
     ...(mode === 'intrinsic' && {
       display: 'inline-block', // shrink to content width
       width: 'auto',
@@ -124,6 +117,10 @@ export function Picture({
         .filter((c) => c && !/^h-(full|screen|\[.*\])$/.test(c))
         .join(' ')
     : imgClassName;
+
+  // Use CSS-only fade-in animation to avoid React state and re-renders
+  // Priority images render immediately, others fade in via CSS animation
+  const fadeInClass = isPriority ? '' : 'animate-fade-in';
 
   return (
     <div className={pictureClassName} style={wrapperStyles}>
@@ -149,9 +146,8 @@ export function Picture({
           fetchPriority={fetchPriority}
           decoding={isPriority ? 'sync' : 'async'}
           draggable={false}
-          className={`${isPriority ? '' : 'transition-opacity duration-300'} ${isLoaded ? 'opacity-100' : 'opacity-0'} ${safeImgClass}`}
+          className={`${fadeInClass} ${safeImgClass}`}
           style={intrinsicImgStyles}
-          onLoad={isPriority ? undefined : () => setIsLoaded(true)}
         />
       </picture>
     </div>

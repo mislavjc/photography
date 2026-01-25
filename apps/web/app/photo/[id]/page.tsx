@@ -6,31 +6,31 @@ import { PhotoDisplay } from 'components/photo-display';
 import { loadManifest } from 'lib/manifest-server';
 
 interface PhotoPageProps {
-  params: Promise<{ 'photo-name': string }>;
+  params: Promise<{ id: string }>;
   searchParams: Promise<{ from?: string }>;
 }
 
-async function getPhotoData(photoName: string) {
+async function getPhotoData(photoId: string) {
   'use cache';
   cacheLife('days');
 
   const manifest = await loadManifest();
 
-  if (!manifest[photoName]) {
+  if (!manifest[photoId]) {
     return null;
   }
 
-  return manifest[photoName];
+  return manifest[photoId];
 }
 
 export default async function PhotoPage({
   params,
   searchParams,
 }: PhotoPageProps) {
-  const { 'photo-name': photoName } = await params;
+  const { id: photoId } = await params;
   const { from } = await searchParams;
 
-  const photoData = await getPhotoData(photoName);
+  const photoData = await getPhotoData(photoId);
 
   if (!photoData) {
     notFound();
@@ -40,11 +40,9 @@ export default async function PhotoPage({
 
   return (
     <PhotoDisplay
-      photoName={photoName}
+      photoName={photoId}
       photoData={photoData}
       backHref={backHref}
-      dockHeaderRems={3.5}
-      showGrid
     />
   );
 }
