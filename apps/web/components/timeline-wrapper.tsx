@@ -32,7 +32,6 @@ export function TimelineWrapper({
   const [searchResultCount, setSearchResultCount] = useState<
     number | undefined
   >(undefined);
-  const [currentQuery, setCurrentQuery] = useState(urlQuery);
 
   // Execute search when URL query changes (including on initial load)
   useEffect(() => {
@@ -43,7 +42,6 @@ export function TimelineWrapper({
           const ids = new Set(results.map((r) => r.id));
           setFilteredIds(ids);
           setSearchResultCount(ids.size);
-          setCurrentQuery(urlQuery);
         } catch (error) {
           console.error('Search failed:', error);
           setFilteredIds(null);
@@ -53,7 +51,6 @@ export function TimelineWrapper({
     } else {
       setFilteredIds(null);
       setSearchResultCount(undefined);
-      setCurrentQuery('');
     }
   }, [urlQuery]);
 
@@ -89,7 +86,7 @@ export function TimelineWrapper({
       onClearSearch={handleClearSearch}
       isSearching={isSearching}
       searchResultCount={searchResultCount}
-      searchQuery={currentQuery}
+      searchQuery={urlQuery}
     />
   );
 }

@@ -79,7 +79,8 @@ export const Navbar = ({
   searchQuery: initialQuery = '',
 }: NavbarProps) => {
   const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  // Local input state - only used while typing, reset to initialQuery on blur/submit
+  const [inputValue, setInputValue] = useState(initialQuery);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const searchRef = React.useRef<HTMLDivElement>(null);
@@ -93,10 +94,8 @@ export const Navbar = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Sync local state with prop when it changes (e.g., from URL)
-  React.useEffect(() => {
-    setSearchQuery(initialQuery);
-  }, [initialQuery]);
+  // Derive display value: show local input while focused, otherwise show the committed query
+  const displayValue = searchOpen ? inputValue : initialQuery;
 
   const anyWindowOpen = openWindows.size > 0;
   const hasActiveSearch = initialQuery.length > 0;
@@ -109,9 +108,19 @@ export const Navbar = ({
   };
 
   const handleClear = React.useCallback(() => {
-    setSearchQuery('');
+    setInputValue('');
     onClearSearch?.();
   }, [onClearSearch]);
+
+  const handleFocus = () => {
+    setSearchOpen(true);
+    setInputValue(initialQuery); // Reset to current query when focusing
+  };
+
+  const handleBlur = () => {
+    // Reset input to committed query if user didn't submit
+    setInputValue(initialQuery);
+  };
 
   const toggleWindow = (component: string) => {
     // Don't open minimap if minimapProps not available
@@ -210,7 +219,7 @@ export const Navbar = ({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                handleSearch(searchQuery);
+                handleSearch(inputValue);
               }}
               className={`flex items-center gap-3 rounded-xl bg-neutral-100 px-4 py-2.5 transition-all ${
                 searchOpen ? 'bg-neutral-200/70' : ''
@@ -225,13 +234,14 @@ export const Navbar = ({
                 ref={inputRef}
                 type="text"
                 placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchOpen(true)}
+                value={displayValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    handleSearch(searchQuery);
+                    handleSearch(inputValue);
                   }
                 }}
                 className="flex-1 bg-transparent text-sm text-neutral-700 outline-none placeholder:text-neutral-400"
@@ -245,7 +255,7 @@ export const Navbar = ({
                   {searchResultCount} results
                 </span>
               ) : null}
-              {searchQuery && (
+              {(displayValue || hasActiveSearch) && (
                 <button
                   type="button"
                   onClick={handleClear}
@@ -274,7 +284,7 @@ export const Navbar = ({
                           key={cat.id}
                           type="button"
                           onClick={() => {
-                            setSearchQuery(cat.query);
+                            setInputValue(cat.query);
                             handleSearch(cat.query);
                           }}
                           className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50"

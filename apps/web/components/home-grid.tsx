@@ -22,7 +22,6 @@ export function HomeGrid({ manifest, initialLayout }: Props) {
   const [searchResultCount, setSearchResultCount] = useState<
     number | undefined
   >(undefined);
-  const [currentQuery, setCurrentQuery] = useState(urlQuery);
 
   // Execute search when URL query changes (including on initial load)
   useEffect(() => {
@@ -33,7 +32,6 @@ export function HomeGrid({ manifest, initialLayout }: Props) {
           const ids = new Set(results.map((r) => r.id));
           setFilteredIds(ids);
           setSearchResultCount(ids.size);
-          setCurrentQuery(urlQuery);
         } catch (error) {
           console.error('Search failed:', error);
           setFilteredIds(null);
@@ -43,7 +41,6 @@ export function HomeGrid({ manifest, initialLayout }: Props) {
     } else {
       setFilteredIds(null);
       setSearchResultCount(undefined);
-      setCurrentQuery('');
     }
   }, [urlQuery]);
 
@@ -51,7 +48,6 @@ export function HomeGrid({ manifest, initialLayout }: Props) {
     (query: string) => {
       const trimmed = query.trim();
       if (trimmed) {
-        // Update URL with search query
         const params = new URLSearchParams(searchParams.toString());
         params.set('q', trimmed);
         router.push(`?${params.toString()}`, { scroll: false });
@@ -61,7 +57,6 @@ export function HomeGrid({ manifest, initialLayout }: Props) {
   );
 
   const handleClearSearch = useCallback(() => {
-    // Remove query from URL
     const params = new URLSearchParams(searchParams.toString());
     params.delete('q');
     const newUrl = params.toString() ? `?${params.toString()}` : '/';
@@ -78,7 +73,7 @@ export function HomeGrid({ manifest, initialLayout }: Props) {
       onClearSearch={handleClearSearch}
       isSearching={isSearching}
       searchResultCount={searchResultCount}
-      searchQuery={currentQuery}
+      searchQuery={urlQuery}
     />
   );
 }
