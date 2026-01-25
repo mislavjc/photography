@@ -127,9 +127,9 @@ export function PhotoDisplay({
         <X className="w-5 h-5 text-neutral-600" />
       </Link>
 
-      {/* Color swatches - bottom left, sheet covers on mobile when pulled up */}
+      {/* Color swatches - top right on mobile, bottom left on desktop */}
       {dominantColors.length > 0 && (
-        <div className="fixed z-40 flex gap-2 bottom-4 left-4 flex-col">
+        <div className="fixed z-40 flex gap-2 top-4 right-4 lg:top-auto lg:right-auto lg:bottom-4 lg:left-4 flex-row lg:flex-col">
           {dominantColors.slice(0, 5).map((color) => (
             <div
               key={color.hex}
