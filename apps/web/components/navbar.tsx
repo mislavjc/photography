@@ -442,7 +442,7 @@ export const Navbar = ({
         </div>
 
         {/* Mobile nav links - below search bar */}
-        <div className="flex md:hidden items-center gap-4 px-4 pb-2">
+        <div className="flex md:hidden items-center gap-1 px-4 pb-2">
           {APPS.filter(
             (app) => app.component !== 'MinimapWindow' && app.id !== 'minimap',
           ).map((app) => (
@@ -454,25 +454,28 @@ export const Navbar = ({
             />
           ))}
           {timelineProps && (
-            <select
-              value={timelineProps.currentYear?.toString() ?? 'all'}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === 'all') {
-                  timelineProps.onJumpToYear(null);
-                } else {
-                  timelineProps.onJumpToYear(parseInt(value, 10));
-                }
-              }}
-              className="appearance-none bg-transparent text-xs font-medium text-neutral-500 outline-none"
-            >
-              <option value="all">All Years</option>
-              {timelineProps.years.map((year) => (
-                <option key={year} value={year.toString()}>
-                  {year}
-                </option>
-              ))}
-            </select>
+            <>
+              <span className="text-neutral-300 mx-1">·</span>
+              <select
+                value={timelineProps.currentYear?.toString() ?? 'all'}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === 'all') {
+                    timelineProps.onJumpToYear(null);
+                  } else {
+                    timelineProps.onJumpToYear(parseInt(value, 10));
+                  }
+                }}
+                className="appearance-none bg-transparent text-xs font-medium text-neutral-500 outline-none"
+              >
+                <option value="all">All Years</option>
+                {timelineProps.years.map((year) => (
+                  <option key={year} value={year.toString()}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </>
           )}
         </div>
       </motion.nav>
@@ -546,11 +549,14 @@ function MobileNavLink({
   return (
     <a
       href={href}
-      className={`text-xs font-medium transition-colors ${
-        isActive ? 'text-neutral-900' : 'text-neutral-500'
+      className={`relative px-2 py-1 text-xs font-medium transition-colors ${
+        isActive ? 'text-neutral-900' : 'text-neutral-400'
       }`}
     >
       {label}
+      {isActive && (
+        <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-neutral-300" />
+      )}
     </a>
   );
 }
