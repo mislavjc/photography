@@ -314,7 +314,7 @@ export const Navbar = ({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 4 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-neutral-200 bg-neutral-100 p-2"
+                  className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-neutral-200 bg-neutral-100 p-2"
                 >
                   {/* Show matching categories as autocomplete when typing */}
                   {inputValue.trim() ? (
