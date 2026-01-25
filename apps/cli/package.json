@@ -7,7 +7,6 @@
     "photo-cli": "./dist/index.js"
   },
   "scripts": {
-    "dev": "tsx src/index.ts",
     "build": "tsup src/index.ts --format esm --dts",
     "typecheck": "tsc --noEmit"
   },
@@ -24,6 +23,7 @@
     "fast-glob": "^3.3.0",
     "mime-types": "^2.1.35",
     "ora": "^8.0.0",
+    "replicate": "^1.4.0",
     "sharp": "^0.34.0"
   },
   "devDependencies": {

@@ -11,6 +11,7 @@ const main = defineCommand({
     descriptions: () =>
       import('./commands/descriptions.js').then((m) => m.default),
     manifest: () => import('./commands/manifest.js').then((m) => m.default),
+    embeddings: () => import('./commands/embeddings.js').then((m) => m.default),
   },
 });
 
