@@ -19,6 +19,7 @@ interface TimelineDayRowProps {
   manifest: Manifest;
   containerWidth: number;
   precomputedRows?: JustifiedRow[];
+  searchQuery?: string;
 }
 
 export const TimelineDayRow = memo(function TimelineDayRow({
@@ -26,6 +27,7 @@ export const TimelineDayRow = memo(function TimelineDayRow({
   manifest,
   containerWidth,
   precomputedRows,
+  searchQuery,
 }: TimelineDayRowProps) {
   const router = useRouter();
 
@@ -42,9 +44,16 @@ export const TimelineDayRow = memo(function TimelineDayRow({
 
   const handlePhotoClick = useCallback(
     (filename: string) => {
-      router.push(`/photo/${encodeURIComponent(filename)}?from=timeline`);
+      const params = new URLSearchParams();
+      params.set('from', 'timeline');
+      if (searchQuery) {
+        params.set('q', searchQuery);
+      }
+      router.push(
+        `/photo/${encodeURIComponent(filename)}?${params.toString()}`,
+      );
     },
-    [router],
+    [router, searchQuery],
   );
 
   return (

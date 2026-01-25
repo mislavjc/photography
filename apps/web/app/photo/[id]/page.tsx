@@ -7,7 +7,7 @@ import { loadManifest } from 'lib/manifest-server';
 
 interface PhotoPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string }>;
+  searchParams: Promise<{ from?: string; q?: string }>;
 }
 
 async function getPhotoData(photoId: string) {
@@ -28,7 +28,7 @@ export default async function PhotoPage({
   searchParams,
 }: PhotoPageProps) {
   const { id: photoId } = await params;
-  const { from } = await searchParams;
+  const { from, q } = await searchParams;
 
   const photoData = await getPhotoData(photoId);
 
@@ -36,7 +36,8 @@ export default async function PhotoPage({
     notFound();
   }
 
-  const backHref = from === 'timeline' ? '/timeline' : '/';
+  const basePath = from === 'timeline' ? '/timeline' : '/';
+  const backHref = q ? `${basePath}?q=${encodeURIComponent(q)}` : basePath;
 
   return (
     <PhotoDisplay

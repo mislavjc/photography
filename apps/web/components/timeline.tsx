@@ -219,7 +219,8 @@ export function Timeline({
   const isSearchActive = filteredIds && filteredIds.size > 0;
 
   // Determine if we should use SSR items (before hydration, not searching)
-  const useSSRItems = !isHydrated && ssrItems && ssrTotalHeight && !isSearchActive;
+  const useSSRItems =
+    !isHydrated && ssrItems && ssrTotalHeight && !isSearchActive;
 
   // Compute layout items from filtered data (only when not using SSR items)
   const computedItems = useMemo(() => {
@@ -274,7 +275,10 @@ export function Timeline({
             GAP,
           );
           const photosHeight = calculateTotalHeight(rows, GAP);
-          const dayHeight = Math.max(48, photosHeight + DAY_ROW_PADDING + MOBILE_DATE_HEIGHT);
+          const dayHeight = Math.max(
+            48,
+            photosHeight + DAY_ROW_PADDING + MOBILE_DATE_HEIGHT,
+          );
 
           const dayUniqueKey = `${year.key}-${month.key}-${day.key}`;
           items.push({
@@ -326,7 +330,8 @@ export function Timeline({
   }, [useSSRItems, ssrItems, ssrTotalHeight, filteredData]);
 
   // Final items - either SSR merged or computed
-  const itemsWithPositions = ssrMergedItems ?? computedItems ?? { items: [], totalHeight: 0 };
+  const itemsWithPositions = ssrMergedItems ??
+    computedItems ?? { items: [], totalHeight: 0 };
 
   // Find visible items
   const visibleItems = useMemo(() => {
@@ -428,6 +433,7 @@ export function Timeline({
                   manifest={manifest}
                   containerWidth={photoContainerWidth}
                   precomputedRows={item.precomputedRows}
+                  searchQuery={searchQuery}
                 />
               </div>
             );

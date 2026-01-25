@@ -383,6 +383,8 @@ export const Navbar = ({
                             onClick={() => {
                               setInputValue(cat.query);
                               handleSearch(cat.query);
+                              setSearchOpen(false);
+                              inputRef.current?.blur();
                             }}
                             className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50"
                           >

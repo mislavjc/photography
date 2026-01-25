@@ -394,7 +394,12 @@ export function PannableGrid({
       const { vx, vy } = velRef.current;
       const speed = Math.hypot(vx, vy);
       if (speed >= MIN_INERTIA_SPEED) {
-        inertiaRef.current = { active: true, lastTick: performance.now(), vx, vy };
+        inertiaRef.current = {
+          active: true,
+          lastTick: performance.now(),
+          vx,
+          vy,
+        };
         runInertiaTick(); // Start the RAF loop
       } else {
         inertiaRef.current = null;
@@ -653,7 +658,7 @@ export function PannableGrid({
                 style={{ left: it.x, top: it.y, width: it.w, height: it.h }}
               >
                 <Link
-                  href={`/photo/${encodeURIComponent(it.filename)}`}
+                  href={`/photo/${encodeURIComponent(it.filename)}${searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : ''}`}
                   className="block w-full h-full cursor-pointer"
                   onClick={(e) => {
                     // Block navigation if we just finished dragging
