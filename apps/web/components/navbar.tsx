@@ -341,7 +341,7 @@ export const Navbar = ({
                   Searching…
                 </span>
               ) : searchResultCount !== undefined && searchResultCount > 0 ? (
-                <span className="text-xs text-neutral-500">
+                <span className="text-xs text-neutral-500 whitespace-nowrap">
                   {searchResultCount} results
                 </span>
               ) : null}
