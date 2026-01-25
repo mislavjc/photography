@@ -1,7 +1,7 @@
 import { cacheLife } from 'next/cache';
 import { notFound } from 'next/navigation';
 
-import { PhotoModal } from 'components/photo-modal';
+import { PhotoDisplay } from 'components/photo-display';
 
 import { loadManifest } from 'lib/manifest-server';
 
@@ -30,5 +30,5 @@ export default async function PhotoModalPage({ params }: ModalPageProps) {
     notFound();
   }
 
-  return <PhotoModal photoName={photoId} photoData={photoData} />;
+  return <PhotoDisplay photoName={photoId} photoData={photoData} variant="modal" />;
 }

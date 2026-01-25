@@ -4,6 +4,7 @@
 import React, { useMemo } from 'react';
 import { X } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { Picture } from './picture';
 import { SimilarPhotos } from './similar-photos';
@@ -43,6 +44,7 @@ interface PhotoDisplayProps {
   photoName: string;
   photoData: PhotoData;
   backHref?: string;
+  variant?: 'page' | 'modal';
 }
 
 const mapboxStaticUrl = ({
@@ -76,11 +78,244 @@ function isPortrait(w: number, h: number) {
   return h >= w;
 }
 
+// Extracted map image component for reuse
+function MapImage({
+  mapUrl,
+  photoName,
+  loading = 'eager',
+}: {
+  mapUrl: string;
+  photoName: string;
+  loading?: 'lazy' | 'eager';
+}) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-lg"
+      style={{ aspectRatio: '600 / 300' }}
+      data-mapcard
+    >
+      <div className="absolute inset-0 bg-neutral-200" data-skel />
+      <img
+        src={mapUrl}
+        alt={`Map preview for ${photoName}`}
+        className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-300"
+        width={600}
+        height={300}
+        loading={loading}
+        decoding="async"
+        draggable={false}
+        onLoad={(e) => {
+          const card = e.currentTarget.closest('[data-mapcard]') as HTMLElement;
+          e.currentTarget.classList.remove('opacity-0');
+          card
+            .querySelector<HTMLElement>('[data-skel]')
+            ?.classList.add('hidden');
+        }}
+        onError={(e) => {
+          const card = e.currentTarget.closest('[data-mapcard]') as HTMLElement;
+          e.currentTarget.classList.add('hidden');
+          card
+            .querySelector<HTMLElement>('[data-skel]')
+            ?.classList.add('hidden');
+          card
+            .querySelector<HTMLElement>('[data-fallback]')
+            ?.classList.remove('hidden');
+        }}
+      />
+      <div
+        className="absolute inset-0 hidden flex items-center justify-center bg-neutral-200"
+        data-fallback
+      >
+        <div className="text-center text-xs text-neutral-500 font-mono px-4">
+          Map unavailable
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Extracted metadata panel for reuse between desktop sidebar and mobile sheet
+function MetadataPanel({
+  photoName,
+  photoData,
+  formattedDate,
+  mapUrl,
+  hasLocation,
+  showSimilar,
+  mapLoading = 'eager',
+}: {
+  photoName: string;
+  photoData: PhotoData;
+  formattedDate: string | null;
+  mapUrl: string | null;
+  hasLocation: boolean;
+  showSimilar: boolean;
+  mapLoading?: 'lazy' | 'eager';
+}) {
+  return (
+    <div className="p-5 space-y-5">
+      {formattedDate && (
+        <div
+          className="text-neutral-400 text-sm font-mono"
+          suppressHydrationWarning
+        >
+          {formattedDate}
+        </div>
+      )}
+
+      {photoData.description && (
+        <section>
+          <Label>Description</Label>
+          <p className="text-neutral-800 leading-relaxed text-sm">
+            {photoData.description}
+          </p>
+        </section>
+      )}
+
+      <section>
+        <Label>Dimensions</Label>
+        <div className="font-mono text-neutral-800">
+          {photoData.w} x {photoData.h}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-4">
+        {photoData.exif.camera && (
+          <section>
+            <Label>Camera</Label>
+            <div className="font-mono text-neutral-800 text-sm">
+              {photoData.exif.camera}
+            </div>
+          </section>
+        )}
+        {photoData.exif.lens && (
+          <section>
+            <Label>Lens</Label>
+            <div className="font-mono text-neutral-800 text-sm">
+              {photoData.exif.lens}
+            </div>
+          </section>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        {photoData.exif.focalLength && (
+          <section>
+            <Label>Focal Length</Label>
+            <div className="font-mono text-neutral-800 text-sm">
+              {photoData.exif.focalLength}
+            </div>
+          </section>
+        )}
+        {photoData.exif.aperture && (
+          <section>
+            <Label>Aperture</Label>
+            <div className="font-mono text-neutral-800 text-sm">
+              {photoData.exif.aperture}
+            </div>
+          </section>
+        )}
+        {photoData.exif.shutterSpeed && (
+          <section>
+            <Label>Shutter</Label>
+            <div className="font-mono text-neutral-800 text-sm">
+              {photoData.exif.shutterSpeed}
+            </div>
+          </section>
+        )}
+        {photoData.exif.iso && (
+          <section>
+            <Label>ISO</Label>
+            <div className="font-mono text-neutral-800 text-sm">
+              {photoData.exif.iso}
+            </div>
+          </section>
+        )}
+      </div>
+
+      {hasLocation && (
+        <section>
+          <Label>Location</Label>
+          {photoData.exif.location!.address && (
+            <div className="text-neutral-800 text-sm mb-2">
+              {photoData.exif.location!.address}
+            </div>
+          )}
+
+          {mapUrl && (
+            <MapImage
+              mapUrl={mapUrl}
+              photoName={photoName}
+              loading={mapLoading}
+            />
+          )}
+
+          <div className="font-mono text-xs text-neutral-500 mt-2">
+            {photoData.exif.location!.latitude.toFixed(6)},{' '}
+            {photoData.exif.location!.longitude.toFixed(6)}
+            {photoData.exif.location!.altitude != null && (
+              <> - {photoData.exif.location!.altitude}m</>
+            )}
+          </div>
+        </section>
+      )}
+
+      {showSimilar && <SimilarPhotos photoId={photoName} />}
+    </div>
+  );
+}
+
+// Color swatches component
+function ColorSwatches({
+  colors,
+}: {
+  colors: Array<{ hex: string }>;
+}) {
+  if (colors.length === 0) return null;
+
+  return (
+    <>
+      {/* Mobile: horizontal stack */}
+      <div className="fixed top-4 right-4 flex flex-row items-center lg:hidden">
+        {colors.slice(0, 5).map((color, i) => (
+          <div
+            key={color.hex}
+            className="w-8 h-8 rounded-full"
+            style={{
+              backgroundColor: color.hex,
+              zIndex: 5 - i,
+              marginLeft: i === 0 ? 0 : -12,
+            }}
+          />
+        ))}
+      </div>
+      {/* Desktop: vertical stack */}
+      <div className="fixed bottom-4 left-4 hidden lg:flex flex-col-reverse items-center">
+        {colors.slice(0, 5).map((color, i) => (
+          <div
+            key={color.hex}
+            className="w-10 h-10 rounded-full"
+            style={{
+              backgroundColor: color.hex,
+              zIndex: 5 - i,
+              marginBottom: i === 0 ? 0 : -12,
+            }}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function PhotoDisplay({
   photoName,
   photoData,
   backHref = '/',
+  variant = 'page',
 }: PhotoDisplayProps) {
+  const router = useRouter();
+  const isModal = variant === 'modal';
+
   const dominantColors = photoData.exif.dominantColors ?? [];
   const dominant = dominantColors[0]?.hex ?? '#e2001a';
   const hasLocation = Boolean(photoData.exif.location);
@@ -116,53 +351,56 @@ export function PhotoDisplay({
     }
   }, [photoData.exif.dateTime]);
 
-  return (
-    <div className="min-h-[100svh] bg-white lg:bg-white">
-      {/* Close button - top left */}
-      <Link
-        href={backHref}
-        className="fixed top-4 left-4 z-50 w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400"
-        aria-label="Back to gallery"
-      >
-        <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
-      </Link>
+  // Close button handling
+  const handleClose = isModal ? () => router.back() : undefined;
 
-      {/* Color swatches - top right on mobile (stacked horizontal), bottom left on desktop (stacked vertical) */}
-      {dominantColors.length > 0 && (
-        <>
-          {/* Mobile: horizontal stack */}
-          <div className="fixed top-4 right-4 flex flex-row items-center lg:hidden">
-            {dominantColors.slice(0, 5).map((color, i) => (
-              <div
-                key={color.hex}
-                className="w-8 h-8 rounded-full"
-                style={{
-                  backgroundColor: color.hex,
-                  zIndex: 5 - i,
-                  marginLeft: i === 0 ? 0 : -12,
-                }}
-              />
-            ))}
-          </div>
-          {/* Desktop: vertical stack */}
-          <div className="fixed bottom-4 left-4 hidden lg:flex flex-col-reverse items-center">
-            {dominantColors.slice(0, 5).map((color, i) => (
-              <div
-                key={color.hex}
-                className="w-10 h-10 rounded-full"
-                style={{
-                  backgroundColor: color.hex,
-                  zIndex: 5 - i,
-                  marginBottom: i === 0 ? 0 : -12,
-                }}
-              />
-            ))}
-          </div>
-        </>
+  // Container classes based on variant
+  const containerClass = isModal
+    ? 'fixed inset-0 z-[100] bg-white lg:overflow-hidden overflow-y-auto overscroll-contain'
+    : 'min-h-[100svh] bg-white lg:bg-white';
+
+  // Close button z-index
+  const closeButtonZIndex = isModal ? 'z-[110]' : 'z-50';
+
+  // Bottom sheet z-index for mobile
+  const mobileSheetZIndex = isModal ? 'z-[106]' : 'z-[45]';
+
+  // Desktop layout height class
+  const desktopLayoutClass = isModal ? 'h-full' : 'min-h-[100svh]';
+
+  return (
+    <div
+      className={containerClass}
+      {...(isModal && {
+        role: 'dialog',
+        'aria-modal': true,
+        'aria-label': `Photo: ${photoName}`,
+      })}
+    >
+      {/* Close button - top left */}
+      {isModal ? (
+        <button
+          type="button"
+          onClick={handleClose}
+          className={`fixed top-4 left-4 ${closeButtonZIndex} w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400`}
+          aria-label="Close"
+        >
+          <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
+        </button>
+      ) : (
+        <Link
+          href={backHref}
+          className={`fixed top-4 left-4 ${closeButtonZIndex} w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400`}
+          aria-label="Back to gallery"
+        >
+          <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
+        </Link>
       )}
 
+      <ColorSwatches colors={dominantColors} />
+
       {/* Desktop layout */}
-      <div className="hidden lg:flex min-h-[100svh]">
+      <div className={`hidden lg:flex ${desktopLayoutClass}`}>
         {/* Image area */}
         <div className="flex-1 flex items-center justify-center p-16 pl-8">
           <div
@@ -180,8 +418,12 @@ export function PhotoDisplay({
               loading="eager"
               intrinsicWidth={photoData.w}
               intrinsicHeight={photoData.h}
-              imgClassName="block max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain"
-              pictureClassName="block"
+              imgClassName={
+                isModal
+                  ? 'block w-full h-full object-contain'
+                  : 'block max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain'
+              }
+              pictureClassName={isModal ? 'block w-full h-full' : 'block'}
               sizes="70vw"
               dominantColor={dominant}
             />
@@ -191,162 +433,23 @@ export function PhotoDisplay({
         {/* Sidebar - floating card */}
         <aside className="w-96 p-4">
           <div className="rounded-2xl bg-neutral-100 overflow-y-auto max-h-[calc(100vh-2rem)]">
-            <div className="p-5 space-y-5">
-              {formattedDate && (
-                <div className="text-neutral-400 text-sm font-mono">
-                  {formattedDate}
-                </div>
-              )}
-
-              {photoData.description && (
-                <section>
-                  <Label>Description</Label>
-                  <p className="text-neutral-800 leading-relaxed text-sm">
-                    {photoData.description}
-                  </p>
-                </section>
-              )}
-
-              <section>
-                <Label>Dimensions</Label>
-                <div className="font-mono text-neutral-800">
-                  {photoData.w} x {photoData.h}
-                </div>
-              </section>
-
-              <div className="grid grid-cols-1 gap-4">
-                {photoData.exif.camera && (
-                  <section>
-                    <Label>Camera</Label>
-                    <div className="font-mono text-neutral-800 text-sm">
-                      {photoData.exif.camera}
-                    </div>
-                  </section>
-                )}
-                {photoData.exif.lens && (
-                  <section>
-                    <Label>Lens</Label>
-                    <div className="font-mono text-neutral-800 text-sm">
-                      {photoData.exif.lens}
-                    </div>
-                  </section>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {photoData.exif.focalLength && (
-                  <section>
-                    <Label>Focal Length</Label>
-                    <div className="font-mono text-neutral-800 text-sm">
-                      {photoData.exif.focalLength}
-                    </div>
-                  </section>
-                )}
-                {photoData.exif.aperture && (
-                  <section>
-                    <Label>Aperture</Label>
-                    <div className="font-mono text-neutral-800 text-sm">
-                      {photoData.exif.aperture}
-                    </div>
-                  </section>
-                )}
-                {photoData.exif.shutterSpeed && (
-                  <section>
-                    <Label>Shutter</Label>
-                    <div className="font-mono text-neutral-800 text-sm">
-                      {photoData.exif.shutterSpeed}
-                    </div>
-                  </section>
-                )}
-                {photoData.exif.iso && (
-                  <section>
-                    <Label>ISO</Label>
-                    <div className="font-mono text-neutral-800 text-sm">
-                      {photoData.exif.iso}
-                    </div>
-                  </section>
-                )}
-              </div>
-
-              {hasLocation && (
-                <section>
-                  <Label>Location</Label>
-                  {photoData.exif.location!.address && (
-                    <div className="text-neutral-800 text-sm mb-2">
-                      {photoData.exif.location!.address}
-                    </div>
-                  )}
-
-                  {mapUrl && (
-                    <div
-                      className="relative overflow-hidden rounded-lg"
-                      style={{ aspectRatio: '600 / 300' }}
-                      data-mapcard
-                    >
-                      <div
-                        className="absolute inset-0 bg-neutral-200"
-                        data-skel
-                      />
-                      <img
-                        src={mapUrl}
-                        alt={`Map preview for ${photoName}`}
-                        className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-300"
-                        width={600}
-                        height={300}
-                        loading="lazy"
-                        decoding="async"
-                        draggable={false}
-                        onLoad={(e) => {
-                          const card = e.currentTarget.closest(
-                            '[data-mapcard]',
-                          ) as HTMLElement;
-                          e.currentTarget.classList.remove('opacity-0');
-                          card
-                            .querySelector<HTMLElement>('[data-skel]')
-                            ?.classList.add('hidden');
-                        }}
-                        onError={(e) => {
-                          const card = e.currentTarget.closest(
-                            '[data-mapcard]',
-                          ) as HTMLElement;
-                          e.currentTarget.classList.add('hidden');
-                          card
-                            .querySelector<HTMLElement>('[data-skel]')
-                            ?.classList.add('hidden');
-                          card
-                            .querySelector<HTMLElement>('[data-fallback]')
-                            ?.classList.remove('hidden');
-                        }}
-                      />
-                      <div
-                        className="absolute inset-0 hidden flex items-center justify-center bg-neutral-200"
-                        data-fallback
-                      >
-                        <div className="text-center text-xs text-neutral-500 font-mono px-4">
-                          Map unavailable
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="font-mono text-xs text-neutral-500 mt-2">
-                    {photoData.exif.location!.latitude.toFixed(6)},{' '}
-                    {photoData.exif.location!.longitude.toFixed(6)}
-                    {photoData.exif.location!.altitude != null && (
-                      <> - {photoData.exif.location!.altitude}m</>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              <SimilarPhotos photoId={photoName} />
-            </div>
+            <MetadataPanel
+              photoName={photoName}
+              photoData={photoData}
+              formattedDate={formattedDate}
+              mapUrl={mapUrl}
+              hasLocation={hasLocation}
+              showSimilar={!isModal}
+              mapLoading="eager"
+            />
           </div>
         </aside>
       </div>
 
       {/* Mobile layout - fixed image with scrolling bottom sheet */}
-      <div className="lg:hidden min-h-[100svh] overflow-y-auto overscroll-contain">
+      <div
+        className={`lg:hidden ${isModal ? '' : 'min-h-[100svh] overflow-y-auto overscroll-contain'}`}
+      >
         {/* Image - fixed in place */}
         <div className="fixed inset-x-0 top-0 bottom-[40svh] flex items-center justify-center p-4 pt-16 pointer-events-none">
           <div
@@ -376,164 +479,30 @@ export function PhotoDisplay({
         <div className="h-[60svh]" />
 
         {/* Bottom sheet - scrolls up over the image */}
-        <div className="bg-neutral-100 rounded-t-3xl min-h-[60svh] relative z-[45]">
+        <div
+          className={`bg-neutral-100 rounded-t-3xl min-h-[60svh] relative ${mobileSheetZIndex} ${isModal ? 'overscroll-contain' : ''}`}
+        >
           {/* Drag handle */}
           <div className="flex justify-center pt-3 pb-2">
             <div className="w-10 h-1 rounded-full bg-neutral-300" />
           </div>
 
-          <div className="p-5 pt-2 space-y-5 pb-8">
-            {formattedDate && (
-              <div className="text-neutral-400 text-sm font-mono">
-                {formattedDate}
-              </div>
-            )}
-
-            {photoData.description && (
-              <section>
-                <Label>Description</Label>
-                <p className="text-neutral-800 leading-relaxed text-sm">
-                  {photoData.description}
-                </p>
-              </section>
-            )}
-
-            <section>
-              <Label>Dimensions</Label>
-              <div className="font-mono text-neutral-800">
-                {photoData.w} x {photoData.h}
-              </div>
-            </section>
-
-            <div className="grid grid-cols-2 gap-4">
-              {photoData.exif.camera && (
-                <section>
-                  <Label>Camera</Label>
-                  <div className="font-mono text-neutral-800 text-sm">
-                    {photoData.exif.camera}
-                  </div>
-                </section>
-              )}
-              {photoData.exif.lens && (
-                <section>
-                  <Label>Lens</Label>
-                  <div className="font-mono text-neutral-800 text-sm">
-                    {photoData.exif.lens}
-                  </div>
-                </section>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {photoData.exif.focalLength && (
-                <section>
-                  <Label>Focal Length</Label>
-                  <div className="font-mono text-neutral-800 text-sm">
-                    {photoData.exif.focalLength}
-                  </div>
-                </section>
-              )}
-              {photoData.exif.aperture && (
-                <section>
-                  <Label>Aperture</Label>
-                  <div className="font-mono text-neutral-800 text-sm">
-                    {photoData.exif.aperture}
-                  </div>
-                </section>
-              )}
-              {photoData.exif.shutterSpeed && (
-                <section>
-                  <Label>Shutter</Label>
-                  <div className="font-mono text-neutral-800 text-sm">
-                    {photoData.exif.shutterSpeed}
-                  </div>
-                </section>
-              )}
-              {photoData.exif.iso && (
-                <section>
-                  <Label>ISO</Label>
-                  <div className="font-mono text-neutral-800 text-sm">
-                    {photoData.exif.iso}
-                  </div>
-                </section>
-              )}
-            </div>
-
-            {hasLocation && (
-              <section>
-                <Label>Location</Label>
-                {photoData.exif.location!.address && (
-                  <div className="text-neutral-800 text-sm mb-2">
-                    {photoData.exif.location!.address}
-                  </div>
-                )}
-
-                {mapUrl && (
-                  <div
-                    className="relative overflow-hidden rounded-lg"
-                    style={{ aspectRatio: '600 / 300' }}
-                    data-mapcard
-                  >
-                    <div
-                      className="absolute inset-0 bg-neutral-200"
-                      data-skel
-                    />
-                    <img
-                      src={mapUrl}
-                      alt={`Map preview for ${photoName}`}
-                      className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-300"
-                      width={600}
-                      height={300}
-                      loading="lazy"
-                      decoding="async"
-                      draggable={false}
-                      onLoad={(e) => {
-                        const card = e.currentTarget.closest(
-                          '[data-mapcard]',
-                        ) as HTMLElement;
-                        e.currentTarget.classList.remove('opacity-0');
-                        card
-                          .querySelector<HTMLElement>('[data-skel]')
-                          ?.classList.add('hidden');
-                      }}
-                      onError={(e) => {
-                        const card = e.currentTarget.closest(
-                          '[data-mapcard]',
-                        ) as HTMLElement;
-                        e.currentTarget.classList.add('hidden');
-                        card
-                          .querySelector<HTMLElement>('[data-skel]')
-                          ?.classList.add('hidden');
-                        card
-                          .querySelector<HTMLElement>('[data-fallback]')
-                          ?.classList.remove('hidden');
-                      }}
-                    />
-                    <div
-                      className="absolute inset-0 hidden flex items-center justify-center bg-neutral-200"
-                      data-fallback
-                    >
-                      <div className="text-center text-xs text-neutral-500 font-mono px-4">
-                        Map unavailable
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="font-mono text-xs text-neutral-500 mt-2">
-                  {photoData.exif.location!.latitude.toFixed(6)},{' '}
-                  {photoData.exif.location!.longitude.toFixed(6)}
-                  {photoData.exif.location!.altitude != null && (
-                    <> - {photoData.exif.location!.altitude}m</>
-                  )}
-                </div>
-              </section>
-            )}
-
-            <SimilarPhotos photoId={photoName} />
+          <div className="pt-2 pb-8">
+            <MetadataPanel
+              photoName={photoName}
+              photoData={photoData}
+              formattedDate={formattedDate}
+              mapUrl={mapUrl}
+              hasLocation={hasLocation}
+              showSimilar={!isModal}
+              mapLoading="lazy"
+            />
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+// Re-export with original name for backwards compatibility
+export { PhotoDisplay as PhotoModal };
