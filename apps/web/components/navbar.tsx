@@ -81,8 +81,17 @@ export const Navbar = ({
   const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const searchRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // Detect mobile for logo animation
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Sync local state with prop when it changes (e.g., from URL)
   React.useEffect(() => {
@@ -179,12 +188,21 @@ export const Navbar = ({
         className="fixed top-0 left-0 right-0 z-[70] bg-white"
       >
         <div className="mx-auto flex h-14 items-center gap-3 px-4">
-          {/* Left: Logo */}
-          <a href="/" className="flex-shrink-0 flex items-center">
+          {/* Left: Logo - animated hide on mobile when search is focused */}
+          <motion.a
+            href="/"
+            className="flex-shrink-0 flex items-center overflow-hidden"
+            initial={false}
+            animate={{
+              width: isMobile && searchOpen ? 0 : 28,
+              opacity: isMobile && searchOpen ? 0 : 1,
+            }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+          >
             <img src="/icon.png" alt="Logo" className="h-7 w-7" />
-          </a>
+          </motion.a>
 
-          {/* Center: Search - full width on mobile, centered on desktop */}
+          {/* Center: Search - expands full width on mobile when focused */}
           <div
             ref={searchRef}
             className="relative flex-1 md:max-w-lg md:mx-auto"
