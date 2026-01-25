@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState, useTransition } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState, useTransition } from 'react';
+import { useQueryState } from 'nuqs';
 import type { Manifest } from 'types';
 
 import { searchPhotos } from 'lib/search';
@@ -23,9 +23,7 @@ export function TimelineWrapper({
   ssrItems,
   ssrTotalHeight,
 }: Props) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const urlQuery = searchParams.get('q') ?? '';
+  const [query, setQuery] = useQueryState('q', { shallow: false });
 
   const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
   const [isSearching, startTransition] = useTransition();
@@ -33,12 +31,12 @@ export function TimelineWrapper({
     number | undefined
   >(undefined);
 
-  // Execute search when URL query changes (including on initial load)
+  // Execute search when query changes
   useEffect(() => {
-    if (urlQuery) {
+    if (query) {
       startTransition(async () => {
         try {
-          const results = await searchPhotos(urlQuery);
+          const results = await searchPhotos(query);
           const ids = new Set(results.map((r) => r.id));
           setFilteredIds(ids);
           setSearchResultCount(ids.size);
@@ -52,28 +50,18 @@ export function TimelineWrapper({
       setFilteredIds(null);
       setSearchResultCount(undefined);
     }
-  }, [urlQuery]);
+  }, [query]);
 
-  const handleSearch = useCallback(
-    (query: string) => {
-      const trimmed = query.trim();
-      if (trimmed) {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('q', trimmed);
-        router.push(`/timeline?${params.toString()}`, { scroll: false });
-      }
-    },
-    [router, searchParams],
-  );
+  const handleSearch = (q: string) => {
+    const trimmed = q.trim();
+    if (trimmed) {
+      setQuery(trimmed);
+    }
+  };
 
-  const handleClearSearch = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('q');
-    const newUrl = params.toString()
-      ? `/timeline?${params.toString()}`
-      : '/timeline';
-    router.push(newUrl, { scroll: false });
-  }, [router, searchParams]);
+  const handleClearSearch = () => {
+    setQuery(null);
+  };
 
   return (
     <Timeline
@@ -86,7 +74,7 @@ export function TimelineWrapper({
       onClearSearch={handleClearSearch}
       isSearching={isSearching}
       searchResultCount={searchResultCount}
-      searchQuery={urlQuery}
+      searchQuery={query ?? ''}
     />
   );
 }
