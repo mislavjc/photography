@@ -4,17 +4,39 @@ export function PhotoSkeleton() {
       {/* Close button skeleton - top left */}
       <div className="fixed top-4 left-4 z-50 w-10 h-10 rounded-full bg-neutral-100 animate-pulse" />
 
-      {/* Color swatches skeleton - bottom left, sheet covers on mobile */}
-      <div className="fixed z-40 flex gap-2 bottom-4 left-4 flex-col">
-        {['swatch-1', 'swatch-2', 'swatch-3', 'swatch-4', 'swatch-5'].map(
-          (id) => (
-            <div
-              key={id}
-              className="w-6 h-6 rounded-full bg-neutral-200 animate-pulse"
-            />
-          ),
-        )}
-      </div>
+      {/* Color swatches skeleton - top right on mobile (horizontal), bottom left on desktop (vertical) */}
+      <>
+        {/* Mobile */}
+        <div className="fixed top-4 right-4 flex flex-row items-center lg:hidden">
+          {['swatch-1', 'swatch-2', 'swatch-3', 'swatch-4', 'swatch-5'].map(
+            (id, i) => (
+              <div
+                key={id}
+                className="w-8 h-8 rounded-full bg-neutral-200 animate-pulse"
+                style={{
+                  zIndex: 5 - i,
+                  marginLeft: i === 0 ? 0 : -12,
+                }}
+              />
+            ),
+          )}
+        </div>
+        {/* Desktop */}
+        <div className="fixed bottom-4 left-4 hidden lg:flex flex-col-reverse items-center">
+          {['swatch-1', 'swatch-2', 'swatch-3', 'swatch-4', 'swatch-5'].map(
+            (id, i) => (
+              <div
+                key={id}
+                className="w-10 h-10 rounded-full bg-neutral-200 animate-pulse"
+                style={{
+                  zIndex: 5 - i,
+                  marginBottom: i === 0 ? 0 : -12,
+                }}
+              />
+            ),
+          )}
+        </div>
+      </>
 
       {/* Desktop layout */}
       <div className="hidden lg:flex min-h-[100svh]">
@@ -142,79 +164,79 @@ export function PhotoSkeleton() {
 
         {/* Bottom sheet skeleton */}
         <div className="bg-neutral-100 rounded-t-3xl min-h-[60svh] relative z-[45]">
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-10 h-1 rounded-full bg-neutral-300" />
-            </div>
+          {/* Drag handle */}
+          <div className="flex justify-center pt-3 pb-2">
+            <div className="w-10 h-1 rounded-full bg-neutral-300" />
+          </div>
 
-            <div className="p-5 pt-2 space-y-5">
-              {/* Date skeleton */}
+          <div className="p-5 pt-2 space-y-5">
+            {/* Date skeleton */}
+            <div className="h-4 w-24 bg-neutral-200 animate-pulse rounded" />
+
+            {/* Description skeleton */}
+            <section>
+              <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                Description
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-neutral-200 animate-pulse rounded w-full" />
+                <div className="h-4 bg-neutral-200 animate-pulse rounded w-3/4" />
+              </div>
+            </section>
+
+            {/* Dimensions skeleton */}
+            <section>
+              <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                Dimensions
+              </div>
               <div className="h-4 w-24 bg-neutral-200 animate-pulse rounded" />
+            </section>
 
-              {/* Description skeleton */}
+            {/* Camera & Lens skeleton */}
+            <div className="grid grid-cols-2 gap-4">
               <section>
                 <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
-                  Description
-                </div>
-                <div className="space-y-2">
-                  <div className="h-4 bg-neutral-200 animate-pulse rounded w-full" />
-                  <div className="h-4 bg-neutral-200 animate-pulse rounded w-3/4" />
-                </div>
-              </section>
-
-              {/* Dimensions skeleton */}
-              <section>
-                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
-                  Dimensions
+                  Camera
                 </div>
                 <div className="h-4 w-24 bg-neutral-200 animate-pulse rounded" />
               </section>
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  Lens
+                </div>
+                <div className="h-4 w-20 bg-neutral-200 animate-pulse rounded" />
+              </section>
+            </div>
 
-              {/* Camera & Lens skeleton */}
-              <div className="grid grid-cols-2 gap-4">
-                <section>
-                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
-                    Camera
-                  </div>
-                  <div className="h-4 w-24 bg-neutral-200 animate-pulse rounded" />
-                </section>
-                <section>
-                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
-                    Lens
-                  </div>
-                  <div className="h-4 w-20 bg-neutral-200 animate-pulse rounded" />
-                </section>
-              </div>
-
-              {/* Technical details skeleton */}
-              <div className="grid grid-cols-2 gap-4">
-                <section>
-                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
-                    Focal Length
-                  </div>
-                  <div className="h-4 w-12 bg-neutral-200 animate-pulse rounded" />
-                </section>
-                <section>
-                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
-                    Aperture
-                  </div>
-                  <div className="h-4 w-8 bg-neutral-200 animate-pulse rounded" />
-                </section>
-                <section>
-                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
-                    Shutter
-                  </div>
-                  <div className="h-4 w-10 bg-neutral-200 animate-pulse rounded" />
-                </section>
-                <section>
-                  <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
-                    ISO
-                  </div>
-                  <div className="h-4 w-8 bg-neutral-200 animate-pulse rounded" />
-                </section>
-              </div>
+            {/* Technical details skeleton */}
+            <div className="grid grid-cols-2 gap-4">
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  Focal Length
+                </div>
+                <div className="h-4 w-12 bg-neutral-200 animate-pulse rounded" />
+              </section>
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  Aperture
+                </div>
+                <div className="h-4 w-8 bg-neutral-200 animate-pulse rounded" />
+              </section>
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  Shutter
+                </div>
+                <div className="h-4 w-10 bg-neutral-200 animate-pulse rounded" />
+              </section>
+              <section>
+                <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-1">
+                  ISO
+                </div>
+                <div className="h-4 w-8 bg-neutral-200 animate-pulse rounded" />
+              </section>
             </div>
           </div>
+        </div>
       </div>
     </div>
   );
