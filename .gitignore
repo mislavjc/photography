@@ -54,4 +54,5 @@ Photos-*
 manifest-backups
 upload-progress.json
 
-.alchemy.wrangler/
+.alchemy/
+.wrangler/
