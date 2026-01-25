@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Calendar, Map as MapIcon, Search, Shuffle, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -92,12 +92,33 @@ export const Navbar = ({
   const searchRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
 
-  // Detect mobile for logo animation
+  // Memoize category filtering to avoid recalculating on every render
+  const matchingCategories = useMemo(() => {
+    if (!inputValue.trim()) return SEARCH_CATEGORIES;
+    const lowerInput = inputValue.toLowerCase();
+    return SEARCH_CATEGORIES.filter(
+      (cat) =>
+        cat.label.toLowerCase().includes(lowerInput) ||
+        cat.query.toLowerCase().includes(lowerInput),
+    );
+  }, [inputValue]);
+
+  // Detect mobile for logo animation - only update when crossing threshold
   React.useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
+    let lastIsMobile = window.innerWidth < 768;
+    setIsMobile(lastIsMobile);
+
+    const checkMobile = () => {
+      const nowMobile = window.innerWidth < 768;
+      if (nowMobile !== lastIsMobile) {
+        lastIsMobile = nowMobile;
+        setIsMobile(nowMobile);
+      }
+    };
+
+    window.addEventListener('resize', checkMobile, { passive: true });
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -120,18 +141,25 @@ export const Navbar = ({
     [onSearch],
   );
 
-  // Debounced search - triggers after 300ms of no typing
+  // Debounced search - triggers after 400ms of no typing
+  // Uses AbortController to cancel stale searches
   const handleInputChange = (value: string) => {
     setInputValue(value);
 
-    // Clear pending debounce
+    // Clear pending debounce and abort any in-flight search
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
+    }
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
 
     // Debounce the search
     if (value.trim()) {
       debounceRef.current = setTimeout(() => {
+        // Create new AbortController for this search
+        abortControllerRef.current = new AbortController();
         handleSearch(value);
       }, 400);
     } else if (hasActiveSearch) {
@@ -139,6 +167,15 @@ export const Navbar = ({
       onClearSearch?.();
     }
   };
+
+  // Cleanup AbortController on unmount
+  React.useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const handleClear = React.useCallback(() => {
     setInputValue('');
@@ -204,7 +241,8 @@ export const Navbar = ({
         setSearchOpen(true);
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
+    // passive: false because we call preventDefault for "/" key
+    document.addEventListener('keydown', handleKeyDown, { passive: false });
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [searchOpen, anyWindowOpen, hasActiveSearch, handleClear]);
 
@@ -329,59 +367,14 @@ export const Navbar = ({
                   transition={{ duration: 0.15 }}
                   className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-neutral-200 bg-neutral-100 p-2"
                 >
-                  {/* Show matching categories as autocomplete when typing */}
-                  {inputValue.trim() ? (
-                    (() => {
-                      const matchingCategories = SEARCH_CATEGORIES.filter(
-                        (cat) =>
-                          cat.label
-                            .toLowerCase()
-                            .includes(inputValue.toLowerCase()) ||
-                          cat.query
-                            .toLowerCase()
-                            .includes(inputValue.toLowerCase()),
-                      );
-                      if (matchingCategories.length > 0) {
-                        return (
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {matchingCategories.map((cat) => {
-                              const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
-                              return (
-                                <button
-                                  key={cat.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setInputValue(cat.query);
-                                    handleSearch(cat.query);
-                                  }}
-                                  className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50"
-                                >
-                                  <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
-                                    <img
-                                      src={imageUrl}
-                                      alt=""
-                                      className="h-full w-full object-cover"
-                                    />
-                                  </div>
-                                  <span className="text-[15px] font-medium text-neutral-800">
-                                    {cat.label}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        );
-                      }
-                      return (
-                        <div className="py-4 text-center text-sm text-neutral-500">
-                          Press Enter to search for &ldquo;{inputValue}&rdquo;
-                        </div>
-                      );
-                    })()
+                  {/* Show matching categories as autocomplete (uses memoized filter) */}
+                  {inputValue.trim() && matchingCategories.length === 0 ? (
+                    <div className="py-4 text-center text-sm text-neutral-500">
+                      Press Enter to search for &ldquo;{inputValue}&rdquo;
+                    </div>
                   ) : (
-                    /* Show category suggestions when input is empty */
                     <div className="grid grid-cols-2 gap-1.5">
-                      {SEARCH_CATEGORIES.map((cat) => {
+                      {matchingCategories.map((cat) => {
                         const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
                         return (
                           <button
