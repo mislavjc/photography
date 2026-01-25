@@ -13,8 +13,8 @@ const IMAGEBIND_VERSION =
   '0383f62e173dc821ec52663ed22a076d9c970549c209666ac3db181618b7a304';
 const MAX_RESULTS = 100; // Vectorize limit without metadata
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
-const DEFAULT_MIN_SCORE = 0.22; // Filter out weak/random matches
-const MIN_SCORE_SPREAD = 0.05; // Minimum spread to consider results meaningful
+const DEFAULT_MIN_SCORE = 0.2; // Filter out weak/random matches
+const MIN_SCORE_SPREAD = 0.04; // Minimum spread to consider results meaningful
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -126,26 +126,29 @@ async function handleSearch(
     returnMetadata: 'none',
   });
 
-  // Filter by minimum score
-  let filtered = results.matches.filter((m) => m.score >= minScore);
-
-  // Check score spread - if too narrow, results are likely random/meaningless
-  if (filtered.length > 1) {
-    const scores = filtered.map((m) => m.score);
-    const maxScore = Math.max(...scores);
-    const minScoreInResults = Math.min(...scores);
-    const spread = maxScore - minScoreInResults;
-
-    if (spread < MIN_SCORE_SPREAD) {
-      // Low spread = query doesn't match anything well, return empty
-      filtered = [];
-    }
+  // Check if we got any results at all
+  if (!results.matches || results.matches.length === 0) {
+    return Response.json(
+      { results: [], query, cached },
+      { headers: CORS_HEADERS },
+    );
   }
 
-  const searchResults: SearchResult[] = filtered.map((m) => ({
-    id: m.id,
-    score: m.score,
-  }));
+  // Check score spread on ALL results first - if too narrow, query is meaningless
+  const allScores = results.matches.map((m) => m.score);
+  const maxScore = Math.max(...allScores);
+  const minScoreInAll = Math.min(...allScores);
+  const spread = maxScore - minScoreInAll;
+
+  let searchResults: SearchResult[] = [];
+
+  if (spread >= MIN_SCORE_SPREAD) {
+    // Good spread = meaningful query, apply minScore filter
+    searchResults = results.matches
+      .filter((m) => m.score >= minScore)
+      .map((m) => ({ id: m.id, score: m.score }));
+  }
+  // else: low spread = random/meaningless query, return empty
 
   return Response.json(
     { results: searchResults, query, cached },
