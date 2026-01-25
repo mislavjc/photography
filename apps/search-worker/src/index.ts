@@ -13,6 +13,8 @@ const IMAGEBIND_VERSION =
   '0383f62e173dc821ec52663ed22a076d9c970549c209666ac3db181618b7a304';
 const MAX_RESULTS = 100; // Vectorize limit without metadata
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+const DEFAULT_MIN_SCORE = 0.22; // Filter out weak/random matches
+const MIN_SCORE_SPREAD = 0.05; // Minimum spread to consider results meaningful
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -124,9 +126,26 @@ async function handleSearch(
     returnMetadata: 'none',
   });
 
-  const searchResults: SearchResult[] = results.matches
-    .filter((m) => m.score >= minScore)
-    .map((m) => ({ id: m.id, score: m.score }));
+  // Filter by minimum score
+  let filtered = results.matches.filter((m) => m.score >= minScore);
+
+  // Check score spread - if too narrow, results are likely random/meaningless
+  if (filtered.length > 1) {
+    const scores = filtered.map((m) => m.score);
+    const maxScore = Math.max(...scores);
+    const minScoreInResults = Math.min(...scores);
+    const spread = maxScore - minScoreInResults;
+
+    if (spread < MIN_SCORE_SPREAD) {
+      // Low spread = query doesn't match anything well, return empty
+      filtered = [];
+    }
+  }
+
+  const searchResults: SearchResult[] = filtered.map((m) => ({
+    id: m.id,
+    score: m.score,
+  }));
 
   return Response.json(
     { results: searchResults, query, cached },
@@ -152,7 +171,7 @@ export default {
     if (url.pathname === '/search') {
       try {
         let query: string | null = null;
-        let minScore = 0;
+        let minScore = DEFAULT_MIN_SCORE;
 
         if (request.method === 'POST') {
           const body = (await request.json()) as {
@@ -160,10 +179,11 @@ export default {
             minScore?: number;
           };
           query = body.query || null;
-          minScore = body.minScore || 0;
+          if (body.minScore !== undefined) minScore = body.minScore;
         } else if (request.method === 'GET') {
           query = url.searchParams.get('q');
-          minScore = parseFloat(url.searchParams.get('minScore') || '0');
+          const minScoreParam = url.searchParams.get('minScore');
+          if (minScoreParam) minScore = parseFloat(minScoreParam);
         }
 
         if (!query) {
