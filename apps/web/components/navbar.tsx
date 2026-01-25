@@ -231,10 +231,10 @@ export const Navbar = ({
         className="fixed top-0 left-0 right-0 z-[70] bg-white"
       >
         <div className="mx-auto flex h-14 items-center gap-3 px-4">
-          {/* Left: Logo - animated hide on mobile when search is focused */}
+          {/* Left: Logo (desktop) or hidden on mobile when search focused */}
           <motion.a
             href="/"
-            className="flex-shrink-0 flex items-center overflow-hidden"
+            className="flex-shrink-0 flex items-center overflow-hidden md:w-7"
             initial={false}
             animate={{
               width: isMobile && searchOpen ? 0 : 28,
@@ -440,32 +440,19 @@ export const Navbar = ({
             ))}
           </div>
         </div>
-      </motion.nav>
 
-      {/* Mobile bottom nav */}
-      <motion.nav
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="fixed bottom-0 left-0 right-0 z-[70] md:hidden border-t border-neutral-200 bg-white"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        <div className="flex items-center justify-around px-6 py-3">
+        {/* Mobile nav links - below search bar */}
+        <div className="flex md:hidden items-center gap-4 px-4 pb-2">
           {APPS.filter(
-            (app) =>
-              (app.component !== 'MinimapWindow' || minimapProps) &&
-              app.id !== 'minimap', // Hide minimap on mobile
+            (app) => app.component !== 'MinimapWindow' && app.id !== 'minimap',
           ).map((app) => (
-            <MobileNavButton
+            <MobileNavLink
               key={app.id}
               href={app.href}
-              icon={app.icon}
+              label={app.name}
               isActive={app.id === activePage}
-              componentName={app.component || ''}
-              isOpen={openWindows.has(app.component || '')}
-              onToggleWindow={toggleWindow}
             />
           ))}
-          {/* Year selector for timeline */}
           {timelineProps && (
             <select
               value={timelineProps.currentYear?.toString() ?? 'all'}
@@ -477,9 +464,9 @@ export const Navbar = ({
                   timelineProps.onJumpToYear(parseInt(value, 10));
                 }
               }}
-              className="appearance-none bg-transparent text-neutral-900 font-semibold text-base outline-none text-center"
+              className="appearance-none bg-transparent text-xs font-medium text-neutral-500 outline-none"
             >
-              <option value="all">All</option>
+              <option value="all">All Years</option>
               {timelineProps.years.map((year) => (
                 <option key={year} value={year.toString()}>
                   {year}
@@ -545,44 +532,26 @@ function NavbarButton({
   );
 }
 
-function MobileNavButton({
+function MobileNavLink({
   href,
-  icon: Icon,
+  label,
   isActive,
-  componentName,
-  isOpen,
-  onToggleWindow,
 }: {
   href?: string | null;
-  icon?: React.ComponentType<{ className?: string }>;
+  label: string;
   isActive?: boolean;
-  componentName?: string;
-  isOpen?: boolean;
-  onToggleWindow?: (_component: string) => void;
 }) {
-  const router = useRouter();
-  const active = isActive || isOpen;
+  if (!href) return null;
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        if (href) {
-          router.push(href);
-        } else if (onToggleWindow) {
-          onToggleWindow(componentName || '');
-        }
-      }}
-      className="p-2 transition-colors active:opacity-60"
+    <a
+      href={href}
+      className={`text-xs font-medium transition-colors ${
+        isActive ? 'text-neutral-900' : 'text-neutral-500'
+      }`}
     >
-      {Icon && (
-        <Icon
-          className={`h-6 w-6 transition-colors ${
-            active ? 'text-neutral-900' : 'text-neutral-400'
-          }`}
-        />
-      )}
-    </button>
+      {label}
+    </a>
   );
 }
 
