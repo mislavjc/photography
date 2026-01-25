@@ -244,7 +244,7 @@ export const Navbar = ({
                     handleSearch(inputValue);
                   }
                 }}
-                className="flex-1 bg-transparent text-sm text-neutral-700 outline-none placeholder:text-neutral-400"
+                className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 outline-none placeholder:text-neutral-400"
               />
               {isSearching ? (
                 <span className="text-xs text-neutral-500 animate-pulse">
