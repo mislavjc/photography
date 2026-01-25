@@ -82,6 +82,7 @@ export const Navbar = ({
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   // Sync local state with prop when it changes (e.g., from URL)
   React.useEffect(() => {
@@ -89,6 +90,7 @@ export const Navbar = ({
   }, [initialQuery]);
 
   const anyWindowOpen = openWindows.size > 0;
+  const hasActiveSearch = initialQuery.length > 0;
 
   const handleSearch = (query: string) => {
     if (onSearch && query.trim()) {
@@ -97,10 +99,10 @@ export const Navbar = ({
     }
   };
 
-  const handleClear = () => {
+  const handleClear = React.useCallback(() => {
     setSearchQuery('');
     onClearSearch?.();
-  };
+  }, [onClearSearch]);
 
   const toggleWindow = (component: string) => {
     // Don't open minimap if minimapProps not available
@@ -121,17 +123,38 @@ export const Navbar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close modals/dropdowns on Escape key
+  // Keyboard shortcuts: Escape to close/clear, / to focus search
   React.useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in inputs (except our search input)
+      const target = e.target as HTMLElement;
+      const isTyping =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable;
+
       if (e.key === 'Escape') {
-        if (searchOpen) setSearchOpen(false);
-        if (anyWindowOpen) setOpenWindows(new Set());
+        if (searchOpen) {
+          setSearchOpen(false);
+          inputRef.current?.blur();
+        } else if (hasActiveSearch) {
+          // Clear search if there's an active search
+          handleClear();
+        } else if (anyWindowOpen) {
+          setOpenWindows(new Set());
+        }
+      }
+
+      // "/" to focus search (only when not already typing)
+      if (e.key === '/' && !isTyping) {
+        e.preventDefault();
+        inputRef.current?.focus();
+        setSearchOpen(true);
       }
     };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [searchOpen, anyWindowOpen]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [searchOpen, anyWindowOpen, hasActiveSearch, handleClear]);
 
   return (
     <>
@@ -155,14 +178,17 @@ export const Navbar = ({
         animate={{ opacity: 1, y: 0 }}
         className="fixed top-0 left-0 right-0 z-[70] bg-white"
       >
-        <div className="mx-auto flex h-14 items-center justify-between gap-6 px-4">
+        <div className="mx-auto flex h-14 items-center gap-3 px-4">
           {/* Left: Logo */}
-          <a href="/" className="flex items-center">
+          <a href="/" className="flex-shrink-0 flex items-center">
             <img src="/icon.png" alt="Logo" className="h-7 w-7" />
           </a>
 
-          {/* Center: Search */}
-          <div ref={searchRef} className="relative flex-1 max-w-lg">
+          {/* Center: Search - full width on mobile, centered on desktop */}
+          <div
+            ref={searchRef}
+            className="relative flex-1 md:max-w-lg md:mx-auto"
+          >
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -178,8 +204,9 @@ export const Navbar = ({
                 <Search className="h-[18px] w-[18px] text-neutral-400" />
               )}
               <input
+                ref={inputRef}
                 type="text"
-                placeholder="Search photos..."
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchOpen(true)}
@@ -255,8 +282,8 @@ export const Navbar = ({
             </AnimatePresence>
           </div>
 
-          {/* Right: Actions (desktop only) */}
-          <div className="hidden md:flex items-center gap-1">
+          {/* Right: Actions (desktop only) - fixed width to balance left side */}
+          <div className="w-32 flex-shrink-0 hidden md:flex items-center justify-end gap-1">
             {/* Year selector for timeline */}
             {timelineProps && (
               <select
