@@ -156,6 +156,50 @@ async function handleSearch(
   );
 }
 
+const SIMILAR_MIN_SCORE = 0.35; // Higher threshold for similar photos
+const SIMILAR_COUNT = 6; // Number of similar photos to return
+
+async function handleSimilar(photoId: string, env: Env): Promise<Response> {
+  // Get the embedding for this photo from the vector index
+  const vectors = await env.VECTORIZE.getByIds([photoId]);
+
+  if (!vectors || vectors.length === 0) {
+    return Response.json(
+      { error: 'Photo not found in index', results: [] },
+      { status: 404, headers: CORS_HEADERS },
+    );
+  }
+
+  const photoVector = vectors[0];
+  if (!photoVector.values) {
+    return Response.json(
+      { error: 'Photo embedding not available', results: [] },
+      { status: 404, headers: CORS_HEADERS },
+    );
+  }
+
+  // Query for similar photos (get extra to filter out self)
+  const results = await env.VECTORIZE.query(photoVector.values, {
+    topK: SIMILAR_COUNT + 1,
+    returnMetadata: 'none',
+  });
+
+  if (!results.matches || results.matches.length === 0) {
+    return Response.json({ results: [], photoId }, { headers: CORS_HEADERS });
+  }
+
+  // Filter out the photo itself and apply minimum score
+  const similarResults: SearchResult[] = results.matches
+    .filter((m) => m.id !== photoId && m.score >= SIMILAR_MIN_SCORE)
+    .slice(0, SIMILAR_COUNT)
+    .map((m) => ({ id: m.id, score: m.score }));
+
+  return Response.json(
+    { results: similarResults, photoId },
+    { headers: CORS_HEADERS },
+  );
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -201,6 +245,31 @@ export default {
         console.error('Search error:', error);
         return Response.json(
           { error: error instanceof Error ? error.message : 'Search failed' },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Similar photos endpoint
+    if (url.pathname === '/similar') {
+      try {
+        const photoId = url.searchParams.get('id');
+
+        if (!photoId) {
+          return Response.json(
+            { error: 'Photo ID is required' },
+            { status: 400, headers: CORS_HEADERS },
+          );
+        }
+
+        return await handleSimilar(photoId, env);
+      } catch (error) {
+        console.error('Similar error:', error);
+        return Response.json(
+          {
+            error:
+              error instanceof Error ? error.message : 'Similar search failed',
+          },
           { status: 500, headers: CORS_HEADERS },
         );
       }

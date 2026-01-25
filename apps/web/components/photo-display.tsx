@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import Link from 'next/link';
 
 import { Picture } from './picture';
+import { SimilarPhotos } from './similar-photos';
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -317,6 +318,8 @@ export function PhotoDisplay({
                   </div>
                 </section>
               )}
+
+              <SimilarPhotos photoId={photoName} />
             </div>
           </div>
         </aside>
@@ -506,6 +509,8 @@ export function PhotoDisplay({
                 </div>
               </section>
             )}
+
+            <SimilarPhotos photoId={photoName} />
           </div>
         </div>
       </div>
