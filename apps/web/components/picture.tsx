@@ -1,5 +1,5 @@
 // components/picture.tsx
-import type React from 'react';
+import React, { memo } from 'react';
 
 type Formats = 'avif' | 'webp' | 'jpeg';
 type Profile = 'grid' | 'large';
@@ -55,7 +55,7 @@ interface PictureProps {
   fit?: Fit;
 }
 
-export function Picture({
+export const Picture = memo(function Picture({
   uuidWithExt,
   alt,
   profile,
@@ -152,4 +152,4 @@ export function Picture({
       </picture>
     </div>
   );
-}
+});

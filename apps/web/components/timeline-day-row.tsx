@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Manifest } from 'types';
 
@@ -21,7 +21,7 @@ interface TimelineDayRowProps {
   precomputedRows?: JustifiedRow[];
 }
 
-export function TimelineDayRow({
+export const TimelineDayRow = memo(function TimelineDayRow({
   day,
   manifest,
   containerWidth,
@@ -40,9 +40,12 @@ export function TimelineDayRow({
     );
   }, [day.photos, containerWidth, precomputedRows]);
 
-  const handlePhotoClick = (filename: string) => {
-    router.push(`/photo/${encodeURIComponent(filename)}?from=timeline`);
-  };
+  const handlePhotoClick = useCallback(
+    (filename: string) => {
+      router.push(`/photo/${encodeURIComponent(filename)}?from=timeline`);
+    },
+    [router],
+  );
 
   return (
     <div className="flex gap-3 sm:gap-6">
@@ -173,4 +176,4 @@ export function TimelineDayRow({
       </div>
     </div>
   );
-}
+});
