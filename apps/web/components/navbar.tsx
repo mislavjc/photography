@@ -278,7 +278,7 @@ export const Navbar = ({
                 >
                   <div className="grid grid-cols-2 gap-1.5">
                     {SEARCH_CATEGORIES.map((cat) => {
-                      const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewId}.avif`;
+                      const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
                       return (
                         <button
                           key={cat.id}
@@ -290,13 +290,11 @@ export const Navbar = ({
                           className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50"
                         >
                           <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
-                            {imageUrl && (
-                              <img
-                                src={imageUrl}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            )}
+                            <img
+                              src={imageUrl}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
                           </div>
                           <span className="text-[15px] font-medium text-neutral-800">
                             {cat.label}
