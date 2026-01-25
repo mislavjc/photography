@@ -438,12 +438,12 @@ export function Timeline({
               </p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
-              {SEARCH_CATEGORIES.map((cat) => (
+              {SEARCH_CATEGORIES.map((cat, idx) => (
                 <button
                   key={cat.id}
                   type="button"
                   onClick={() => onSearch?.(cat.query)}
-                  className="group flex flex-col overflow-hidden rounded-2xl bg-neutral-200/60 p-3 transition-all hover:bg-neutral-200 hover:ring-2 hover:ring-neutral-300"
+                  className={`group flex flex-col overflow-hidden rounded-2xl bg-neutral-200/60 p-3 transition-all hover:bg-neutral-200 hover:ring-2 hover:ring-neutral-300 ${idx >= 4 ? 'hidden sm:flex' : ''}`}
                 >
                   {/* Photo collage - 3 overlapping images */}
                   <div className="relative h-28 sm:h-32 mb-3">
