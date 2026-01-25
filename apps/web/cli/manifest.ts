@@ -91,8 +91,12 @@ const formatShutter = (t?: string | number | null) => {
   return `${t}s`;
 };
 
-const formatFocal = (f?: number | string | null) =>
-  f != null ? `${f} mm` : null;
+const formatFocal = (f?: number | string | null) => {
+  if (f == null) return null;
+  const str = String(f).trim();
+  if (str.toLowerCase().includes('mm')) return str;
+  return `${str} mm`;
+};
 
 const toNumber = (v: unknown) =>
   typeof v === 'number' ? v : v == null ? undefined : Number(v);

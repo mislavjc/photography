@@ -142,6 +142,69 @@ export default defineCommand({
       },
     }),
 
+    fixFocal: defineCommand({
+      meta: {
+        name: 'fix-focal',
+        description: 'Fix "mm mm" bug in focalLength values',
+      },
+      args: {
+        dryRun: {
+          type: 'boolean',
+          description: 'Show what would be done without making changes',
+          default: false,
+        },
+      },
+      async run({ args }) {
+        const config = loadConfig();
+        const s3 = createS3Client(config);
+
+        const spinner = ora('Loading manifest...').start();
+        const manifest = await loadManifest(
+          s3,
+          config.r2.bucket,
+          config.r2.variantsPrefix,
+        );
+        spinner.succeed(`Loaded ${Object.keys(manifest).length} entries`);
+
+        let fixedCount = 0;
+        for (const [key, entry] of Object.entries(manifest)) {
+          const focal = entry.exif?.focalLength;
+          if (focal && focal.includes('mm mm')) {
+            const fixed = focal.replace(' mm mm', ' mm').replace('mm mm', 'mm');
+            if (args.dryRun) {
+              consola.info(`${key}: "${focal}" -> "${fixed}"`);
+            } else {
+              entry.exif.focalLength = fixed;
+            }
+            fixedCount++;
+          }
+        }
+
+        if (fixedCount === 0) {
+          consola.success('No entries need fixing!');
+          return;
+        }
+
+        consola.info(`Found ${fixedCount} entries to fix`);
+
+        if (args.dryRun) {
+          consola.box('DRY RUN - no changes made');
+          return;
+        }
+
+        const saveSpinner = ora('Saving manifest...').start();
+        const result = await saveManifest(
+          s3,
+          config.r2.bucket,
+          config.r2.variantsPrefix,
+          manifest,
+        );
+        saveSpinner.succeed(
+          `Fixed ${fixedCount} entries, saved ${result.entries} total (${(result.compressedSize / 1024).toFixed(1)}KB)`,
+        );
+      },
+    }),
+
     restore: defineCommand({
       meta: {
         name: 'restore',
