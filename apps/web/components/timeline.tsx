@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronUp, Folder } from 'lucide-react';
+import { ChevronUp } from 'lucide-react';
 import type { Manifest } from 'types';
 
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
@@ -427,38 +427,35 @@ export function Timeline({
 
       {/* Empty state when search returns no results */}
       {searchResultCount === 0 && searchQuery && !isSearching && (
-        <div className="fixed inset-0 z-[40] flex items-center justify-center bg-white pt-14">
-          <div className="max-w-2xl px-6 text-center">
-            <div className="mb-6">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-100">
-                <Folder className="h-8 w-8 text-neutral-400" />
-              </div>
-              <h2 className="text-xl font-semibold text-neutral-800">
-                No photos found
+        <div className="fixed inset-0 z-[40] flex items-center justify-center bg-white pt-14 px-4">
+          <div className="w-full max-w-3xl rounded-3xl bg-neutral-900 p-6 sm:p-10">
+            <div className="mb-8 text-center">
+              <h2 className="text-xl sm:text-2xl font-medium text-white">
+                No results for "{searchQuery}"
               </h2>
-              <p className="mt-2 text-sm text-neutral-500">
-                No results for "{searchQuery}". Try one of these instead:
+              <p className="mt-2 text-sm text-neutral-400">
+                Try searching for one of these categories instead
               </p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {SEARCH_CATEGORIES.slice(0, 6).map((cat) => {
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              {SEARCH_CATEGORIES.slice(0, 8).map((cat) => {
                 const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewId}.avif`;
                 return (
                   <button
                     key={cat.id}
                     type="button"
                     onClick={() => onSearch?.(cat.query)}
-                    className="group relative overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-neutral-200 transition-all hover:shadow-md hover:ring-neutral-300"
+                    className="group flex flex-col overflow-hidden rounded-2xl bg-neutral-800 ring-1 ring-neutral-700 transition-all hover:ring-2 hover:ring-neutral-500"
                   >
-                    <div className="aspect-[4/3] overflow-hidden">
+                    <div className="aspect-square overflow-hidden">
                       <img
                         src={imageUrl}
                         alt=""
-                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
                       />
                     </div>
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3 pt-8">
-                      <span className="text-sm font-medium text-white">
+                    <div className="px-3 py-3">
+                      <span className="text-sm font-medium text-neutral-200">
                         {cat.label}
                       </span>
                     </div>
