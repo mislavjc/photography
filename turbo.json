@@ -18,8 +18,9 @@
       "persistent": true,
       "cache": false
     },
-    "@repo/cli#dev": {
-      "persistent": false,
+    "start": {
+      "dependsOn": ["build"],
+      "persistent": true,
       "cache": false
     },
     "deploy": {

@@ -1,0 +1,160 @@
+interface Env {
+  VECTORIZE: VectorizeIndex;
+  REPLICATE_API_TOKEN: string;
+}
+
+interface SearchResult {
+  id: string;
+  score: number;
+}
+
+const IMAGEBIND_VERSION =
+  '0383f62e173dc821ec52663ed22a076d9c970549c209666ac3db181618b7a304';
+const MAX_RESULTS = 100; // Vectorize limit without metadata
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+interface ReplicatePrediction {
+  id: string;
+  status: string;
+  output?: number[];
+  error?: string;
+}
+
+async function getTextEmbedding(
+  text: string,
+  apiToken: string,
+): Promise<number[]> {
+  const response = await fetch('https://api.replicate.com/v1/predictions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiToken}`,
+      Prefer: 'wait=60',
+    },
+    body: JSON.stringify({
+      version: IMAGEBIND_VERSION,
+      input: { text_input: text, modality: 'text' },
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Replicate API error: ${response.status} - ${error}`);
+  }
+
+  const prediction = (await response.json()) as ReplicatePrediction;
+
+  if (prediction.status === 'failed') {
+    throw new Error(`Replicate prediction failed: ${prediction.error}`);
+  }
+
+  if (prediction.output) {
+    return prediction.output;
+  }
+
+  // Poll if not ready (rare with Prefer: wait)
+  let result = prediction;
+  for (
+    let i = 0;
+    i < 30 && result.status !== 'succeeded' && result.status !== 'failed';
+    i++
+  ) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const pollResponse = await fetch(
+      `https://api.replicate.com/v1/predictions/${result.id}`,
+      { headers: { Authorization: `Bearer ${apiToken}` } },
+    );
+    result = (await pollResponse.json()) as ReplicatePrediction;
+  }
+
+  if (result.status !== 'succeeded') {
+    throw new Error(
+      `Replicate prediction failed: ${result.error || result.status}`,
+    );
+  }
+
+  return result.output!;
+}
+
+async function handleSearch(
+  query: string,
+  minScore: number,
+  env: Env,
+): Promise<Response> {
+  const embedding = await getTextEmbedding(query, env.REPLICATE_API_TOKEN);
+
+  const results = await env.VECTORIZE.query(embedding, {
+    topK: MAX_RESULTS,
+    returnMetadata: 'none',
+  });
+
+  const searchResults: SearchResult[] = results.matches
+    .filter((m) => m.score >= minScore)
+    .map((m) => ({ id: m.id, score: m.score }));
+
+  return Response.json(
+    { results: searchResults, query },
+    { headers: CORS_HEADERS },
+  );
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    // CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: CORS_HEADERS });
+    }
+
+    // Health check
+    if (url.pathname === '/health') {
+      return Response.json({ status: 'ok' }, { headers: CORS_HEADERS });
+    }
+
+    // Search endpoint
+    if (url.pathname === '/search') {
+      try {
+        let query: string | null = null;
+        let minScore = 0;
+
+        if (request.method === 'POST') {
+          const body = (await request.json()) as {
+            query?: string;
+            minScore?: number;
+          };
+          query = body.query || null;
+          minScore = body.minScore || 0;
+        } else if (request.method === 'GET') {
+          query = url.searchParams.get('q');
+          minScore = parseFloat(url.searchParams.get('minScore') || '0');
+        }
+
+        if (!query) {
+          return Response.json(
+            { error: 'Query is required' },
+            { status: 400, headers: CORS_HEADERS },
+          );
+        }
+
+        return await handleSearch(query, minScore, env);
+      } catch (error) {
+        console.error('Search error:', error);
+        return Response.json(
+          { error: error instanceof Error ? error.message : 'Search failed' },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    return Response.json(
+      { error: 'Not found' },
+      { status: 404, headers: CORS_HEADERS },
+    );
+  },
+};
