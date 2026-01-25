@@ -91,6 +91,7 @@ type Props = {
   onClearSearch?: () => void;
   isSearching?: boolean;
   searchResultCount?: number;
+  searchQuery?: string;
 };
 
 export function PannableGrid({
@@ -102,6 +103,7 @@ export function PannableGrid({
   onClearSearch,
   isSearching,
   searchResultCount,
+  searchQuery,
 }: Props) {
   const { vw, vh } = useViewportSize();
 
@@ -673,6 +675,7 @@ export function PannableGrid({
             onClearSearch={onClearSearch}
             isSearching={isSearching}
             searchResultCount={searchResultCount}
+            searchQuery={searchQuery}
           />
         </Suspense>
       )}

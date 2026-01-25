@@ -1,4 +1,5 @@
 import { cacheLife } from 'next/cache';
+import { Suspense } from 'react';
 
 import { computeNearSquareLayout } from 'lib/layout';
 import { loadManifest } from 'lib/manifest-server';
@@ -53,7 +54,9 @@ export default async function Page() {
         );
       })}
       <div>
-        <HomeGrid manifest={manifest} initialLayout={layout} />
+        <Suspense fallback={null}>
+          <HomeGrid manifest={manifest} initialLayout={layout} />
+        </Suspense>
       </div>
     </>
   );

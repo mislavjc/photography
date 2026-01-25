@@ -65,6 +65,7 @@ type NavbarProps = {
   onClearSearch?: () => void;
   isSearching?: boolean;
   searchResultCount?: number;
+  searchQuery?: string;
 };
 
 export const Navbar = ({
@@ -75,11 +76,17 @@ export const Navbar = ({
   onClearSearch,
   isSearching,
   searchResultCount,
+  searchQuery: initialQuery = '',
 }: NavbarProps) => {
   const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = React.useRef<HTMLDivElement>(null);
+
+  // Sync local state with prop when it changes (e.g., from URL)
+  React.useEffect(() => {
+    setSearchQuery(initialQuery);
+  }, [initialQuery]);
 
   const anyWindowOpen = openWindows.size > 0;
 
@@ -184,11 +191,15 @@ export const Navbar = ({
                 }}
                 className="flex-1 bg-transparent text-sm text-neutral-700 outline-none placeholder:text-neutral-400"
               />
-              {searchResultCount !== undefined && searchResultCount > 0 && (
+              {isSearching ? (
+                <span className="text-xs text-neutral-500 animate-pulse">
+                  Searching...
+                </span>
+              ) : searchResultCount !== undefined && searchResultCount > 0 ? (
                 <span className="text-xs text-neutral-500">
                   {searchResultCount} results
                 </span>
-              )}
+              ) : null}
               {searchQuery && (
                 <button
                   type="button"
