@@ -42,6 +42,14 @@ interface TimelineProps {
   ssrItems?: SSRItem[];
   /** SSR-precomputed total height */
   ssrTotalHeight?: number;
+  /** Filtered photo IDs from search */
+  filteredIds?: Set<string> | null;
+  /** Search handlers */
+  onSearch?: (query: string) => void;
+  onClearSearch?: () => void;
+  isSearching?: boolean;
+  searchResultCount?: number;
+  searchQuery?: string;
 }
 
 // SSR-safe default width (reasonable desktop width minus typical sidebar)
@@ -52,6 +60,12 @@ export function Timeline({
   manifest,
   ssrItems,
   ssrTotalHeight,
+  filteredIds,
+  onSearch,
+  onClearSearch,
+  isSearching,
+  searchResultCount,
+  searchQuery,
 }: TimelineProps) {
   const innerContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -59,6 +73,42 @@ export function Timeline({
   const [innerWidth, setInnerWidth] = useState<number>(DEFAULT_CONTAINER_WIDTH);
   const [isMobile, setIsMobile] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // Filter timeline data based on search results
+  const filteredData = useMemo(() => {
+    if (!filteredIds || filteredIds.size === 0) return data;
+
+    const filteredYears: YearGroup[] = [];
+
+    for (const year of data.years) {
+      const filteredMonths: MonthGroup[] = [];
+
+      for (const month of year.months) {
+        const filteredDays: DayGroup[] = [];
+
+        for (const day of month.days) {
+          const filteredPhotos = day.photos.filter((photo) => {
+            const id = photo.filename.replace(/\.[^.]+$/, '');
+            return filteredIds.has(id);
+          });
+
+          if (filteredPhotos.length > 0) {
+            filteredDays.push({ ...day, photos: filteredPhotos });
+          }
+        }
+
+        if (filteredDays.length > 0) {
+          filteredMonths.push({ ...month, days: filteredDays });
+        }
+      }
+
+      if (filteredMonths.length > 0) {
+        filteredYears.push({ ...year, months: filteredMonths });
+      }
+    }
+
+    return { ...data, years: filteredYears };
+  }, [data, filteredIds]);
 
   // Calculate the width available for photos
   // Mobile: timeline 1px + gap-3 (12px) + safety buffer (16px) = 29px (date stacks above, padding handled by container px-4)
@@ -145,26 +195,27 @@ export function Timeline({
 
   // Pre-calculate heights for all items to enable virtualization
   // Use SSR values initially to prevent CLS, then recalculate on client
+  const isSearchActive = filteredIds && filteredIds.size > 0;
+
   const itemsWithPositions = useMemo(() => {
-    // Before hydration, use SSR-precomputed values if available
-    if (!isHydrated && ssrItems && ssrTotalHeight) {
+    // Before hydration, use SSR-precomputed values if available (but not when searching)
+    if (!isHydrated && ssrItems && ssrTotalHeight && !isSearchActive) {
       // Merge SSR items with actual data references
       const items = ssrItems.map((ssrItem) => {
         let itemData: YearGroup | MonthGroup | DayGroup | undefined;
 
         if (ssrItem.type === 'year') {
-          itemData = data.years.find((y) => y.key === ssrItem.yearKey);
+          itemData = filteredData.years.find((y) => y.key === ssrItem.yearKey);
         } else if (ssrItem.type === 'month') {
-          const year = data.years.find((y) => y.key === ssrItem.yearKey);
+          const year = filteredData.years.find(
+            (y) => y.key === ssrItem.yearKey,
+          );
           itemData = year?.months.find((m) => m.key === ssrItem.monthKey);
         } else if (ssrItem.type === 'day') {
-          const year = data.years.find((y) => y.key === ssrItem.yearKey);
+          const year = filteredData.years.find(
+            (y) => y.key === ssrItem.yearKey,
+          );
           const month = year?.months.find((m) => m.key === ssrItem.monthKey);
-          const dayKey = ssrItem.key
-            .replace('day-', '')
-            .split('-')
-            .slice(-3)
-            .join('-');
           itemData = month?.days.find((d) => {
             const fullKey = `${ssrItem.yearKey}-${ssrItem.monthKey}-${d.key}`;
             return fullKey === ssrItem.key.replace('day-', '');
@@ -180,7 +231,7 @@ export function Timeline({
       return { items, totalHeight: ssrTotalHeight };
     }
 
-    // After hydration, calculate based on actual container width
+    // After hydration (or when searching), calculate based on actual container width
     const items: Array<{
       type: 'year' | 'month' | 'day';
       key: string;
@@ -198,7 +249,7 @@ export function Timeline({
     const DAY_ROW_PADDING = 24; // vertical padding for day rows
     const MOBILE_DATE_HEIGHT = isMobile ? 32 : 0; // extra height for stacked date label + padding (pt-3 + pb-1.5 + text) on mobile
 
-    for (const year of data.years) {
+    for (const year of filteredData.years) {
       items.push({
         type: 'year',
         key: `year-${year.key}`,
@@ -254,12 +305,13 @@ export function Timeline({
 
     return { items, totalHeight: currentTop };
   }, [
-    data,
+    filteredData,
     photoContainerWidth,
     isMobile,
     isHydrated,
     ssrItems,
     ssrTotalHeight,
+    isSearchActive,
   ]);
 
   // Find visible items
@@ -371,7 +423,7 @@ export function Timeline({
         })}
       </div>
 
-      {/* Navbar with year selector */}
+      {/* Navbar with year selector and search */}
       <Navbar
         activePage="timeline"
         timelineProps={{
@@ -379,6 +431,11 @@ export function Timeline({
           currentYear,
           onJumpToYear: handleJumpToYear,
         }}
+        onSearch={onSearch}
+        onClearSearch={onClearSearch}
+        isSearching={isSearching}
+        searchResultCount={searchResultCount}
+        searchQuery={searchQuery}
       />
 
       {/* Scroll to top button */}

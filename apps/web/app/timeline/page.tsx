@@ -1,8 +1,8 @@
 import { cacheLife } from 'next/cache';
 import { Suspense } from 'react';
 
-import { Timeline } from 'components/timeline';
 import { TimelineSkeleton } from 'components/timeline-skeleton';
+import { TimelineWrapper } from 'components/timeline-wrapper';
 
 import { loadManifest } from 'lib/manifest-server';
 import {
@@ -160,7 +160,7 @@ export default async function TimelinePage() {
         );
       })}
       <Suspense fallback={<TimelineSkeleton />}>
-        <Timeline
+        <TimelineWrapper
           data={timelineData}
           manifest={trimmedManifest}
           ssrItems={precomputedItems}
