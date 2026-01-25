@@ -112,7 +112,7 @@ export function PhotoModal({ photoName, photoData }: PhotoModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-white lg:overflow-hidden overflow-y-auto"
+      className="fixed inset-0 z-[100] bg-white lg:overflow-hidden overflow-y-auto overscroll-contain"
       role="dialog"
       aria-modal="true"
       aria-label={`Photo: ${photoName}`}
@@ -121,24 +121,44 @@ export function PhotoModal({ photoName, photoData }: PhotoModalProps) {
       <button
         type="button"
         onClick={() => router.back()}
-        className="fixed top-4 left-4 z-[110] w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors"
+        className="fixed top-4 left-4 z-[110] w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400"
         aria-label="Close"
       >
-        <X className="w-5 h-5 text-neutral-600" />
+        <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
       </button>
 
-      {/* Color swatches - bottom left, sheet covers on mobile when pulled up */}
+      {/* Color swatches - top right on mobile (stacked horizontal), bottom left on desktop (stacked vertical) */}
       {dominantColors.length > 0 && (
-        <div className="fixed z-[105] flex gap-2 bottom-4 left-4 flex-col">
-          {dominantColors.slice(0, 5).map((color) => (
-            <div
-              key={color.hex}
-              className="w-6 h-6 rounded-full shadow-sm"
-              style={{ backgroundColor: color.hex }}
-              title={color.hex}
-            />
-          ))}
-        </div>
+        <>
+          {/* Mobile: horizontal stack */}
+          <div className="fixed top-4 right-4 flex flex-row items-center lg:hidden">
+            {dominantColors.slice(0, 5).map((color, i) => (
+              <div
+                key={color.hex}
+                className="w-8 h-8 rounded-full"
+                style={{
+                  backgroundColor: color.hex,
+                  zIndex: 5 - i,
+                  marginLeft: i === 0 ? 0 : -12,
+                }}
+              />
+            ))}
+          </div>
+          {/* Desktop: vertical stack */}
+          <div className="fixed bottom-4 left-4 hidden lg:flex flex-col-reverse items-center">
+            {dominantColors.slice(0, 5).map((color, i) => (
+              <div
+                key={color.hex}
+                className="w-10 h-10 rounded-full"
+                style={{
+                  backgroundColor: color.hex,
+                  zIndex: 5 - i,
+                  marginBottom: i === 0 ? 0 : -12,
+                }}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {/* Desktop layout */}
@@ -354,7 +374,7 @@ export function PhotoModal({ photoName, photoData }: PhotoModalProps) {
         <div className="h-[60svh]" />
 
         {/* Bottom sheet - scrolls up over the image */}
-        <div className="bg-neutral-100 rounded-t-3xl min-h-[60svh] relative z-[106]">
+        <div className="bg-neutral-100 rounded-t-3xl min-h-[60svh] relative z-[106] overscroll-contain">
           {/* Drag handle */}
           <div className="flex justify-center pt-3 pb-2">
             <div className="w-10 h-1 rounded-full bg-neutral-300" />

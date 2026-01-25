@@ -73,12 +73,14 @@ export function SimilarPhotos({ photoId }: SimilarPhotosProps) {
             <Link
               key={result.id}
               href={`/photo/${result.id}`}
-              className="aspect-square overflow-hidden rounded-lg bg-neutral-200 transition-transform hover:scale-105"
+              className="aspect-square overflow-hidden rounded-lg bg-neutral-200 transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-neutral-400"
             >
               <img
                 src={imageUrl}
                 alt=""
                 className="h-full w-full object-cover"
+                width={480}
+                height={480}
                 loading="lazy"
               />
             </Link>

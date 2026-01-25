@@ -121,24 +121,44 @@ export function PhotoDisplay({
       {/* Close button - top left */}
       <Link
         href={backHref}
-        className="fixed top-4 left-4 z-50 w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors"
+        className="fixed top-4 left-4 z-50 w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400"
         aria-label="Back to gallery"
       >
-        <X className="w-5 h-5 text-neutral-600" />
+        <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
       </Link>
 
-      {/* Color swatches - top right on mobile, bottom left on desktop */}
+      {/* Color swatches - top right on mobile (stacked horizontal), bottom left on desktop (stacked vertical) */}
       {dominantColors.length > 0 && (
-        <div className="fixed flex gap-2 top-4 right-4 lg:top-auto lg:right-auto lg:bottom-4 lg:left-4 flex-row lg:flex-col">
-          {dominantColors.slice(0, 5).map((color) => (
-            <div
-              key={color.hex}
-              className="w-10 h-10 rounded-full shadow-sm ring-1 ring-black/10"
-              style={{ backgroundColor: color.hex }}
-              title={color.hex}
-            />
-          ))}
-        </div>
+        <>
+          {/* Mobile: horizontal stack */}
+          <div className="fixed top-4 right-4 flex flex-row items-center lg:hidden">
+            {dominantColors.slice(0, 5).map((color, i) => (
+              <div
+                key={color.hex}
+                className="w-8 h-8 rounded-full"
+                style={{
+                  backgroundColor: color.hex,
+                  zIndex: 5 - i,
+                  marginLeft: i === 0 ? 0 : -12,
+                }}
+              />
+            ))}
+          </div>
+          {/* Desktop: vertical stack */}
+          <div className="fixed bottom-4 left-4 hidden lg:flex flex-col-reverse items-center">
+            {dominantColors.slice(0, 5).map((color, i) => (
+              <div
+                key={color.hex}
+                className="w-10 h-10 rounded-full"
+                style={{
+                  backgroundColor: color.hex,
+                  zIndex: 5 - i,
+                  marginBottom: i === 0 ? 0 : -12,
+                }}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {/* Desktop layout */}

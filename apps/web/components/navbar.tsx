@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Calendar, Map as MapIcon, Search, Shuffle, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useRouter } from 'next/navigation';
+
 import type { Manifest } from 'types';
 
 import type { PlacedItem } from 'lib/layout';
@@ -242,7 +242,13 @@ export const Navbar = ({
             }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
-            <img src="/icon.png" alt="Logo" className="h-7 w-7" />
+            <img
+              src="/icon.png"
+              alt="Logo"
+              className="h-7 w-7"
+              width={28}
+              height={28}
+            />
           </motion.a>
 
           {/* Center: Search - expands full width on mobile when focused */}
@@ -255,14 +261,20 @@ export const Navbar = ({
                 e.preventDefault();
                 handleSearch(inputValue);
               }}
-              className={`flex items-center gap-3 rounded-xl bg-neutral-100 px-4 py-2.5 transition-all ${
+              className={`flex items-center gap-3 rounded-xl bg-neutral-100 px-4 py-2.5 transition-colors ${
                 searchOpen ? 'bg-neutral-200/70' : ''
               }`}
             >
               {isSearching ? (
-                <div className="h-[18px] w-[18px] animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600" />
+                <div
+                  className="h-[18px] w-[18px] animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600"
+                  aria-hidden="true"
+                />
               ) : (
-                <Search className="h-[18px] w-[18px] text-neutral-400" />
+                <Search
+                  className="h-[18px] w-[18px] text-neutral-400"
+                  aria-hidden="true"
+                />
               )}
               <input
                 ref={inputRef}
@@ -284,11 +296,11 @@ export const Navbar = ({
                     inputRef.current?.blur();
                   }
                 }}
-                className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 outline-none placeholder:text-neutral-400"
+                className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 outline-none focus-visible:outline-none placeholder:text-neutral-400"
               />
               {isSearching ? (
                 <span className="text-xs text-neutral-500 animate-pulse">
-                  Searching...
+                  Searching…
                 </span>
               ) : searchResultCount !== undefined && searchResultCount > 0 ? (
                 <span className="text-xs text-neutral-500">
@@ -299,9 +311,10 @@ export const Navbar = ({
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="rounded-md p-0.5 hover:bg-neutral-200"
+                  className="rounded-md p-0.5 hover:bg-neutral-200 focus-visible:ring-2 focus-visible:ring-neutral-400"
+                  aria-label="Clear search"
                 >
-                  <X className="h-4 w-4 text-neutral-400" />
+                  <X className="h-4 w-4 text-neutral-400" aria-hidden="true" />
                 </button>
               )}
             </form>
@@ -414,7 +427,8 @@ export const Navbar = ({
                     timelineProps.onJumpToYear(parseInt(value, 10));
                   }
                 }}
-                className="appearance-none rounded-lg bg-neutral-100 pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 outline-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23737373%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat"
+                aria-label="Select year"
+                className="appearance-none rounded-lg bg-neutral-100 pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 focus-visible:ring-2 focus-visible:ring-neutral-400 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23737373%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat"
               >
                 <option value="all">All Years</option>
                 {timelineProps.years.map((year) => (
@@ -466,7 +480,8 @@ export const Navbar = ({
                     timelineProps.onJumpToYear(parseInt(value, 10));
                   }
                 }}
-                className="appearance-none bg-transparent text-xs font-medium text-neutral-500 outline-none"
+                aria-label="Select year"
+                className="appearance-none bg-transparent text-xs font-medium text-neutral-500 focus-visible:ring-2 focus-visible:ring-neutral-400 rounded"
               >
                 <option value="all">All Years</option>
                 {timelineProps.years.map((year) => (
@@ -511,24 +526,27 @@ function NavbarButton({
   isOpen?: boolean;
   onToggleWindow?: (_component: string) => void;
 }) {
-  const router = useRouter();
+  const baseClasses = `rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 ${
+    isOpen
+      ? 'bg-neutral-100 text-neutral-900'
+      : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+  }`;
+
+  // Use Link for navigation, button for window toggle
+  if (href) {
+    return (
+      <a href={href} className={baseClasses}>
+        {label}
+      </a>
+    );
+  }
 
   return (
     <button
       type="button"
       aria-label={label}
-      onClick={() => {
-        if (href) {
-          router.push(href);
-        } else if (onToggleWindow) {
-          onToggleWindow(componentName || '');
-        }
-      }}
-      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-        isOpen
-          ? 'bg-neutral-100 text-neutral-900'
-          : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
-      }`}
+      onClick={() => onToggleWindow?.(componentName || '')}
+      className={baseClasses}
     >
       {label}
     </button>
@@ -549,7 +567,7 @@ function MobileNavLink({
   return (
     <a
       href={href}
-      className={`relative px-2 py-1 text-xs font-medium transition-colors ${
+      className={`relative px-2 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 rounded ${
         isActive ? 'text-neutral-900' : 'text-neutral-400'
       }`}
     >
@@ -585,7 +603,7 @@ function MinimapWindow({
             className="rounded-md p-1 text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-neutral-600"
             aria-label="Close"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
         <div
