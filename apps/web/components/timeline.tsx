@@ -522,7 +522,6 @@ export function Timeline({
         isSearching={isSearching}
         searchResultCount={searchResultCount}
         searchQuery={searchQuery}
-        searchPreview={searchPreview}
       />
 
       {/* Scroll to top button */}

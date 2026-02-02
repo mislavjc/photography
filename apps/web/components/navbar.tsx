@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from 'react';
 import { Calendar, Map as MapIcon, Search, Shuffle, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-
 import type { Manifest } from 'types';
 
 import type { PlacedItem } from 'lib/layout';
@@ -57,42 +56,40 @@ type TimelineNavProps = {
   onJumpToYear: (year: number | null) => void;
 };
 
-type SearchPreview = {
-  id: string;
-  score: number;
-};
-
-type NavbarProps = {
-  minimapProps?: MinimapProps;
-  activePage?: string;
-  timelineProps?: TimelineNavProps;
-  onSearch?: (query: string) => void;
-  onClearSearch?: () => void;
-  isSearching?: boolean;
+interface NavbarSearchProps {
+  onSearch: (query: string) => void;
+  onClearSearch: () => void;
+  isSearching: boolean;
   searchResultCount?: number;
-  searchQuery?: string;
-  searchPreview?: SearchPreview[];
-};
+  initialQuery: string;
+  onOpenChange?: (open: boolean) => void;
+}
 
-export const Navbar = ({
-  minimapProps,
-  activePage,
-  timelineProps,
+function NavbarSearch({
   onSearch,
   onClearSearch,
   isSearching,
   searchResultCount,
-  searchQuery: initialQuery = '',
-  searchPreview,
-}: NavbarProps) => {
-  const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
+  initialQuery,
+  onOpenChange,
+}: NavbarSearchProps) {
   const [inputValue, setInputValue] = useState(initialQuery);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const searchRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
+
+  const hasActiveSearch = initialQuery.length > 0;
+
+  // Notify parent of open state changes
+  const updateSearchOpen = React.useCallback(
+    (open: boolean) => {
+      setSearchOpen(open);
+      onOpenChange?.(open);
+    },
+    [onOpenChange],
+  );
 
   // Memoize category filtering to avoid recalculating on every render
   const matchingCategories = useMemo(() => {
@@ -105,23 +102,6 @@ export const Navbar = ({
     );
   }, [inputValue]);
 
-  // Detect mobile for logo animation - only update when crossing threshold
-  React.useEffect(() => {
-    let lastIsMobile = window.innerWidth < 768;
-    setIsMobile(lastIsMobile);
-
-    const checkMobile = () => {
-      const nowMobile = window.innerWidth < 768;
-      if (nowMobile !== lastIsMobile) {
-        lastIsMobile = nowMobile;
-        setIsMobile(nowMobile);
-      }
-    };
-
-    window.addEventListener('resize', checkMobile, { passive: true });
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
   // Sync input with URL when it changes externally
   React.useEffect(() => {
     if (!searchOpen) {
@@ -129,12 +109,9 @@ export const Navbar = ({
     }
   }, [initialQuery, searchOpen]);
 
-  const anyWindowOpen = openWindows.size > 0;
-  const hasActiveSearch = initialQuery.length > 0;
-
   const handleSearch = React.useCallback(
     (query: string) => {
-      if (onSearch && query.trim()) {
+      if (query.trim()) {
         onSearch(query.trim());
       }
     },
@@ -164,7 +141,7 @@ export const Navbar = ({
       }, 400);
     } else if (hasActiveSearch) {
       // Immediately clear if input is empty and there was a search
-      onClearSearch?.();
+      onClearSearch();
     }
   };
 
@@ -182,35 +159,23 @@ export const Navbar = ({
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
-    onClearSearch?.();
+    onClearSearch();
   }, [onClearSearch]);
 
   const handleFocus = () => {
-    setSearchOpen(true);
-  };
-
-  const handleBlur = () => {
-    // Keep the current input value, don't reset
-  };
-
-  const toggleWindow = (component: string) => {
-    // Don't open minimap if minimapProps not available
-    if (component === 'MinimapWindow' && !minimapProps) return;
-    const next = new Set<string>();
-    if (!openWindows.has(component)) next.add(component);
-    setOpenWindows(next);
+    updateSearchOpen(true);
   };
 
   // Close search dropdown when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setSearchOpen(false);
+        updateSearchOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [updateSearchOpen]);
 
   // Keyboard shortcuts: Escape to close/clear, / to focus search
   React.useEffect(() => {
@@ -224,13 +189,11 @@ export const Navbar = ({
 
       if (e.key === 'Escape') {
         if (searchOpen) {
-          setSearchOpen(false);
+          updateSearchOpen(false);
           inputRef.current?.blur();
         } else if (hasActiveSearch) {
           // Clear search if there's an active search
           handleClear();
-        } else if (anyWindowOpen) {
-          setOpenWindows(new Set());
         }
       }
 
@@ -238,13 +201,193 @@ export const Navbar = ({
       if (e.key === '/' && !isTyping) {
         e.preventDefault();
         inputRef.current?.focus();
-        setSearchOpen(true);
+        updateSearchOpen(true);
       }
     };
     // passive: false because we call preventDefault for "/" key
     document.addEventListener('keydown', handleKeyDown, { passive: false });
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [searchOpen, anyWindowOpen, hasActiveSearch, handleClear]);
+  }, [searchOpen, hasActiveSearch, handleClear, updateSearchOpen]);
+
+  return (
+    <div ref={searchRef} className="relative flex-1 md:max-w-lg md:mx-auto">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSearch(inputValue);
+        }}
+        className={`flex items-center gap-3 rounded-xl bg-neutral-100 px-4 py-2.5 transition-colors ${
+          searchOpen ? 'bg-neutral-200/70' : ''
+        }`}
+      >
+        {isSearching ? (
+          <div
+            className="h-[18px] w-[18px] animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600"
+            aria-hidden="true"
+          />
+        ) : (
+          <Search
+            className="h-[18px] w-[18px] text-neutral-400"
+            aria-hidden="true"
+          />
+        )}
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder="Search..."
+          value={inputValue}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onFocus={handleFocus}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              // Cancel debounce and search immediately
+              if (debounceRef.current) {
+                clearTimeout(debounceRef.current);
+              }
+              handleSearch(inputValue);
+              updateSearchOpen(false);
+              inputRef.current?.blur();
+            }
+          }}
+          className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 outline-none focus-visible:outline-none placeholder:text-neutral-400"
+        />
+        {isSearching ? (
+          <span className="text-xs text-neutral-500 animate-pulse">
+            Searching…
+          </span>
+        ) : searchResultCount !== undefined && searchResultCount > 0 ? (
+          <span className="text-xs text-neutral-500 whitespace-nowrap">
+            {searchResultCount} results
+          </span>
+        ) : null}
+        {(inputValue || hasActiveSearch) && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="rounded-md p-0.5 hover:bg-neutral-200 focus-visible:ring-2 focus-visible:ring-neutral-400"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+          </button>
+        )}
+      </form>
+
+      {/* Search dropdown */}
+      <AnimatePresence>
+        {searchOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-neutral-200 bg-neutral-100 p-2"
+          >
+            {/* Show matching categories as autocomplete (uses memoized filter) */}
+            {inputValue.trim() && matchingCategories.length === 0 ? (
+              <div className="py-4 text-center text-sm text-neutral-500">
+                Press Enter to search for &ldquo;{inputValue}&rdquo;
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-1.5">
+                {matchingCategories.map((cat) => {
+                  const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setInputValue(cat.query);
+                        handleSearch(cat.query);
+                        updateSearchOpen(false);
+                        inputRef.current?.blur();
+                      }}
+                      className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50"
+                    >
+                      <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
+                        <img
+                          src={imageUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <span className="text-[15px] font-medium text-neutral-800">
+                        {cat.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+type NavbarProps = {
+  minimapProps?: MinimapProps;
+  activePage?: string;
+  timelineProps?: TimelineNavProps;
+  onSearch?: (query: string) => void;
+  onClearSearch?: () => void;
+  isSearching?: boolean;
+  searchResultCount?: number;
+  searchQuery?: string;
+};
+
+export const Navbar = ({
+  minimapProps,
+  activePage,
+  timelineProps,
+  onSearch,
+  onClearSearch,
+  isSearching = false,
+  searchResultCount,
+  searchQuery: initialQuery = '',
+}: NavbarProps) => {
+  const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
+  const [isMobile, setIsMobile] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Detect mobile for logo animation - only update when crossing threshold
+  React.useEffect(() => {
+    let lastIsMobile = window.innerWidth < 768;
+    setIsMobile(lastIsMobile);
+
+    const checkMobile = () => {
+      const nowMobile = window.innerWidth < 768;
+      if (nowMobile !== lastIsMobile) {
+        lastIsMobile = nowMobile;
+        setIsMobile(nowMobile);
+      }
+    };
+
+    window.addEventListener('resize', checkMobile, { passive: true });
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const anyWindowOpen = openWindows.size > 0;
+
+  const toggleWindow = (component: string) => {
+    // Don't open minimap if minimapProps not available
+    if (component === 'MinimapWindow' && !minimapProps) return;
+    const next = new Set<string>();
+    if (!openWindows.has(component)) next.add(component);
+    setOpenWindows(next);
+  };
+
+  // Escape to close windows (search handles its own Escape)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && anyWindowOpen) {
+        setOpenWindows(new Set());
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [anyWindowOpen]);
 
   return (
     <>
@@ -289,124 +432,19 @@ export const Navbar = ({
             />
           </motion.a>
 
-          {/* Center: Search - expands full width on mobile when focused */}
-          <div
-            ref={searchRef}
-            className="relative flex-1 md:max-w-lg md:mx-auto"
-          >
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSearch(inputValue);
-              }}
-              className={`flex items-center gap-3 rounded-xl bg-neutral-100 px-4 py-2.5 transition-colors ${
-                searchOpen ? 'bg-neutral-200/70' : ''
-              }`}
-            >
-              {isSearching ? (
-                <div
-                  className="h-[18px] w-[18px] animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Search
-                  className="h-[18px] w-[18px] text-neutral-400"
-                  aria-hidden="true"
-                />
-              )}
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder="Search..."
-                value={inputValue}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    // Cancel debounce and search immediately
-                    if (debounceRef.current) {
-                      clearTimeout(debounceRef.current);
-                    }
-                    handleSearch(inputValue);
-                    setSearchOpen(false);
-                    inputRef.current?.blur();
-                  }
-                }}
-                className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 outline-none focus-visible:outline-none placeholder:text-neutral-400"
-              />
-              {isSearching ? (
-                <span className="text-xs text-neutral-500 animate-pulse">
-                  Searching…
-                </span>
-              ) : searchResultCount !== undefined && searchResultCount > 0 ? (
-                <span className="text-xs text-neutral-500 whitespace-nowrap">
-                  {searchResultCount} results
-                </span>
-              ) : null}
-              {(inputValue || hasActiveSearch) && (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="rounded-md p-0.5 hover:bg-neutral-200 focus-visible:ring-2 focus-visible:ring-neutral-400"
-                  aria-label="Clear search"
-                >
-                  <X className="h-4 w-4 text-neutral-400" aria-hidden="true" />
-                </button>
-              )}
-            </form>
-
-            {/* Search dropdown */}
-            <AnimatePresence>
-              {searchOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 4 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-neutral-200 bg-neutral-100 p-2"
-                >
-                  {/* Show matching categories as autocomplete (uses memoized filter) */}
-                  {inputValue.trim() && matchingCategories.length === 0 ? (
-                    <div className="py-4 text-center text-sm text-neutral-500">
-                      Press Enter to search for &ldquo;{inputValue}&rdquo;
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {matchingCategories.map((cat) => {
-                        const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
-                        return (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => {
-                              setInputValue(cat.query);
-                              handleSearch(cat.query);
-                              setSearchOpen(false);
-                              inputRef.current?.blur();
-                            }}
-                            className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50"
-                          >
-                            <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
-                              <img
-                                src={imageUrl}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <span className="text-[15px] font-medium text-neutral-800">
-                              {cat.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          {/* Center: Search */}
+          {onSearch && onClearSearch ? (
+            <NavbarSearch
+              onSearch={onSearch}
+              onClearSearch={onClearSearch}
+              isSearching={isSearching}
+              searchResultCount={searchResultCount}
+              initialQuery={initialQuery}
+              onOpenChange={setSearchOpen}
+            />
+          ) : (
+            <div className="flex-1" />
+          )}
 
           {/* Right: Actions (desktop only) - fixed width to balance left side */}
           <div className="w-32 flex-shrink-0 hidden md:flex items-center justify-end gap-1">
