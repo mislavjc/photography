@@ -1,9 +1,20 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import Link from 'next/link';
 
 import { getSimilarPhotos, type SearchResult } from 'lib/search';
+
+const gridVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.05 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, scale: 0.95 },
+  visible: { opacity: 1, scale: 1 },
+};
 
 interface SimilarPhotosProps {
   photoId: string;
@@ -53,7 +64,7 @@ export const SimilarPhotos = memo(function SimilarPhotos({
           {['s1', 's2', 's3', 's4', 's5', 's6'].map((id) => (
             <div
               key={id}
-              className="aspect-square rounded-lg bg-neutral-200 animate-pulse"
+              className="aspect-square rounded-lg animate-shimmer"
             />
           ))}
         </div>
@@ -70,27 +81,33 @@ export const SimilarPhotos = memo(function SimilarPhotos({
       <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-3">
         Similar
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
+      <motion.div
+        className="grid grid-cols-3 gap-1.5"
+        initial="hidden"
+        animate="visible"
+        variants={gridVariants}
+      >
         {similar.map((result) => {
           const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${result.id}.avif`;
           return (
-            <Link
-              key={result.id}
-              href={`/photo/${result.id}`}
-              className="aspect-square overflow-hidden rounded-lg bg-neutral-200 transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-neutral-400"
-            >
-              <img
-                src={imageUrl}
-                alt=""
-                className="h-full w-full object-cover"
-                width={480}
-                height={480}
-                loading="lazy"
-              />
-            </Link>
+            <motion.div key={result.id} variants={itemVariants}>
+              <Link
+                href={`/photo/${result.id}`}
+                className="block aspect-square overflow-hidden rounded-lg bg-neutral-200 transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-neutral-400"
+              >
+                <img
+                  src={imageUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  width={480}
+                  height={480}
+                  loading="lazy"
+                />
+              </Link>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
     </section>
   );
 });

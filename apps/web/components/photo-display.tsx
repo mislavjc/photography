@@ -3,6 +3,7 @@
 
 import React, { useMemo } from 'react';
 import { X } from 'lucide-react';
+import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -127,6 +128,17 @@ function MapImage({
   );
 }
 
+// Animation variants for metadata sections
+const sectionVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0 },
+};
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06 } },
+};
+
 // Extracted metadata panel for reuse between desktop sidebar and mobile sheet
 function MetadataPanel({
   photoName,
@@ -146,33 +158,39 @@ function MetadataPanel({
   mapLoading?: 'lazy' | 'eager';
 }) {
   return (
-    <div className="p-5 space-y-5">
+    <motion.div
+      className="p-5 space-y-5"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+    >
       {formattedDate && (
-        <div
+        <motion.div
           className="text-neutral-400 text-sm font-mono"
           suppressHydrationWarning
+          variants={sectionVariants}
         >
           {formattedDate}
-        </div>
+        </motion.div>
       )}
 
       {photoData.description && (
-        <section>
+        <motion.section variants={sectionVariants}>
           <Label>Description</Label>
           <p className="text-neutral-800 leading-relaxed text-sm">
             {photoData.description}
           </p>
-        </section>
+        </motion.section>
       )}
 
-      <section>
+      <motion.section variants={sectionVariants}>
         <Label>Dimensions</Label>
         <div className="font-mono text-neutral-800">
           {photoData.w} x {photoData.h}
         </div>
-      </section>
+      </motion.section>
 
-      <div className="grid grid-cols-1 gap-4">
+      <motion.div className="grid grid-cols-1 gap-4" variants={sectionVariants}>
         {photoData.exif.camera && (
           <section>
             <Label>Camera</Label>
@@ -189,9 +207,9 @@ function MetadataPanel({
             </div>
           </section>
         )}
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <motion.div className="grid grid-cols-2 gap-4" variants={sectionVariants}>
         {photoData.exif.focalLength && (
           <section>
             <Label>Focal Length</Label>
@@ -224,10 +242,10 @@ function MetadataPanel({
             </div>
           </section>
         )}
-      </div>
+      </motion.div>
 
       {hasLocation && (
-        <section>
+        <motion.section variants={sectionVariants}>
           <Label>Location</Label>
           {photoData.exif.location!.address && (
             <div className="text-neutral-800 text-sm mb-2">
@@ -250,11 +268,15 @@ function MetadataPanel({
               <> - {photoData.exif.location!.altitude}m</>
             )}
           </div>
-        </section>
+        </motion.section>
       )}
 
-      {showSimilar && <SimilarPhotos photoId={photoName} />}
-    </div>
+      {showSimilar && (
+        <motion.div variants={sectionVariants}>
+          <SimilarPhotos photoId={photoName} />
+        </motion.div>
+      )}
+    </motion.div>
   );
 }
 
@@ -267,7 +289,7 @@ function ColorSwatches({ colors }: { colors: Array<{ hex: string }> }) {
       {/* Mobile: horizontal stack */}
       <div className="fixed top-4 right-4 flex flex-row items-center lg:hidden">
         {colors.slice(0, 5).map((color, i) => (
-          <div
+          <motion.div
             key={color.hex}
             className="w-8 h-8 rounded-full"
             style={{
@@ -275,13 +297,16 @@ function ColorSwatches({ colors }: { colors: Array<{ hex: string }> }) {
               zIndex: 5 - i,
               marginLeft: i === 0 ? 0 : -12,
             }}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.2, delay: i * 0.05 }}
           />
         ))}
       </div>
       {/* Desktop: vertical stack */}
       <div className="fixed bottom-4 left-4 hidden lg:flex flex-col-reverse items-center">
         {colors.slice(0, 5).map((color, i) => (
-          <div
+          <motion.div
             key={color.hex}
             className="w-10 h-10 rounded-full"
             style={{
@@ -289,6 +314,9 @@ function ColorSwatches({ colors }: { colors: Array<{ hex: string }> }) {
               zIndex: 5 - i,
               marginBottom: i === 0 ? 0 : -12,
             }}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.2, delay: i * 0.05 }}
           />
         ))}
       </div>
@@ -359,7 +387,7 @@ export function PhotoPage({
       {/* Close button - Link for page navigation */}
       <Link
         href={backHref}
-        className="fixed top-4 left-4 z-50 w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400"
+        className="fixed top-4 left-4 z-50 w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 active:scale-[0.97] active:transition-transform"
         aria-label="Back to gallery"
       >
         <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
@@ -473,17 +501,20 @@ export function PhotoModal({ photoName, photoData }: PhotoDisplayBaseProps) {
   const handleClose = () => router.back();
 
   return (
-    <div
+    <motion.div
       className="fixed inset-0 z-[100] bg-white lg:overflow-hidden overflow-y-auto overscroll-contain"
       role="dialog"
       aria-modal={true}
       aria-label={`Photo: ${photoName}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
     >
       {/* Close button - button with router.back() */}
       <button
         type="button"
         onClick={handleClose}
-        className="fixed top-4 left-4 z-[110] w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400"
+        className="fixed top-4 left-4 z-[110] w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 active:scale-[0.97] active:transition-transform"
         aria-label="Close"
       >
         <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
@@ -584,6 +615,6 @@ export function PhotoModal({ photoName, photoData }: PhotoDisplayBaseProps) {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

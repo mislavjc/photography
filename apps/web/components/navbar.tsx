@@ -290,10 +290,10 @@ function NavbarSearch({
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
-                {matchingCategories.map((cat) => {
+                {matchingCategories.map((cat, i) => {
                   const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
                   return (
-                    <button
+                    <motion.button
                       key={cat.id}
                       type="button"
                       onClick={() => {
@@ -302,7 +302,10 @@ function NavbarSearch({
                         updateSearchOpen(false);
                         inputRef.current?.blur();
                       }}
-                      className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50"
+                      className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50 active:scale-[0.97] active:transition-transform"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15, delay: Math.min(i, 6) * 0.03 }}
                     >
                       <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
                         <img
@@ -314,7 +317,7 @@ function NavbarSearch({
                       <span className="text-[15px] font-medium text-neutral-800">
                         {cat.label}
                       </span>
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>
