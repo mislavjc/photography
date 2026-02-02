@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
 
-import { PhotoDisplay } from 'components/photo-display';
+import { PhotoPage } from 'components/photo-display';
 
 import { loadManifest } from 'lib/manifest-server';
 import { selectRandomPhoto } from 'lib/manifest-utils';
@@ -34,11 +34,5 @@ export default async function RandomPage() {
   const randomPhotoName = selectRandomPhoto(photoNames);
   const photoData = manifest[randomPhotoName];
 
-  return (
-    <PhotoDisplay
-      photoName={randomPhotoName}
-      photoData={photoData}
-      backHref="/"
-    />
-  );
+  return <PhotoPage photoName={randomPhotoName} photoData={photoData} backHref="/" />;
 }

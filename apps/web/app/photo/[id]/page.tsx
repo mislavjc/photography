@@ -1,7 +1,7 @@
 import { cacheLife } from 'next/cache';
 import { notFound } from 'next/navigation';
 
-import { PhotoDisplay } from 'components/photo-display';
+import { PhotoPage as PhotoPageComponent } from 'components/photo-display';
 
 import { loadManifest } from 'lib/manifest-server';
 
@@ -40,7 +40,7 @@ export default async function PhotoPage({
   const backHref = q ? `${basePath}?q=${encodeURIComponent(q)}` : basePath;
 
   return (
-    <PhotoDisplay
+    <PhotoPageComponent
       photoName={photoId}
       photoData={photoData}
       backHref={backHref}
