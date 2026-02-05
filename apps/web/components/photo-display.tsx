@@ -174,15 +174,6 @@ function MetadataPanel({
         </motion.div>
       )}
 
-      {photoData.description && (
-        <motion.section variants={sectionVariants}>
-          <Label>Description</Label>
-          <p className="text-neutral-800 leading-relaxed text-sm">
-            {photoData.description}
-          </p>
-        </motion.section>
-      )}
-
       <motion.section variants={sectionVariants}>
         <Label>Dimensions</Label>
         <div className="font-mono text-neutral-800">
