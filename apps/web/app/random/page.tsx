@@ -34,5 +34,5 @@ export default async function RandomPage() {
   const randomPhotoName = selectRandomPhoto(photoNames);
   const photoData = manifest[randomPhotoName];
 
-  return <PhotoPage photoName={randomPhotoName} photoData={photoData} backHref="/" />;
+  return <PhotoPage photoName={randomPhotoName} photoData={photoData} />;
 }
