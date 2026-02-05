@@ -7,7 +7,6 @@ import { loadManifest } from 'lib/manifest-server';
 
 interface PhotoPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string; q?: string }>;
 }
 
 async function getPhotoData(photoId: string) {
@@ -23,12 +22,10 @@ async function getPhotoData(photoId: string) {
   return manifest[photoId];
 }
 
-export default async function PhotoPage({
-  params,
-  searchParams,
-}: PhotoPageProps) {
+// Page is now fully static - searchParams are read client-side via useSearchParams
+// This enables partial prerendering: photo content is cached, back link is dynamic
+export default async function PhotoPage({ params }: PhotoPageProps) {
   const { id: photoId } = await params;
-  const { from, q } = await searchParams;
 
   const photoData = await getPhotoData(photoId);
 
@@ -36,14 +33,5 @@ export default async function PhotoPage({
     notFound();
   }
 
-  const basePath = from === 'timeline' ? '/timeline' : '/';
-  const backHref = q ? `${basePath}?q=${encodeURIComponent(q)}` : basePath;
-
-  return (
-    <PhotoPageComponent
-      photoName={photoId}
-      photoData={photoData}
-      backHref={backHref}
-    />
-  );
+  return <PhotoPageComponent photoName={photoId} photoData={photoData} />;
 }
