@@ -5,7 +5,7 @@ import React, { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Picture } from './picture';
 import { SimilarPhotos } from './similar-photos';
@@ -360,18 +360,25 @@ interface PhotoDisplayBaseProps {
   photoData: PhotoData;
 }
 
-// PhotoPage - for /photo/[id] route, uses Link for navigation
-interface PhotoPageProps extends PhotoDisplayBaseProps {
-  backHref?: string;
+// Hook to compute back href from search params (client-side only)
+// This enables the page to be prerendered while back navigation is dynamic
+function useBackHref(fallback = '/') {
+  const searchParams = useSearchParams();
+  return useMemo(() => {
+    const from = searchParams.get('from');
+    const q = searchParams.get('q');
+    const basePath = from === 'timeline' ? '/timeline' : '/';
+    return q ? `${basePath}?q=${encodeURIComponent(q)}` : basePath;
+  }, [searchParams]);
 }
 
-export function PhotoPage({
-  photoName,
-  photoData,
-  backHref = '/',
-}: PhotoPageProps) {
+// PhotoPage - for /photo/[id] route, uses Link for navigation
+type PhotoPageProps = PhotoDisplayBaseProps;
+
+export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
   const { dominantColors, dominant, hasLocation, mapUrl, formattedDate } =
     usePhotoDisplayData(photoData);
+  const backHref = useBackHref();
 
   return (
     <div className="min-h-[100svh] bg-white lg:bg-white">
