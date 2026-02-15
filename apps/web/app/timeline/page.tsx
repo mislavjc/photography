@@ -6,11 +6,9 @@ import { TimelineWrapper } from 'components/timeline-wrapper';
 
 import { loadManifest } from 'lib/manifest-server';
 import {
-  computeJustifiedRows,
-  calculateTotalHeight,
+  computeMasonryLayout,
   GAP,
-  TARGET_ROW_HEIGHT,
-  type JustifiedRow,
+  type MasonryColumn,
 } from 'lib/timeline-layout';
 import { groupPhotosForTimeline, type TimelineData } from 'lib/timeline-utils';
 import type { Manifest } from 'types';
@@ -28,7 +26,7 @@ export interface PrecomputedItem {
   height: number;
   yearKey: string;
   monthKey?: string;
-  precomputedRows?: JustifiedRow[];
+  precomputedMasonry?: MasonryColumn[];
 }
 
 // Precompute and trim data on the server
@@ -88,14 +86,11 @@ async function getTimelineData(): Promise<{
       currentTop += MONTH_HEADER_HEIGHT;
 
       for (const day of month.days) {
-        const rows = computeJustifiedRows(
+        const masonry = computeMasonryLayout(
           day.photos,
           DEFAULT_CONTAINER_WIDTH,
-          TARGET_ROW_HEIGHT,
-          GAP,
         );
-        const photosHeight = calculateTotalHeight(rows, GAP);
-        const dayHeight = Math.max(48, photosHeight + DAY_ROW_PADDING);
+        const dayHeight = Math.max(48, masonry.height + DAY_ROW_PADDING);
 
         const dayUniqueKey = `${year.key}-${month.key}-${day.key}`;
         precomputedItems.push({
@@ -105,7 +100,7 @@ async function getTimelineData(): Promise<{
           height: dayHeight,
           yearKey: year.key,
           monthKey: month.key,
-          precomputedRows: rows,
+          precomputedMasonry: masonry.columns,
         });
         currentTop += dayHeight;
       }

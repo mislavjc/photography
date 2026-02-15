@@ -7,11 +7,9 @@ import type { Manifest } from 'types';
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
 
 import {
-  calculateTotalHeight,
-  computeJustifiedRows,
+  computeMasonryLayout,
   GAP,
-  type JustifiedRow,
-  TARGET_ROW_HEIGHT,
+  type MasonryColumn,
 } from 'lib/timeline-layout';
 import type {
   DayGroup,
@@ -34,7 +32,7 @@ interface SSRItem {
   height: number;
   yearKey: string;
   monthKey?: string;
-  precomputedRows?: JustifiedRow[];
+  precomputedMasonry?: MasonryColumn[];
 }
 
 interface TimelineProps {
@@ -116,9 +114,9 @@ export function Timeline({
   }, [data, filteredIds]);
 
   // Calculate the width available for photos (memoized)
-  // Mobile: timeline 1px + gap-3 (12px) + safety buffer (16px) = 29px
+  // Mobile: no sidebar (timeline line hidden, photos full width)
   // Desktop: timeline 1px + gap-6 (24px) + date w-20 (80px) + gap-6 (24px) = 129px
-  const sidebarWidth = useMemo(() => (isMobile ? 29 : 129), [isMobile]);
+  const sidebarWidth = useMemo(() => (isMobile ? 0 : 129), [isMobile]);
   const photoContainerWidth = useMemo(
     () => Math.max(150, (innerWidth ?? 800) - sidebarWidth),
     [innerWidth, sidebarWidth],
@@ -234,14 +232,14 @@ export function Timeline({
       data: YearGroup | MonthGroup | DayGroup;
       yearKey: string;
       monthKey?: string;
-      precomputedRows?: JustifiedRow[];
+      precomputedMasonry?: MasonryColumn[];
     }> = [];
 
     let currentTop = 0;
     const YEAR_HEADER_HEIGHT = 80;
     const MONTH_HEADER_HEIGHT = 56;
     const DAY_ROW_PADDING = 24;
-    const MOBILE_DATE_HEIGHT = isMobile ? 32 : 0;
+    const MOBILE_DATE_HEIGHT = isMobile ? 36 : 0;
 
     for (const year of filteredData.years) {
       items.push({
@@ -268,16 +266,13 @@ export function Timeline({
         currentTop += MONTH_HEADER_HEIGHT;
 
         for (const day of month.days) {
-          const rows = computeJustifiedRows(
+          const masonry = computeMasonryLayout(
             day.photos,
             photoContainerWidth,
-            TARGET_ROW_HEIGHT,
-            GAP,
           );
-          const photosHeight = calculateTotalHeight(rows, GAP);
           const dayHeight = Math.max(
             48,
-            photosHeight + DAY_ROW_PADDING + MOBILE_DATE_HEIGHT,
+            masonry.height + DAY_ROW_PADDING + MOBILE_DATE_HEIGHT,
           );
 
           const dayUniqueKey = `${year.key}-${month.key}-${day.key}`;
@@ -289,7 +284,7 @@ export function Timeline({
             data: day,
             yearKey: year.key,
             monthKey: month.key,
-            precomputedRows: rows,
+            precomputedMasonry: masonry.columns,
           });
           currentTop += dayHeight;
         }
@@ -382,7 +377,7 @@ export function Timeline({
       {/* Virtual scroll container */}
       <div
         ref={innerContainerRef}
-        className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-12"
+        className="relative mx-auto max-w-6xl px-2 sm:px-6 lg:px-12"
         style={{ height: itemsWithPositions.totalHeight }}
       >
         {visibleItems.map((item) => {
@@ -391,7 +386,7 @@ export function Timeline({
             return (
               <div
                 key={item.key}
-                className="absolute left-0 right-0 px-4 sm:px-6 lg:px-12"
+                className="absolute left-0 right-0 px-2 sm:px-6 lg:px-12"
                 style={{ top: item.top, height: item.height }}
               >
                 <div className="sticky top-14 z-20 bg-white/90 backdrop-blur-sm py-4 sm:py-6">
@@ -408,7 +403,7 @@ export function Timeline({
             return (
               <div
                 key={item.key}
-                className="absolute left-0 right-0 px-4 sm:px-6 lg:px-12"
+                className="absolute left-0 right-0 px-2 sm:px-6 lg:px-12"
                 style={{ top: item.top, height: item.height }}
               >
                 <div className="sticky top-[88px] z-10 bg-white/90 backdrop-blur-sm py-2 sm:py-3">
@@ -425,14 +420,14 @@ export function Timeline({
             return (
               <div
                 key={item.key}
-                className="absolute left-0 right-0 px-4 sm:px-6 lg:px-12 sm:py-3"
+                className="absolute left-0 right-0 px-2 sm:px-6 lg:px-12 sm:py-3"
                 style={{ top: item.top, height: item.height }}
               >
                 <TimelineDayRow
                   day={dayData}
                   manifest={manifest}
                   containerWidth={photoContainerWidth}
-                  precomputedRows={item.precomputedRows}
+                  precomputedMasonry={item.precomputedMasonry}
                   searchQuery={searchQuery}
                 />
               </div>
