@@ -146,7 +146,6 @@ function MetadataPanel({
   formattedDate,
   mapUrl,
   hasLocation,
-  showSimilar,
   mapLoading = 'eager',
 }: {
   photoName: string;
@@ -154,7 +153,6 @@ function MetadataPanel({
   formattedDate: string | null;
   mapUrl: string | null;
   hasLocation: boolean;
-  showSimilar: boolean;
   mapLoading?: 'lazy' | 'eager';
 }) {
   return (
@@ -262,11 +260,9 @@ function MetadataPanel({
         </motion.section>
       )}
 
-      {showSimilar && (
-        <motion.div variants={sectionVariants}>
-          <SimilarPhotos photoId={photoName} />
-        </motion.div>
-      )}
+      <motion.div variants={sectionVariants}>
+        <SimilarPhotos photoId={photoName} />
+      </motion.div>
     </motion.div>
   );
 }
@@ -429,7 +425,7 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
               formattedDate={formattedDate}
               mapUrl={mapUrl}
               hasLocation={hasLocation}
-              showSimilar={true}
+
               mapLoading="eager"
             />
           </div>
@@ -480,7 +476,7 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
               formattedDate={formattedDate}
               mapUrl={mapUrl}
               hasLocation={hasLocation}
-              showSimilar={true}
+
               mapLoading="lazy"
             />
           </div>
@@ -556,7 +552,7 @@ export function PhotoModal({ photoName, photoData }: PhotoDisplayBaseProps) {
               formattedDate={formattedDate}
               mapUrl={mapUrl}
               hasLocation={hasLocation}
-              showSimilar={false}
+
               mapLoading="eager"
             />
           </div>
@@ -607,7 +603,7 @@ export function PhotoModal({ photoName, photoData }: PhotoDisplayBaseProps) {
               formattedDate={formattedDate}
               mapUrl={mapUrl}
               hasLocation={hasLocation}
-              showSimilar={false}
+
               mapLoading="lazy"
             />
           </div>
