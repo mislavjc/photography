@@ -11,6 +11,28 @@ import {
   saveManifest,
 } from '../lib/r2.js';
 
+async function revalidateManifestCache() {
+  const secret = process.env.REVALIDATION_SECRET;
+  const domain = process.env.SITE_DOMAIN || 'photos.mislavjc.com';
+  if (!secret) {
+    consola.warn('REVALIDATION_SECRET not set, skipping cache revalidation');
+    return;
+  }
+  try {
+    const res = await fetch(`https://${domain}/api/revalidate`, {
+      method: 'POST',
+      headers: { 'x-revalidation-secret': secret },
+    });
+    if (res.ok) {
+      consola.success('Production cache revalidated');
+    } else {
+      consola.warn(`Cache revalidation failed: ${res.status}`);
+    }
+  } catch (e) {
+    consola.warn(`Cache revalidation error: ${e}`);
+  }
+}
+
 export default defineCommand({
   meta: {
     name: 'descriptions',
@@ -144,6 +166,7 @@ export default defineCommand({
       spinner.succeed(
         `Saved manifest: ${result.entries} entries, ${(result.compressedSize / 1024).toFixed(1)}KB`,
       );
+      await revalidateManifestCache();
     }
 
     consola.box({

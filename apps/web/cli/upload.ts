@@ -52,6 +52,29 @@ import {
   uuidv7FromHash,
 } from './shared';
 
+// ----------------------- Revalidate Cache -----------------------
+async function revalidateManifestCache() {
+  const secret = process.env.REVALIDATION_SECRET;
+  const domain = process.env.SITE_DOMAIN || 'photos.mislavjc.com';
+  if (!secret) {
+    console.log('⚠️  REVALIDATION_SECRET not set, skipping cache revalidation');
+    return;
+  }
+  try {
+    const res = await fetch(`https://${domain}/api/revalidate`, {
+      method: 'POST',
+      headers: { 'x-revalidation-secret': secret },
+    });
+    if (res.ok) {
+      console.log('🔄 Production cache revalidated');
+    } else {
+      console.log(`⚠️  Cache revalidation failed: ${res.status}`);
+    }
+  } catch (e) {
+    console.log(`⚠️  Cache revalidation error: ${e}`);
+  }
+}
+
 // ----------------------- Discover Files -----------------------
 const discoverFiles = (srcDir: string) =>
   Effect.gen(function* () {
@@ -298,6 +321,9 @@ const program = Effect.gen(function* () {
     yield* Console.log(
       `   Compression: ${formatBytes(result.originalSize)} → ${formatBytes(result.compressedSize)} (${result.encoding}, ${((result.compressedSize / result.originalSize) * 100).toFixed(1)}%)`,
     );
+
+    // Revalidate production cache
+    yield* Effect.promise(() => revalidateManifestCache());
   }
 
   // Print summary
