@@ -14,12 +14,13 @@ async function getPhotoData(photoId: string) {
   cacheLife('days');
 
   const manifest = await loadManifest();
+  const key = manifest[photoId] ? photoId : `${photoId}.jpg`;
 
-  if (!manifest[photoId]) {
+  if (!manifest[key]) {
     return null;
   }
 
-  return manifest[photoId];
+  return manifest[key];
 }
 
 export default async function PhotoModalPage({ params }: ModalPageProps) {

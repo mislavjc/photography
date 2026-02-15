@@ -14,12 +14,13 @@ async function getPhotoData(photoId: string) {
   cacheLife('days');
 
   const manifest = await loadManifest();
+  const key = manifest[photoId] ? photoId : `${photoId}.jpg`;
 
-  if (!manifest[photoId]) {
+  if (!manifest[key]) {
     return null;
   }
 
-  return manifest[photoId];
+  return manifest[key];
 }
 
 // Page is now fully static - searchParams are read client-side via useSearchParams
