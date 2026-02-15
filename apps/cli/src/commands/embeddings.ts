@@ -322,7 +322,7 @@ export default defineCommand({
     if (processed > 0) {
       consola.info('\nTest search:');
       consola.info(
-        `  curl "https://photography-search-api.mislavjc.workers.dev/search?q=sunset"`,
+        `  curl "https://photos-search-api.mislavjc.workers.dev/search?q=sunset"`,
       );
     }
   },

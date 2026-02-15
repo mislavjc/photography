@@ -23,8 +23,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(`https://${SITE_CONFIG.domain}`),
-  title: 'Photography Portfolio',
-  description: 'A personal archive of my street photography while travelling.',
+  title: 'Photos',
+  description: 'A personal photo archive from my travels.',
 };
 
 const RootLayout = ({
@@ -38,7 +38,7 @@ const RootLayout = ({
     <html lang="en">
       <head>
         {/* Resource hints for image CDN */}
-        <link rel="dns-prefetch" href="//r2.photography.mislavjc.com" />
+        <link rel="dns-prefetch" href="//r2.photos.mislavjc.com" />
         <link
           rel="preconnect"
           href={process.env.NEXT_PUBLIC_R2_PUBLIC_URL}

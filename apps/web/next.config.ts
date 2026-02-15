@@ -16,8 +16,14 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        // Redirect old domain to new domain
+        source: '/:path*',
+        has: [{ type: 'host', value: 'photography.mislavjc.com' }],
+        destination: 'https://photos.mislavjc.com/:path*',
+        permanent: true,
+      },
+      {
         // Redirect old /[photo-name] routes to new /photo/[id] format
-        // Match UUIDs with file extensions (e.g., 00000000-0000-0000-0000-000000000000.jpg)
         source:
           '/:id([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.[a-z]+)',
         destination: '/photo/:id',
@@ -35,7 +41,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'r2.photography.mislavjc.com',
+        hostname: 'r2.photos.mislavjc.com',
       },
       {
         protocol: 'https',

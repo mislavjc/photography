@@ -1,12 +1,12 @@
-# Photography Portfolio
+# Photos
 
-A personal photography portfolio built with Next.js in a Turborepo monorepo.
+A personal photo archive built with Next.js in a Turborepo monorepo.
 
 ## Structure
 
 ```
 apps/
-  web/          # Next.js photography portfolio app
+  web/          # Next.js photo archive app
 packages/
   eslint-config/       # Shared ESLint configuration
   typescript-config/   # Shared TypeScript configuration

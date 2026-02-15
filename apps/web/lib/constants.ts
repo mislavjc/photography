@@ -1,3 +1,3 @@
 export const SITE_CONFIG = {
-  domain: 'photography.mislavjc.com',
+  domain: 'photos.mislavjc.com',
 } as const;

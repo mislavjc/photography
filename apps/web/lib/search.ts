@@ -1,4 +1,4 @@
-const SEARCH_API_URL = 'https://photography-search-api.mislavjc.workers.dev';
+const SEARCH_API_URL = 'https://photos-search-api.mislavjc.workers.dev';
 
 export interface SearchResult {
   id: string;

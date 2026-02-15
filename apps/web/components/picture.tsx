@@ -18,7 +18,7 @@ function r2VariantUrl(
   format: Formats,
 ) {
   const base = uuidWithExt.replace(/\.[^.]+$/, '');
-  return `https://r2.photography.mislavjc.com/variants/${profile}/${format}/${width}/${base}.${format}`;
+  return `https://r2.photos.mislavjc.com/variants/${profile}/${format}/${width}/${base}.${format}`;
 }
 function buildSrcSet(
   uuidWithExt: string,

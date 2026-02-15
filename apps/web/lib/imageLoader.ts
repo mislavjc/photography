@@ -63,8 +63,8 @@ export default function r2ImageLoader({
   }
 
   // Build R2 URL for variant
-  // Pattern: https://r2.photography.mislavjc.com/variants/{format}/{width}/{baseName}.{format}
-  const baseUrl = 'https://r2.photography.mislavjc.com';
+  // Pattern: https://r2.photos.mislavjc.com/variants/{format}/{width}/{baseName}.{format}
+  const baseUrl = 'https://r2.photos.mislavjc.com';
   const variantPath = `variants/${selectedFormat}/${optimalWidth}/${baseName}.${selectedFormat}`;
 
   return `${baseUrl}/${variantPath}`;
@@ -77,7 +77,7 @@ export function r2ImageLoaderSSR({ src, width }: ImageLoaderProps): string {
   const optimalWidth = selectOptimalWidth(width);
 
   // Use WebP as default for SSR (good browser support, better than JPEG)
-  const baseUrl = 'https://r2.photography.mislavjc.com';
+  const baseUrl = 'https://r2.photos.mislavjc.com';
   const variantPath = `variants/webp/${optimalWidth}/${baseName}.webp`;
 
   return `${baseUrl}/${variantPath}`;

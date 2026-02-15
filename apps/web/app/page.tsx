@@ -48,7 +48,7 @@ export default async function Page() {
             key={candidate.filename}
             rel="preload"
             as="image"
-            href={`https://r2.photography.mislavjc.com/variants/grid/avif/480/${base}.avif`}
+            href={`https://r2.photos.mislavjc.com/variants/grid/avif/480/${base}.avif`}
             type="image/avif"
           />
         );

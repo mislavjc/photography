@@ -43,7 +43,7 @@ export const searchIndex = await VectorizeIndex('photo-search', {
 
 // Cache for text embeddings to avoid repeated Replicate API calls
 export const embeddingCache = await KVNamespace('embedding-cache', {
-  title: 'photography-embedding-cache',
+  title: 'photos-embedding-cache',
 });
 
 // =============================================================================
@@ -55,7 +55,7 @@ const replicateApiToken = process.env.REPLICATE_API_TOKEN;
 
 export const searchWorker = replicateApiToken
   ? await Worker('search-api', {
-      name: 'photography-search-api',
+      name: 'photos-search-api',
       entrypoint: './apps/search-worker/src/index.ts',
       adopt: true,
       bindings: {
