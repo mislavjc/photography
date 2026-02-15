@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import PlausibleProvider from 'next-plausible';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
+import { Analytics } from 'components/analytics';
 import { SITE_CONFIG } from 'lib/constants';
 
 import './globals.css';
@@ -48,15 +48,11 @@ const RootLayout = ({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <PlausibleProvider
-          domain={SITE_CONFIG.domain}
-          scriptProps={{ strategy: 'lazyOnload' } as never}
-        >
-          <NuqsAdapter>
-            {children}
-            {modal}
-          </NuqsAdapter>
-        </PlausibleProvider>
+        <NuqsAdapter>
+          {children}
+          {modal}
+        </NuqsAdapter>
+        <Analytics />
       </body>
     </html>
   );
