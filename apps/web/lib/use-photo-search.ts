@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useQueryState } from 'nuqs';
 
+import { trackEvent } from './analytics';
 import { searchPhotos, type SearchResult } from './search';
 
 interface UsePhotoSearchOptions {
@@ -52,6 +53,10 @@ export function usePhotoSearch({
           setFilteredIds(ids);
           setSearchResultCount(ids.size);
           setSearchPreview(results.slice(0, 8));
+          trackEvent('Search', {
+            query,
+            result_count: String(ids.size),
+          });
         } catch (error) {
           console.error('Search failed:', error);
           setFilteredIds(null);

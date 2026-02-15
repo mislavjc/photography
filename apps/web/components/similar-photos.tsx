@@ -4,6 +4,7 @@ import { memo, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 
+import { trackEvent } from 'lib/analytics';
 import { getSimilarPhotos, type SearchResult } from 'lib/search';
 
 const gridVariants = {
@@ -93,6 +94,12 @@ export const SimilarPhotos = memo(function SimilarPhotos({
             <motion.div key={result.id} variants={itemVariants}>
               <Link
                 href={`/photo/${result.id}`}
+                onClick={() =>
+                  trackEvent('Similar Photo Click', {
+                    from_photo: photoId,
+                    to_photo: result.id,
+                  })
+                }
                 className="block aspect-square overflow-hidden rounded-lg bg-neutral-200 transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-neutral-400"
               >
                 <img
