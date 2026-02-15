@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid secret' }, { status: 401 });
   }
 
-  revalidateTag('manifest');
+  revalidateTag('manifest', 'days');
 
   return NextResponse.json({ revalidated: true });
 }
