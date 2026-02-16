@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 
 import { computeNearSquareLayout } from 'lib/layout';
 import { loadManifest } from 'lib/manifest-server';
+import type { Manifest } from 'types';
 
 import { HomeGrid } from '../components/home-grid';
 
@@ -29,6 +30,8 @@ function getLcpCandidates(
     .slice(0, count);
 }
 
+const EXT_RE = /\.[^.]+$/;
+
 export default async function Page() {
   'use cache';
   cacheLife('days');
@@ -38,11 +41,23 @@ export default async function Page() {
   const layout = computeNearSquareLayout(manifest);
   const lcpCandidates = getLcpCandidates(layout);
 
+  // Strip manifest to only fields needed by client: w, h, first dominant color
+  const trimmedManifest = {} as Manifest;
+  for (const [key, value] of Object.entries(manifest)) {
+    trimmedManifest[key] = {
+      w: value.w,
+      h: value.h,
+      exif: {
+        dominantColors: value.exif?.dominantColors?.slice(0, 1),
+      },
+    } as Manifest[string];
+  }
+
   return (
     <>
       {/* Preload LCP candidate images for faster initial paint */}
       {lcpCandidates.map((candidate) => {
-        const base = candidate.filename.replace(/\.[^.]+$/, '');
+        const base = candidate.filename.replace(EXT_RE, '');
         return (
           <link
             key={candidate.filename}
@@ -55,7 +70,7 @@ export default async function Page() {
       })}
       <div>
         <Suspense fallback={null}>
-          <HomeGrid manifest={manifest} initialLayout={layout} />
+          <HomeGrid manifest={trimmedManifest} initialLayout={layout} />
         </Suspense>
       </div>
     </>

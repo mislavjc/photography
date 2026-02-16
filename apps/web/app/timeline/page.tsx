@@ -43,20 +43,27 @@ async function getTimelineData(): Promise<{
   const manifest = await loadManifest();
   const timelineData = groupPhotosForTimeline(manifest);
 
-  // Only send essential manifest data to client (dominant colors for placeholders)
-  // We use type assertion since we only need a subset of fields for rendering
+  // Strip `entry` from photos — only needed server-side for date parsing
+  for (const year of timelineData.years) {
+    for (const month of year.months) {
+      for (const day of month.days) {
+        for (const photo of day.photos) {
+          delete photo.entry;
+        }
+      }
+    }
+  }
+
+  // Only send fields the client actually uses: dominant color hex for placeholders
   const trimmedManifest: Manifest = {};
   for (const [key, value] of Object.entries(manifest)) {
     trimmedManifest[key] = {
-      blurhash: value.blurhash,
       w: value.w,
       h: value.h,
       exif: {
-        ...value.exif,
-        // Only keep first dominant color to reduce payload
         dominantColors: value.exif?.dominantColors?.slice(0, 1),
       },
-    };
+    } as Manifest[string];
   }
 
   // Precompute layout positions for SSR to reduce CLS
@@ -130,6 +137,8 @@ async function getTimelineData(): Promise<{
   };
 }
 
+const EXT_RE = /\.[^.]+$/;
+
 export default async function TimelinePage() {
   const {
     timelineData,
@@ -143,7 +152,7 @@ export default async function TimelinePage() {
     <main>
       {/* Preload LCP images */}
       {lcpImages.map((filename) => {
-        const base = filename.replace(/\.[^.]+$/, '');
+        const base = filename.replace(EXT_RE, '');
         return (
           <link
             key={filename}

@@ -6,7 +6,7 @@ export interface PhotoWithMeta {
   h: number;
   ar: number; // aspect ratio (w/h)
   dateTime: Date | null;
-  entry: ManifestEntry;
+  entry?: ManifestEntry; // Only present server-side during grouping; stripped before serialization
 }
 
 export interface DayGroup {
