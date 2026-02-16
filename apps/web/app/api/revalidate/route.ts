@@ -1,4 +1,5 @@
 import { revalidateTag } from 'next/cache';
+import { after } from 'next/server';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -8,7 +9,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid secret' }, { status: 401 });
   }
 
-  revalidateTag('manifest', 'days');
+  // Run revalidation after the response is sent (non-blocking)
+  after(() => {
+    revalidateTag('manifest', 'days');
+  });
 
   return NextResponse.json({ revalidated: true });
 }
