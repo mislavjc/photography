@@ -11,13 +11,15 @@ const LARGE_WIDTHS = [
   256, 384, 512, 768, 1024, 1280, 1536, 1920, 2560,
 ] as const;
 
+const EXT_RE = /\.[^.]+$/;
+
 function r2VariantUrl(
   uuidWithExt: string,
   profile: Profile,
   width: number,
   format: Formats,
 ) {
-  const base = uuidWithExt.replace(/\.[^.]+$/, '');
+  const base = uuidWithExt.replace(EXT_RE, '');
   return `https://r2.photos.mislavjc.com/variants/${profile}/${format}/${width}/${base}.${format}`;
 }
 function buildSrcSet(

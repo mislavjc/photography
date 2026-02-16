@@ -23,6 +23,7 @@ import { TimelineDayRow } from './timeline-day-row';
 
 // Virtualization settings
 const VIRTUAL_MARGIN = 600; // px above/below viewport to render
+const EXT_RE = /\.[^.]+$/;
 
 // Type for SSR-precomputed items
 interface SSRItem {
@@ -91,7 +92,7 @@ export function Timeline({
 
         for (const day of month.days) {
           const filteredPhotos = day.photos.filter((photo) => {
-            const id = photo.filename.replace(/\.[^.]+$/, '');
+            const id = photo.filename.replace(EXT_RE, '');
             return filteredIds.has(id);
           });
 
@@ -298,21 +299,30 @@ export function Timeline({
   const ssrMergedItems = useMemo(() => {
     if (!useSSRItems || !ssrItems || !ssrTotalHeight) return null;
 
+    // Build lookup maps for O(1) access instead of repeated .find()
+    const yearMap = new Map<string, YearGroup>();
+    const monthMap = new Map<string, MonthGroup>();
+    const dayMap = new Map<string, DayGroup>();
+    for (const year of filteredData.years) {
+      yearMap.set(year.key, year);
+      for (const month of year.months) {
+        monthMap.set(`${year.key}-${month.key}`, month);
+        for (const day of month.days) {
+          dayMap.set(`${year.key}-${month.key}-${day.key}`, day);
+        }
+      }
+    }
+
     const items = ssrItems.map((ssrItem) => {
       let itemData: YearGroup | MonthGroup | DayGroup | undefined;
 
       if (ssrItem.type === 'year') {
-        itemData = filteredData.years.find((y) => y.key === ssrItem.yearKey);
+        itemData = yearMap.get(ssrItem.yearKey);
       } else if (ssrItem.type === 'month') {
-        const year = filteredData.years.find((y) => y.key === ssrItem.yearKey);
-        itemData = year?.months.find((m) => m.key === ssrItem.monthKey);
+        itemData = monthMap.get(`${ssrItem.yearKey}-${ssrItem.monthKey}`);
       } else if (ssrItem.type === 'day') {
-        const year = filteredData.years.find((y) => y.key === ssrItem.yearKey);
-        const month = year?.months.find((m) => m.key === ssrItem.monthKey);
-        itemData = month?.days.find((d) => {
-          const fullKey = `${ssrItem.yearKey}-${ssrItem.monthKey}-${d.key}`;
-          return fullKey === ssrItem.key.replace('day-', '');
-        });
+        const dayKey = ssrItem.key.replace('day-', '');
+        itemData = dayMap.get(dayKey);
       }
 
       return {

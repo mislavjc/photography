@@ -53,6 +53,10 @@ export function usePhotoSearch({
           setFilteredIds(ids);
           setSearchResultCount(ids.size);
           setSearchPreview(results.slice(0, 8));
+          // Update title inline with search results
+          document.title = searchTitleFormat
+            .replace('%q', query)
+            .replace('%n', String(ids.size));
           trackEvent('Search', {
             query,
             result_count: String(ids.size),
@@ -62,25 +66,16 @@ export function usePhotoSearch({
           setFilteredIds(null);
           setSearchResultCount(undefined);
           setSearchPreview([]);
+          document.title = baseTitle;
         }
       });
     } else {
       setFilteredIds(null);
       setSearchResultCount(undefined);
       setSearchPreview([]);
-    }
-  }, [query]);
-
-  // Update page title based on search
-  useEffect(() => {
-    if (query && searchResultCount !== undefined) {
-      document.title = searchTitleFormat
-        .replace('%q', query)
-        .replace('%n', String(searchResultCount));
-    } else {
       document.title = baseTitle;
     }
-  }, [query, searchResultCount, baseTitle, searchTitleFormat]);
+  }, [query, baseTitle, searchTitleFormat]);
 
   const handleSearch = (q: string) => {
     const trimmed = q.trim();

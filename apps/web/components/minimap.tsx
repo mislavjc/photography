@@ -95,29 +95,13 @@ export function Minimap({
   const camCy = offsetY + (camY + pad + viewH / 2) * scale;
 
   // Trail of recent camera centers (breadcrumbs)
-  // Using state to properly track the trail
-  const [trail, setTrail] = useState<Array<{ x: number; y: number }>>([]);
-  const updateScheduledRef = useRef(false);
-
-  // Update trail asynchronously to avoid setState-in-effect warning
-  useEffect(() => {
-    if (!updateScheduledRef.current) {
-      updateScheduledRef.current = true;
-      // Schedule state update for next tick
-      Promise.resolve().then(() => {
-        setTrail((prev) => {
-          // Only update if position actually changed
-          const lastPos = prev[prev.length - 1];
-          if (lastPos && lastPos.x === camCx && lastPos.y === camCy) {
-            updateScheduledRef.current = false;
-            return prev;
-          }
-          updateScheduledRef.current = false;
-          return [...prev, { x: camCx, y: camCy }].slice(-14);
-        });
-      });
-    }
-  }, [camCx, camCy]);
+  // Derive trail from camera position during render instead of via effect
+  const trailRef = useRef<Array<{ x: number; y: number }>>([]);
+  const lastTrailPos = trailRef.current[trailRef.current.length - 1];
+  if (!lastTrailPos || lastTrailPos.x !== camCx || lastTrailPos.y !== camCy) {
+    trailRef.current = [...trailRef.current, { x: camCx, y: camCy }].slice(-14);
+  }
+  const trail = trailRef.current;
 
   // Drag state
   const draggingRef = useRef(false);

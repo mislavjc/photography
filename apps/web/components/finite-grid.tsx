@@ -29,6 +29,7 @@ const Navbar = lazy(() =>
   }).then((m) => ({ default: m.Navbar })),
 );
 
+const EXT_RE = /\.[^.]+$/;
 const SSR_SAFE_VW = 1200;
 const SSR_SAFE_VH = 800;
 
@@ -119,7 +120,7 @@ export function PannableGrid({
     if (!filteredIds || filteredIds.size === 0) return manifest;
     const filtered: Manifest = {};
     for (const [filename, entry] of Object.entries(manifest)) {
-      const id = filename.replace(/\.[^.]+$/, '');
+      const id = filename.replace(EXT_RE, '');
       if (filteredIds.has(id)) {
         filtered[filename] = entry;
       }
