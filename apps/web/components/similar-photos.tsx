@@ -73,6 +73,7 @@ export const SimilarPhotos = memo(function SimilarPhotos({
           <Link
             key={result.id}
             href={`/photo/${result.id}`}
+            replace
             onClick={() =>
               trackEvent('Similar Photo Click', {
                 from_photo: photoId,
