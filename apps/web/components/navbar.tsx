@@ -212,6 +212,7 @@ function NavbarSearch({
   return (
     <div ref={searchRef} className="relative flex-1 md:max-w-lg md:mx-auto">
       <form
+        role="search"
         onSubmit={(e) => {
           e.preventDefault();
           handleSearch(inputValue);
@@ -227,7 +228,7 @@ function NavbarSearch({
           />
         ) : (
           <Search
-            className="h-[18px] w-[18px] text-neutral-400"
+            className="h-[18px] w-[18px] text-neutral-500"
             aria-hidden="true"
           />
         )}
@@ -250,7 +251,7 @@ function NavbarSearch({
               inputRef.current?.blur();
             }
           }}
-          className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 outline-none focus-visible:outline-none placeholder:text-neutral-400"
+          className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 outline-none focus-visible:outline-none placeholder:text-neutral-500"
         />
         {isSearching ? (
           <span className="text-xs text-neutral-500 animate-pulse">
@@ -412,7 +413,7 @@ export const Navbar = ({
       <motion.nav
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fixed top-0 left-0 right-0 z-[70] bg-white"
+        className="fixed top-0 left-0 right-0 z-[70] bg-white border-b border-neutral-200/50"
       >
         <div className="mx-auto flex h-14 items-center gap-3 px-4">
           {/* Left: Logo (desktop) or hidden on mobile when search focused */}
@@ -603,13 +604,13 @@ function MobileNavLink({
   return (
     <a
       href={href}
-      className={`relative px-2 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 rounded ${
-        isActive ? 'text-neutral-900' : 'text-neutral-400'
+      className={`relative min-h-[44px] flex items-center px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 rounded ${
+        isActive ? 'text-neutral-900' : 'text-neutral-500'
       }`}
     >
       {label}
       {isActive && (
-        <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-neutral-300" />
+        <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-neutral-300" />
       )}
     </a>
   );
