@@ -111,13 +111,15 @@ function MapImage({
           card
             .querySelector<HTMLElement>('[data-skel]')
             ?.classList.add('hidden');
-          card
-            .querySelector<HTMLElement>('[data-fallback]')
-            ?.classList.remove('hidden');
+          const fallback = card.querySelector<HTMLElement>('[data-fallback]');
+          if (fallback) {
+            fallback.classList.remove('hidden');
+            fallback.classList.add('flex');
+          }
         }}
       />
       <div
-        className="absolute inset-0 hidden flex items-center justify-center bg-neutral-200"
+        className="absolute inset-0 hidden items-center justify-center bg-neutral-200"
         data-fallback
       >
         <div className="text-center text-xs text-neutral-500 font-mono px-4">
@@ -311,6 +313,10 @@ function ColorSwatches({ colors }: { colors: Array<{ hex: string }> }) {
   );
 }
 
+function photoAlt(photoName: string, photoData: PhotoData) {
+  return photoData.description || 'Photo';
+}
+
 // Shared hook for photo display data
 function usePhotoDisplayData(photoData: PhotoData) {
   const dominantColors = photoData.exif.dominantColors ?? [];
@@ -368,30 +374,31 @@ function useBackHref(fallback = '/') {
   }, [searchParams]);
 }
 
-// PhotoPage - for /photo/[id] route, uses Link for navigation
-type PhotoPageProps = PhotoDisplayBaseProps;
-
-export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
+// Shared photo layout used by both PhotoPage and PhotoModal
+function PhotoLayout({
+  photoName,
+  photoData,
+  closeButton,
+  desktopContainerClassName,
+  mobileContainerClassName,
+  sheetZClassName,
+}: PhotoDisplayBaseProps & {
+  closeButton: React.ReactNode;
+  desktopContainerClassName: string;
+  mobileContainerClassName: string;
+  sheetZClassName: string;
+}) {
   const { dominantColors, dominant, hasLocation, mapUrl, formattedDate } =
     usePhotoDisplayData(photoData);
-  const backHref = useBackHref();
+  const alt = photoAlt(photoName, photoData);
 
   return (
-    <div className="min-h-[100svh] bg-white lg:bg-white">
-      {/* Close button - Link for page navigation */}
-      <Link
-        href={backHref}
-        className="fixed top-4 left-4 z-50 w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 active:scale-[0.97] active:transition-transform"
-        aria-label="Back to gallery"
-      >
-        <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
-      </Link>
-
+    <>
+      {closeButton}
       <ColorSwatches colors={dominantColors} />
 
       {/* Desktop layout */}
-      <div className="hidden lg:flex min-h-[100svh]">
-        {/* Image area */}
+      <div className={`hidden lg:flex ${desktopContainerClassName}`}>
         <div className="flex-1 flex items-center justify-center p-16 pl-8">
           <div
             className="relative"
@@ -403,7 +410,7 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
           >
             <Picture
               uuidWithExt={photoName}
-              alt={photoName}
+              alt={alt}
               profile="large"
               loading="eager"
               intrinsicWidth={photoData.w}
@@ -416,7 +423,6 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
           </div>
         </div>
 
-        {/* Sidebar - floating card */}
         <aside className="w-96 p-4">
           <div className="rounded-2xl bg-neutral-100 overflow-y-auto max-h-[calc(100vh-2rem)]">
             <MetadataPanel
@@ -425,7 +431,6 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
               formattedDate={formattedDate}
               mapUrl={mapUrl}
               hasLocation={hasLocation}
-
               mapLoading="eager"
             />
           </div>
@@ -433,8 +438,7 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
       </div>
 
       {/* Mobile layout - fixed image with scrolling bottom sheet */}
-      <div className="lg:hidden min-h-[100svh] overflow-y-auto overscroll-contain">
-        {/* Image - fixed in place */}
+      <div className={`lg:hidden ${mobileContainerClassName}`}>
         <div className="fixed inset-x-0 top-0 bottom-[40svh] flex items-center justify-center p-4 pt-16 pointer-events-none">
           <div
             className="relative"
@@ -446,7 +450,7 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
           >
             <Picture
               uuidWithExt={photoName}
-              alt={photoName}
+              alt={alt}
               profile="large"
               loading="eager"
               intrinsicWidth={photoData.w}
@@ -459,14 +463,11 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
           </div>
         </div>
 
-        {/* Spacer to push sheet to bottom initially */}
         <div className="h-[60svh]" />
 
-        {/* Bottom sheet - scrolls up over the image */}
-        <div className="bg-neutral-100 rounded-t-3xl min-h-[60svh] relative z-[45]">
-          {/* Drag handle */}
+        <div className={`bg-neutral-100 rounded-t-3xl min-h-[60svh] relative ${sheetZClassName}`}>
           <div className="flex justify-center pt-3 pb-2">
-            <div className="w-10 h-1 rounded-full bg-neutral-300" />
+            <div className="w-10 h-1 rounded-full bg-neutral-300" aria-hidden="true" />
           </div>
 
           <div className="pt-2 pb-8">
@@ -476,12 +477,42 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
               formattedDate={formattedDate}
               mapUrl={mapUrl}
               hasLocation={hasLocation}
-
               mapLoading="lazy"
             />
           </div>
         </div>
       </div>
+    </>
+  );
+}
+
+const closeButtonClassName =
+  'fixed top-4 left-4 w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 active:scale-[0.97] active:transition-transform';
+
+// PhotoPage - for /photo/[id] route, uses Link for navigation
+type PhotoPageProps = PhotoDisplayBaseProps;
+
+export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
+  const backHref = useBackHref();
+
+  return (
+    <div className="min-h-[100svh] bg-white">
+      <PhotoLayout
+        photoName={photoName}
+        photoData={photoData}
+        desktopContainerClassName="min-h-[100svh]"
+        mobileContainerClassName="min-h-[100svh] overflow-y-auto overscroll-contain"
+        sheetZClassName="z-[45]"
+        closeButton={
+          <Link
+            href={backHref}
+            className={`z-50 ${closeButtonClassName}`}
+            aria-label="Back to gallery"
+          >
+            <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
+          </Link>
+        }
+      />
     </div>
   );
 }
@@ -489,126 +520,34 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
 // PhotoModal - for intercepted route modal, uses router.back()
 export function PhotoModal({ photoName, photoData }: PhotoDisplayBaseProps) {
   const router = useRouter();
-  const { dominantColors, dominant, hasLocation, mapUrl, formattedDate } =
-    usePhotoDisplayData(photoData);
-
-  const handleClose = () => router.back();
 
   return (
     <motion.div
       className="fixed inset-0 z-[100] bg-white lg:overflow-hidden overflow-y-auto overscroll-contain"
       role="dialog"
       aria-modal={true}
-      aria-label={`Photo: ${photoName}`}
+      aria-label={`Photo: ${photoAlt(photoName, photoData)}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
     >
-      {/* Close button - button with router.back() */}
-      <button
-        type="button"
-        onClick={handleClose}
-        className="fixed top-4 left-4 z-[110] w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 active:scale-[0.97] active:transition-transform"
-        aria-label="Close"
-      >
-        <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
-      </button>
-
-      <ColorSwatches colors={dominantColors} />
-
-      {/* Desktop layout */}
-      <div className="hidden lg:flex h-full">
-        {/* Image area */}
-        <div className="flex-1 flex items-center justify-center p-16 pl-8">
-          <div
-            className="relative"
-            style={{
-              aspectRatio: `${photoData.w} / ${photoData.h}`,
-              maxHeight: 'calc(100vh - 8rem)',
-              maxWidth: '100%',
-            }}
+      <PhotoLayout
+        photoName={photoName}
+        photoData={photoData}
+        desktopContainerClassName="h-full"
+        mobileContainerClassName=""
+        sheetZClassName="z-[106] overscroll-contain"
+        closeButton={
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className={`z-[110] ${closeButtonClassName}`}
+            aria-label="Close"
           >
-            <Picture
-              uuidWithExt={photoName}
-              alt={photoName}
-              profile="large"
-              loading="eager"
-              intrinsicWidth={photoData.w}
-              intrinsicHeight={photoData.h}
-              imgClassName="block w-full h-full object-contain"
-              pictureClassName="block w-full h-full"
-              sizes="70vw"
-              dominantColor={dominant}
-            />
-          </div>
-        </div>
-
-        {/* Sidebar - floating card */}
-        <aside className="w-96 p-4">
-          <div className="rounded-2xl bg-neutral-100 overflow-y-auto max-h-[calc(100vh-2rem)]">
-            <MetadataPanel
-              photoName={photoName}
-              photoData={photoData}
-              formattedDate={formattedDate}
-              mapUrl={mapUrl}
-              hasLocation={hasLocation}
-
-              mapLoading="eager"
-            />
-          </div>
-        </aside>
-      </div>
-
-      {/* Mobile layout - fixed image with scrolling bottom sheet */}
-      <div className="lg:hidden">
-        {/* Image - fixed in place */}
-        <div className="fixed inset-x-0 top-0 bottom-[40svh] flex items-center justify-center p-4 pt-16 pointer-events-none">
-          <div
-            className="relative"
-            style={{
-              aspectRatio: `${photoData.w} / ${photoData.h}`,
-              maxHeight: '100%',
-              maxWidth: '100%',
-            }}
-          >
-            <Picture
-              uuidWithExt={photoName}
-              alt={photoName}
-              profile="large"
-              loading="eager"
-              intrinsicWidth={photoData.w}
-              intrinsicHeight={photoData.h}
-              imgClassName="block max-w-full max-h-full w-auto h-auto object-contain"
-              pictureClassName="block"
-              sizes="100vw"
-              dominantColor={dominant}
-            />
-          </div>
-        </div>
-
-        {/* Spacer to push sheet to bottom initially */}
-        <div className="h-[60svh]" />
-
-        {/* Bottom sheet - scrolls up over the image */}
-        <div className="bg-neutral-100 rounded-t-3xl min-h-[60svh] relative z-[106] overscroll-contain">
-          {/* Drag handle */}
-          <div className="flex justify-center pt-3 pb-2">
-            <div className="w-10 h-1 rounded-full bg-neutral-300" />
-          </div>
-
-          <div className="pt-2 pb-8">
-            <MetadataPanel
-              photoName={photoName}
-              photoData={photoData}
-              formattedDate={formattedDate}
-              mapUrl={mapUrl}
-              hasLocation={hasLocation}
-
-              mapLoading="lazy"
-            />
-          </div>
-        </div>
-      </div>
+            <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
+          </button>
+        }
+      />
     </motion.div>
   );
 }
