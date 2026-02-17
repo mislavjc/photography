@@ -68,11 +68,11 @@ export default async function Page() {
           />
         );
       })}
-      <div>
+      <main>
         <Suspense fallback={null}>
           <HomeGrid manifest={trimmedManifest} initialLayout={layout} />
         </Suspense>
-      </div>
+      </main>
     </>
   );
 }
