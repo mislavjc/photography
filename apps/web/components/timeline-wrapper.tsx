@@ -26,7 +26,6 @@ export function TimelineWrapper({
     filteredIds,
     isSearching,
     searchResultCount,
-    searchPreview,
     handleSearch,
     handleClearSearch,
   } = usePhotoSearch({
@@ -46,7 +45,6 @@ export function TimelineWrapper({
       isSearching={isSearching}
       searchResultCount={searchResultCount}
       searchQuery={query ?? ''}
-      searchPreview={searchPreview}
     />
   );
 }

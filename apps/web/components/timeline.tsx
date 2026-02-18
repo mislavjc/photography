@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { ChevronUp } from 'lucide-react';
 import type { Manifest } from 'types';
 
@@ -24,6 +31,11 @@ import { TimelineDayRow } from './timeline-day-row';
 // Virtualization settings
 const VIRTUAL_MARGIN = 600; // px above/below viewport to render
 const EXT_RE = /\.[^.]+$/;
+
+// Photo collage layout classes (indexed by position 0-2)
+const COLLAGE_ROTATIONS = ['-rotate-6', 'rotate-3', '-rotate-2'];
+const COLLAGE_OFFSETS = ['left-0 top-2', 'right-0 top-0', 'left-1/2 -translate-x-1/2 top-4'];
+const COLLAGE_Z_INDICES = ['z-10', 'z-20', 'z-30'];
 
 // Type for SSR-precomputed items
 interface SSRItem {
@@ -51,12 +63,15 @@ interface TimelineProps {
   isSearching?: boolean;
   searchResultCount?: number;
   searchQuery?: string;
-  /** Preview of search results for dropdown */
-  searchPreview?: { id: string; score: number }[];
 }
 
 // SSR-safe default width (reasonable desktop width minus typical sidebar)
 const DEFAULT_CONTAINER_WIDTH = 1024;
+
+// Stable references for useSyncExternalStore (hydration detection)
+const emptySubscribe = () => () => {};
+const returnTrue = () => true;
+const returnFalse = () => false;
 
 export function Timeline({
   data,
@@ -69,15 +84,13 @@ export function Timeline({
   isSearching,
   searchResultCount,
   searchQuery,
-  searchPreview,
 }: TimelineProps) {
   const innerContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(800);
   const [innerWidth, setInnerWidth] = useState<number>(DEFAULT_CONTAINER_WIDTH);
   const [isMobile, setIsMobile] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
-
+  const isHydrated = useSyncExternalStore(emptySubscribe, returnTrue, returnFalse);
   // Filter timeline data based on search results
   const filteredData = useMemo(() => {
     if (!filteredIds || filteredIds.size === 0) return data;
@@ -117,7 +130,7 @@ export function Timeline({
   // Calculate the width available for photos (memoized)
   // Mobile: no sidebar (timeline line hidden, photos full width)
   // Desktop: timeline 1px + gap-6 (24px) + date w-20 (80px) + gap-6 (24px) = 129px
-  const sidebarWidth = useMemo(() => (isMobile ? 0 : 129), [isMobile]);
+  const sidebarWidth = isMobile ? 0 : 129;
   const photoContainerWidth = useMemo(
     () => Math.max(150, (innerWidth ?? 800) - sidebarWidth),
     [innerWidth, sidebarWidth],
@@ -138,7 +151,6 @@ export function Timeline({
     };
 
     updateViewport();
-    setIsHydrated(true);
     window.addEventListener('resize', updateViewport, { passive: true });
     return () => window.removeEventListener('resize', updateViewport);
   }, []);
@@ -472,20 +484,9 @@ export function Timeline({
                   <div className="relative h-28 sm:h-32 mb-3">
                     {cat.previewIds.slice(0, 3).map((id, idx) => {
                       const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${id}.avif`;
-                      const rotation =
-                        idx === 0
-                          ? '-rotate-6'
-                          : idx === 1
-                            ? 'rotate-3'
-                            : '-rotate-2';
-                      const offset =
-                        idx === 0
-                          ? 'left-0 top-2'
-                          : idx === 1
-                            ? 'right-0 top-0'
-                            : 'left-1/2 -translate-x-1/2 top-4';
-                      const zIndex =
-                        idx === 0 ? 'z-10' : idx === 1 ? 'z-20' : 'z-30';
+                      const rotation = COLLAGE_ROTATIONS[idx];
+                      const offset = COLLAGE_OFFSETS[idx];
+                      const zIndex = COLLAGE_Z_INDICES[idx];
                       const size =
                         idx === 2
                           ? 'w-20 h-20 sm:w-24 sm:h-24'

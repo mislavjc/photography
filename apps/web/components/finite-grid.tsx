@@ -174,24 +174,33 @@ export function PannableGrid({
   const maxX = Math.max(0, layout.width - vw + PAD);
   const maxY = Math.max(0, layout.height - vh + PAD);
 
-  // Initialize camera once: restore saved if present else center
+  // Initialize camera once: restore saved if present else center.
+  // Wrapped in requestAnimationFrame to avoid synchronous setState in effect
+  // (which the React Compiler can't optimize).
   const didInitRef = useRef(false);
   useEffect(() => {
     if (didInitRef.current) return;
-    const saved = readSavedCam(stateKey);
-    if (saved) {
-      const nx = clamp(saved.x, minX, maxX);
-      const ny = clamp(saved.y, minY, maxY);
-      restoredFromStorageRef.current = true;
-      setCam({ x: nx, y: ny });
-      camRef.current = { x: nx, y: ny };
-    } else {
-      const nx = clamp((layout.width - vw) / 2, minX, maxX);
-      const ny = clamp((layout.height - vh) / 2, minY, maxY);
-      setCam({ x: nx, y: ny });
-      camRef.current = { x: nx, y: ny };
-    }
-    didInitRef.current = true;
+
+    const id = requestAnimationFrame(() => {
+      if (didInitRef.current) return;
+      didInitRef.current = true;
+
+      const saved = readSavedCam(stateKey);
+      if (saved) {
+        const nx = clamp(saved.x, minX, maxX);
+        const ny = clamp(saved.y, minY, maxY);
+        restoredFromStorageRef.current = true;
+        setCam({ x: nx, y: ny });
+        camRef.current = { x: nx, y: ny };
+      } else {
+        const nx = clamp((layout.width - vw) / 2, minX, maxX);
+        const ny = clamp((layout.height - vh) / 2, minY, maxY);
+        setCam({ x: nx, y: ny });
+        camRef.current = { x: nx, y: ny };
+      }
+    });
+
+    return () => cancelAnimationFrame(id);
   }, [stateKey, minX, maxX, minY, maxY, layout.width, layout.height, vw, vh]);
 
   // Dragging state
@@ -296,7 +305,7 @@ export function PannableGrid({
     pointerIdRef.current = e.pointerId;
 
     draggingRef.current = false; // Start as false, will become true on move
-    lastPosRef.current = { x: e.clientX, y: e.clientY, t: performance.now() };
+    lastPosRef.current = { x: e.clientX, y: e.clientY, t: e.timeStamp };
     velRef.current = { vx: 0, vy: 0 };
     inertiaRef.current = null;
 
@@ -305,7 +314,7 @@ export function PannableGrid({
       clickStartRef.current = {
         x: e.clientX,
         y: e.clientY,
-        t: performance.now(),
+        t: e.timeStamp,
         element: target.closest('article') as HTMLElement,
       };
     } else {
@@ -316,8 +325,7 @@ export function PannableGrid({
   function onPointerMove(e: React.PointerEvent) {
     if (!lastPosRef.current) return;
 
-    const now = performance.now();
-    const dt = Math.max(1, now - lastPosRef.current.t);
+    const dt = Math.max(1, e.timeStamp - lastPosRef.current.t);
     const dx = e.clientX - lastPosRef.current.x;
     const dy = e.clientY - lastPosRef.current.y;
     const distance = Math.hypot(dx, dy);
@@ -360,7 +368,7 @@ export function PannableGrid({
         (1 - SPEED_SMOOTHING) * velRef.current.vy + SPEED_SMOOTHING * sampleVy,
     };
 
-    lastPosRef.current = { x: e.clientX, y: e.clientY, t: now };
+    lastPosRef.current = { x: e.clientX, y: e.clientY, t: e.timeStamp };
   }
 
   function onPointerUp(e: React.PointerEvent) {
@@ -377,7 +385,7 @@ export function PannableGrid({
 
     // [click-to-open] save cam position before Link navigation
     if (!draggingRef.current && clickStartRef.current) {
-      const clickDuration = performance.now() - clickStartRef.current.t;
+      const clickDuration = e.timeStamp - clickStartRef.current.t;
       const clickDistance = Math.hypot(
         e.clientX - clickStartRef.current.x,
         e.clientY - clickStartRef.current.y,
@@ -396,7 +404,7 @@ export function PannableGrid({
       if (speed >= MIN_INERTIA_SPEED) {
         inertiaRef.current = {
           active: true,
-          lastTick: performance.now(),
+          lastTick: e.timeStamp,
           vx,
           vy,
         };

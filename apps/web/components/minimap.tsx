@@ -95,13 +95,21 @@ export function Minimap({
   const camCy = offsetY + (camY + pad + viewH / 2) * scale;
 
   // Trail of recent camera centers (breadcrumbs)
-  // Derive trail from camera position during render instead of via effect
-  const trailRef = useRef<Array<{ x: number; y: number }>>([]);
-  const lastTrailPos = trailRef.current[trailRef.current.length - 1];
-  if (!lastTrailPos || lastTrailPos.x !== camCx || lastTrailPos.y !== camCy) {
-    trailRef.current = [...trailRef.current, { x: camCx, y: camCy }].slice(-14);
+  // Use state with render-time update to track camera position history
+  const [trailState, setTrailState] = useState<{
+    trail: Array<{ x: number; y: number }>;
+    lastX: number;
+    lastY: number;
+  }>({ trail: [], lastX: NaN, lastY: NaN });
+
+  if (trailState.lastX !== camCx || trailState.lastY !== camCy) {
+    setTrailState((prev) => ({
+      trail: [...prev.trail, { x: camCx, y: camCy }].slice(-14),
+      lastX: camCx,
+      lastY: camCy,
+    }));
   }
-  const trail = trailRef.current;
+  const trail = trailState.trail;
 
   // Drag state
   const draggingRef = useRef(false);
@@ -221,7 +229,7 @@ export function Minimap({
       const y = gy + (gh * i) / 3;
       lines.push(
         <line
-          key={`v${i}`}
+          key={`v${x.toFixed(0)}`}
           x1={x}
           y1={gy}
           x2={x}
@@ -232,7 +240,7 @@ export function Minimap({
       );
       lines.push(
         <line
-          key={`h${i}`}
+          key={`h${y.toFixed(0)}`}
           x1={gx}
           y1={y}
           x2={gx + gw}
@@ -254,7 +262,7 @@ export function Minimap({
   return (
     <div
       ref={containerRef}
-      className={[className ?? ''].join(' ')}
+      className={className}
       style={{
         width: fill ? '100%' : outer,
         height: fill ? '100%' : outer,
@@ -317,17 +325,6 @@ export function Minimap({
           fill="transparent"
         />
 
-        {/* World bg - removed */}
-        {/* <rect
-          x={offsetX}
-          y={offsetY}
-          width={drawW}
-          height={drawH}
-          fill="#fafafa"
-          rx={6}
-          ry={6}
-        /> */}
-
         {/* Content bounds */}
         <rect
           x={offsetX + pad * scale}
@@ -357,7 +354,7 @@ export function Minimap({
             />
             {trail.map((p, i, arr) => (
               <circle
-                key={`t${i}`}
+                key={`${p.x.toFixed(1)},${p.y.toFixed(1)}`}
                 cx={p.x}
                 cy={p.y}
                 r={i === arr.length - 1 ? 2.4 : 1.8}
