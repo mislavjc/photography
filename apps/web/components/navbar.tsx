@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Calendar, Map as MapIcon, Search, Shuffle, X } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, LazyMotion, domAnimation, m } from 'motion/react';
 import type { Manifest } from 'types';
 
 import type { PlacedItem } from 'lib/layout';
@@ -73,13 +73,25 @@ function NavbarSearch({
   initialQuery,
   onOpenChange,
 }: NavbarSearchProps) {
-  const [inputValue, setInputValue] = useState(initialQuery);
+  const [inputState, setInputState] = useState({
+    value: initialQuery,
+    syncedProp: initialQuery,
+  });
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
+  // Sync input with URL when it changes externally (setState during render)
+  if (inputState.syncedProp !== initialQuery) {
+    setInputState({
+      value: searchOpen ? inputState.value : initialQuery,
+      syncedProp: initialQuery,
+    });
+  }
+
+  const inputValue = inputState.value;
   const hasActiveSearch = initialQuery.length > 0;
 
   // Notify parent of open state changes
@@ -102,13 +114,6 @@ function NavbarSearch({
     );
   }, [inputValue]);
 
-  // Sync input with URL when it changes externally
-  React.useEffect(() => {
-    if (!searchOpen) {
-      setInputValue(initialQuery);
-    }
-  }, [initialQuery, searchOpen]);
-
   const handleSearch = React.useCallback(
     (query: string) => {
       if (query.trim()) {
@@ -121,7 +126,7 @@ function NavbarSearch({
   // Debounced search - triggers after 400ms of no typing
   // Uses AbortController to cancel stale searches
   const handleInputChange = (value: string) => {
-    setInputValue(value);
+    setInputState((prev) => ({ ...prev, value }));
 
     // Clear pending debounce and abort any in-flight search
     if (debounceRef.current) {
@@ -155,7 +160,7 @@ function NavbarSearch({
   }, []);
 
   const handleClear = React.useCallback(() => {
-    setInputValue('');
+    setInputState((prev) => ({ ...prev, value: '' }));
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
@@ -277,7 +282,7 @@ function NavbarSearch({
       {/* Search dropdown */}
       <AnimatePresence>
         {searchOpen && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
@@ -294,11 +299,11 @@ function NavbarSearch({
                 {matchingCategories.map((cat, i) => {
                   const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
                   return (
-                    <motion.button
+                    <m.button
                       key={cat.id}
                       type="button"
                       onClick={() => {
-                        setInputValue(cat.query);
+                        setInputState((prev) => ({ ...prev, value: cat.query }));
                         handleSearch(cat.query);
                         updateSearchOpen(false);
                         inputRef.current?.blur();
@@ -318,12 +323,12 @@ function NavbarSearch({
                       <span className="text-[15px] font-medium text-neutral-800">
                         {cat.label}
                       </span>
-                    </motion.button>
+                    </m.button>
                   );
                 })}
               </div>
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>
@@ -341,7 +346,7 @@ type NavbarProps = {
   searchQuery?: string;
 };
 
-export const Navbar = ({
+export function Navbar({
   minimapProps,
   activePage,
   timelineProps,
@@ -350,7 +355,7 @@ export const Navbar = ({
   isSearching = false,
   searchResultCount,
   searchQuery: initialQuery = '',
-}: NavbarProps) => {
+}: NavbarProps) {
   const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
   const [isMobile, setIsMobile] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -394,11 +399,11 @@ export const Navbar = ({
   }, [anyWindowOpen]);
 
   return (
-    <>
+    <LazyMotion features={domAnimation}>
       {/* Backdrop for windows */}
       <AnimatePresence>
         {anyWindowOpen && (
-          <motion.div
+          <m.div
             key="backdrop"
             className="fixed inset-0 z-[60] bg-black/10"
             initial={{ opacity: 0 }}
@@ -410,14 +415,14 @@ export const Navbar = ({
       </AnimatePresence>
 
       {/* Navbar */}
-      <motion.nav
+      <m.nav
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="fixed top-0 left-0 right-0 z-[70] bg-white border-b border-neutral-200/50"
       >
         <div className="mx-auto flex h-14 items-center gap-3 px-4">
           {/* Left: Logo (desktop) or hidden on mobile when search focused */}
-          <motion.a
+          <m.a
             href="/"
             className="flex-shrink-0 flex items-center overflow-hidden md:w-7"
             initial={false}
@@ -434,7 +439,7 @@ export const Navbar = ({
               width={28}
               height={28}
             />
-          </motion.a>
+          </m.a>
 
           {/* Center: Search */}
           {onSearch && onClearSearch ? (
@@ -530,7 +535,7 @@ export const Navbar = ({
             </>
           )}
         </div>
-      </motion.nav>
+      </m.nav>
 
       {/* Windows */}
       <AnimatePresence>
@@ -546,9 +551,9 @@ export const Navbar = ({
           />
         )}
       </AnimatePresence>
-    </>
+    </LazyMotion>
   );
-};
+}
 
 function NavbarButton({
   href,
@@ -624,7 +629,7 @@ function MinimapWindow({
   minimapProps: MinimapProps;
 }) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 4 }}
@@ -648,21 +653,12 @@ function MinimapWindow({
           style={{ touchAction: 'none' }}
         >
           <Minimap
-            worldW={minimapProps.worldW}
-            worldH={minimapProps.worldH}
-            camX={minimapProps.camX}
-            camY={minimapProps.camY}
-            viewW={minimapProps.viewW}
-            viewH={minimapProps.viewH}
-            tiles={minimapProps.tiles}
-            manifest={minimapProps.manifest}
-            onSetCam={minimapProps.onSetCam}
+            {...minimapProps}
             sampleStep={minimapProps.sampleStep ?? 1}
             sizePx={280}
-            pad={minimapProps.pad}
           />
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

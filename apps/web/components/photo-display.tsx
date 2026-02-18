@@ -1,14 +1,13 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { Suspense, useMemo } from 'react';
 import { X } from 'lucide-react';
-import { motion } from 'motion/react';
+import { LazyMotion, domAnimation, m } from 'motion/react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Picture } from './picture';
-import { SimilarPhotos } from './similar-photos';
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -149,6 +148,7 @@ function MetadataPanel({
   mapUrl,
   hasLocation,
   mapLoading = 'eager',
+  similarSlot,
 }: {
   photoName: string;
   photoData: PhotoData;
@@ -156,32 +156,33 @@ function MetadataPanel({
   mapUrl: string | null;
   hasLocation: boolean;
   mapLoading?: 'lazy' | 'eager';
+  similarSlot?: React.ReactNode;
 }) {
   return (
-    <motion.div
+    <m.div
       className="p-5 space-y-5"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
     >
       {formattedDate && (
-        <motion.div
+        <m.div
           className="text-neutral-400 text-sm font-mono"
           suppressHydrationWarning
           variants={sectionVariants}
         >
           {formattedDate}
-        </motion.div>
+        </m.div>
       )}
 
-      <motion.section variants={sectionVariants}>
+      <m.section variants={sectionVariants}>
         <Label>Dimensions</Label>
         <div className="font-mono text-neutral-800">
           {photoData.w} x {photoData.h}
         </div>
-      </motion.section>
+      </m.section>
 
-      <motion.div className="grid grid-cols-1 gap-4" variants={sectionVariants}>
+      <m.div className="grid grid-cols-1 gap-4" variants={sectionVariants}>
         {photoData.exif.camera && (
           <section>
             <Label>Camera</Label>
@@ -198,9 +199,9 @@ function MetadataPanel({
             </div>
           </section>
         )}
-      </motion.div>
+      </m.div>
 
-      <motion.div className="grid grid-cols-2 gap-4" variants={sectionVariants}>
+      <m.div className="grid grid-cols-2 gap-4" variants={sectionVariants}>
         {photoData.exif.focalLength && (
           <section>
             <Label>Focal Length</Label>
@@ -233,10 +234,10 @@ function MetadataPanel({
             </div>
           </section>
         )}
-      </motion.div>
+      </m.div>
 
       {hasLocation && (
-        <motion.section variants={sectionVariants}>
+        <m.section variants={sectionVariants}>
           <Label>Location</Label>
           {photoData.exif.location!.address && (
             <div className="text-neutral-800 text-sm mb-2">
@@ -259,13 +260,15 @@ function MetadataPanel({
               <> - {photoData.exif.location!.altitude}m</>
             )}
           </div>
-        </motion.section>
+        </m.section>
       )}
 
-      <motion.div variants={sectionVariants}>
-        <SimilarPhotos photoId={photoName} />
-      </motion.div>
-    </motion.div>
+      {similarSlot && (
+        <m.div variants={sectionVariants}>
+          {similarSlot}
+        </m.div>
+      )}
+    </m.div>
   );
 }
 
@@ -278,7 +281,7 @@ function ColorSwatches({ colors }: { colors: Array<{ hex: string }> }) {
       {/* Mobile: horizontal stack */}
       <div className="fixed top-4 right-4 flex flex-row items-center lg:hidden">
         {colors.slice(0, 5).map((color, i) => (
-          <motion.div
+          <m.div
             key={color.hex}
             className="w-8 h-8 rounded-full"
             style={{
@@ -295,7 +298,7 @@ function ColorSwatches({ colors }: { colors: Array<{ hex: string }> }) {
       {/* Desktop: vertical stack */}
       <div className="fixed bottom-4 left-4 hidden lg:flex flex-col-reverse items-center">
         {colors.slice(0, 5).map((color, i) => (
-          <motion.div
+          <m.div
             key={color.hex}
             className="w-10 h-10 rounded-full"
             style={{
@@ -313,7 +316,7 @@ function ColorSwatches({ colors }: { colors: Array<{ hex: string }> }) {
   );
 }
 
-function photoAlt(photoName: string, photoData: PhotoData) {
+function photoAlt(photoData: PhotoData) {
   return photoData.description || 'Photo';
 }
 
@@ -360,6 +363,7 @@ function usePhotoDisplayData(photoData: PhotoData) {
 interface PhotoDisplayBaseProps {
   photoName: string;
   photoData: PhotoData;
+  similarSlot?: React.ReactNode;
 }
 
 // Hook to compute back href from search params (client-side only)
@@ -382,6 +386,7 @@ function PhotoLayout({
   desktopContainerClassName,
   mobileContainerClassName,
   sheetZClassName,
+  similarSlot,
 }: PhotoDisplayBaseProps & {
   closeButton: React.ReactNode;
   desktopContainerClassName: string;
@@ -390,10 +395,10 @@ function PhotoLayout({
 }) {
   const { dominantColors, dominant, hasLocation, mapUrl, formattedDate } =
     usePhotoDisplayData(photoData);
-  const alt = photoAlt(photoName, photoData);
+  const alt = photoAlt(photoData);
 
   return (
-    <>
+    <LazyMotion features={domAnimation}>
       {closeButton}
       <ColorSwatches colors={dominantColors} />
 
@@ -432,6 +437,7 @@ function PhotoLayout({
               mapUrl={mapUrl}
               hasLocation={hasLocation}
               mapLoading="eager"
+              similarSlot={similarSlot}
             />
           </div>
         </aside>
@@ -478,39 +484,56 @@ function PhotoLayout({
               mapUrl={mapUrl}
               hasLocation={hasLocation}
               mapLoading="lazy"
+              similarSlot={similarSlot}
             />
           </div>
         </div>
       </div>
-    </>
+    </LazyMotion>
   );
 }
 
 const closeButtonClassName =
   'fixed top-4 left-4 w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 active:scale-[0.97] active:transition-transform';
 
+// Back button that reads search params to determine navigation target.
+// Wrapped in Suspense so useSearchParams doesn't bail out the whole page.
+function BackButtonLink({ className }: { className: string }) {
+  const backHref = useBackHref();
+  return (
+    <Link href={backHref} className={className} aria-label="Back to gallery">
+      <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
+    </Link>
+  );
+}
+
 // PhotoPage - for /photo/[id] route, uses Link for navigation
 type PhotoPageProps = PhotoDisplayBaseProps;
 
-export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
-  const backHref = useBackHref();
-
+export function PhotoPage({ photoName, photoData, similarSlot }: PhotoPageProps) {
   return (
     <div className="min-h-[100svh] bg-white">
       <PhotoLayout
         photoName={photoName}
         photoData={photoData}
+        similarSlot={similarSlot}
         desktopContainerClassName="min-h-[100svh]"
         mobileContainerClassName="min-h-[100svh] overflow-y-auto overscroll-contain"
         sheetZClassName="z-[45]"
         closeButton={
-          <Link
-            href={backHref}
-            className={`z-50 ${closeButtonClassName}`}
-            aria-label="Back to gallery"
+          <Suspense
+            fallback={
+              <a
+                href="/"
+                className={`z-50 ${closeButtonClassName}`}
+                aria-label="Back to gallery"
+              >
+                <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
+              </a>
+            }
           >
-            <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
-          </Link>
+            <BackButtonLink className={`z-50 ${closeButtonClassName}`} />
+          </Suspense>
         }
       />
     </div>
@@ -518,36 +541,39 @@ export function PhotoPage({ photoName, photoData }: PhotoPageProps) {
 }
 
 // PhotoModal - for intercepted route modal, uses router.back()
-export function PhotoModal({ photoName, photoData }: PhotoDisplayBaseProps) {
+export function PhotoModal({ photoName, photoData, similarSlot }: PhotoDisplayBaseProps) {
   const router = useRouter();
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[100] bg-white lg:overflow-hidden overflow-y-auto overscroll-contain"
-      role="dialog"
-      aria-modal={true}
-      aria-label={`Photo: ${photoAlt(photoName, photoData)}`}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2 }}
-    >
-      <PhotoLayout
-        photoName={photoName}
-        photoData={photoData}
-        desktopContainerClassName="h-full"
-        mobileContainerClassName=""
-        sheetZClassName="z-[106] overscroll-contain"
-        closeButton={
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className={`z-[110] ${closeButtonClassName}`}
-            aria-label="Close"
-          >
-            <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
-          </button>
-        }
-      />
-    </motion.div>
+    <LazyMotion features={domAnimation}>
+      <m.div
+        className="fixed inset-0 z-[100] bg-white lg:overflow-hidden overflow-y-auto overscroll-contain"
+        role="dialog"
+        aria-modal={true}
+        aria-label={`Photo: ${photoAlt(photoData)}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+      >
+        <PhotoLayout
+          photoName={photoName}
+          photoData={photoData}
+          similarSlot={similarSlot}
+          desktopContainerClassName="h-full"
+          mobileContainerClassName=""
+          sheetZClassName="z-[106] overscroll-contain"
+          closeButton={
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className={`z-[110] ${closeButtonClassName}`}
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
+            </button>
+          }
+        />
+      </m.div>
+    </LazyMotion>
   );
 }
