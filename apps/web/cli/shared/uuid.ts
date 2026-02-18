@@ -16,7 +16,7 @@ export const sha256File = (file: string) =>
     catch: (e) => new Error(`SHA256 failed for ${file}: ${e}`),
   });
 
-export const sha256Buffer = (buffer: Buffer): string => {
+const sha256Buffer = (buffer: Buffer): string => {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 };
 

@@ -1,4 +1,4 @@
-export interface SearchCategory {
+interface SearchCategory {
   id: string;
   label: string;
   query: string;

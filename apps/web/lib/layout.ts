@@ -1,14 +1,14 @@
 import type { Manifest } from 'types';
 
 // ---- Tunables ---------------------------------------------------------------
-export const GAP = 16; // px gap between tiles
-export const BASE_COL_WIDTH = 220; // target column width
-export const MIN_COLS = 3;
-export const MAX_COLS = 64;
-export const SEARCH_BAND = 8; // try [est-8 .. est+8]
+const GAP = 16; // px gap between tiles
+const BASE_COL_WIDTH = 220; // target column width
+const MIN_COLS = 3;
+const MAX_COLS = 64;
+const SEARCH_BAND = 8; // try [est-8 .. est+8]
 // Optional world width targeting (keeps the plane nice & square-ish visually)
-export const TARGET_MIN_WORLD = 6000;
-export const TARGET_MAX_WORLD = 11000;
+const TARGET_MIN_WORLD = 6000;
+const TARGET_MAX_WORLD = 11000;
 // -----------------------------------------------------------------------------
 
 export type PlacedItem = {

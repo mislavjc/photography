@@ -15,7 +15,6 @@
     "infra:destroy": "bun alchemy.run.ts --destroy"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260124.0",
     "@commitlint/cli": "^20.2.0",
     "@commitlint/config-conventional": "^20.2.0",
     "alchemy": "^0.83.1",

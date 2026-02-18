@@ -24,7 +24,7 @@ export function createS3Client(config: CLIConfig): S3Client {
   });
 }
 
-export async function getObject(
+async function getObject(
   s3: S3Client,
   bucket: string,
   key: string,
@@ -40,7 +40,7 @@ export async function getObject(
   return Buffer.concat(chunks);
 }
 
-export async function putObject(
+async function putObject(
   s3: S3Client,
   bucket: string,
   key: string,
@@ -61,7 +61,7 @@ export async function putObject(
   );
 }
 
-export async function headObject(
+async function headObject(
   s3: S3Client,
   bucket: string,
   key: string,
@@ -104,7 +104,7 @@ export async function listObjects(
   return keys;
 }
 
-export async function uploadLargeFile(
+async function uploadLargeFile(
   s3: S3Client,
   bucket: string,
   key: string,
@@ -130,7 +130,7 @@ export async function uploadLargeFile(
 }
 
 // Manifest helpers
-export function manifestKeys(variantsPrefix: string) {
+function manifestKeys(variantsPrefix: string) {
   const base = variantsPrefix.replace(/^\/+|\/+$/g, '');
   return {
     compressed: `${base}/r2-manifest.json`,

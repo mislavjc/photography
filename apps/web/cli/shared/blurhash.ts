@@ -6,7 +6,7 @@ import sharp from 'sharp';
 // ----------------------- Color Utilities -----------------------
 const fac = new FastAverageColor();
 
-export const toHex = (r: number, g: number, b: number) =>
+const toHex = (r: number, g: number, b: number) =>
   `#${r.toString(16).padStart(2, '0')}${g
     .toString(16)
     .padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;

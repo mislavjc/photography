@@ -1,5 +1,5 @@
 // ----------------------- Types -----------------------
-export interface ExifLocation {
+interface ExifLocation {
   latitude: number;
   longitude: number;
   altitude?: number;

@@ -1,6 +1,6 @@
 import type { Manifest } from '../types';
 
-export function getManifestKeys(manifest: Manifest): string[] {
+function getManifestKeys(manifest: Manifest): string[] {
   return Object.keys(manifest);
 }
 
@@ -12,7 +12,7 @@ export function selectRandomPhoto(photoNames: string[]): string {
   return photoNames[Math.floor(Math.random() * photoNames.length)];
 }
 
-export function getImageByIndex(
+function getImageByIndex(
   manifest: Manifest,
   index: number,
 ): string | null {
@@ -24,7 +24,7 @@ export function getImageByIndex(
   return keys[actualIndex];
 }
 
-export function getRandomImageBySeed(
+function getRandomImageBySeed(
   manifest: Manifest,
   seed: number,
 ): string | null {
@@ -36,7 +36,7 @@ export function getRandomImageBySeed(
   return keys[index];
 }
 
-export function getBlurhashForImage(
+function getBlurhashForImage(
   manifest: Manifest,
   imageId: string,
 ): string | null {
@@ -44,7 +44,7 @@ export function getBlurhashForImage(
   return entry?.blurhash || null;
 }
 
-export function getImageDimensions(
+function getImageDimensions(
   manifest: Manifest,
   imageId: string,
 ): { w: number; h: number } | null {
@@ -53,7 +53,7 @@ export function getImageDimensions(
   return { w: entry.w, h: entry.h };
 }
 
-export function getRandomImageByOrientation(
+function getRandomImageByOrientation(
   manifest: Manifest,
   seed: number,
   isPortrait: boolean,

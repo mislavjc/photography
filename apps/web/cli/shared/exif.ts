@@ -4,12 +4,12 @@ import { exiftool, Tags } from 'exiftool-vendored';
 import type { ExifMetadata } from './types';
 
 // ----------------------- EXIF Formatting -----------------------
-export const formatAperture = (f?: number | string | null) =>
+const formatAperture = (f?: number | string | null) =>
   f != null
     ? `f/${typeof f === 'number' ? f.toFixed(1).replace(/\.0$/, '') : f}`
     : null;
 
-export const formatShutter = (t?: string | number | null) => {
+const formatShutter = (t?: string | number | null) => {
   if (t == null) return null;
   if (typeof t === 'string') return t;
   if (t === 0) return '0s';
@@ -17,14 +17,14 @@ export const formatShutter = (t?: string | number | null) => {
   return `${t}s`;
 };
 
-export const formatFocal = (f?: number | string | null) => {
+const formatFocal = (f?: number | string | null) => {
   if (f == null) return null;
   const str = String(f).trim();
   if (str.toLowerCase().includes('mm')) return str;
   return `${str} mm`;
 };
 
-export const toNumber = (v: unknown) =>
+const toNumber = (v: unknown) =>
   typeof v === 'number' ? v : v == null ? undefined : Number(v);
 
 // ----------------------- EXIF Reading -----------------------

@@ -1,4 +1,4 @@
-export interface Rect {
+interface Rect {
   x: number;
   y: number;
   w: number;
@@ -7,7 +7,7 @@ export interface Rect {
   imageId?: string; // filename from manifest
 }
 
-export interface ExifMetadata {
+interface ExifMetadata {
   camera: string | null;
   lens: string | null;
   focalLength: string | null;
@@ -34,7 +34,7 @@ export interface ManifestEntry {
   exif: ExifMetadata;
 }
 
-export interface ImageMetadata {
+interface ImageMetadata {
   filename: string;
   dimensions: { w: number; h: number };
   orientation: 'portrait' | 'landscape';
@@ -46,14 +46,14 @@ export interface Manifest {
   [filename: string]: ManifestEntry;
 }
 
-export interface Viewport {
+interface Viewport {
   left: number;
   top: number;
   right: number;
   bottom: number;
 }
 
-export interface TileProps {
+interface TileProps {
   tx: number;
   ty: number;
   left: number;
@@ -66,7 +66,7 @@ export interface TileProps {
   manifest?: Manifest;
 }
 
-export interface ImageCellProps {
+interface ImageCellProps {
   rect: Rect;
   tileLeft: number;
   tileTop: number;
@@ -76,25 +76,25 @@ export interface ImageCellProps {
   manifest?: Manifest;
 }
 
-export interface Velocity {
+interface Velocity {
   vx: number;
   vy: number;
 }
 
-export interface Position {
+interface Position {
   x: number;
   y: number;
   t: number;
 }
 
-export interface AccumulatedDelta {
+interface AccumulatedDelta {
   dx: number;
   dy: number;
 }
 
-export type TimeRange = 'all' | 'morning' | 'afternoon' | 'evening' | 'night';
+type TimeRange = 'all' | 'morning' | 'afternoon' | 'evening' | 'night';
 
-export type ColorRange =
+type ColorRange =
   | 'all'
   | 'red'
   | 'blue'

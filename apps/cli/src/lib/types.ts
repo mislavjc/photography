@@ -1,12 +1,12 @@
 // ----------------------- Types -----------------------
-export interface ExifLocation {
+interface ExifLocation {
   latitude: number;
   longitude: number;
   altitude?: number;
   address?: string | null;
 }
 
-export interface ExifMetadata {
+interface ExifMetadata {
   camera: string | null;
   lens: string | null;
   focalLength: string | null;
@@ -32,10 +32,10 @@ export interface ManifestEntry {
 
 export type Manifest = Record<string, ManifestEntry>;
 
-export type Formats = 'avif' | 'webp' | 'jpeg';
-export type ProfileName = 'grid' | 'large';
+type Formats = 'avif' | 'webp' | 'jpeg';
+type ProfileName = 'grid' | 'large';
 
-export interface VariantProfile {
+interface VariantProfile {
   name: ProfileName;
   widths: readonly number[];
 }

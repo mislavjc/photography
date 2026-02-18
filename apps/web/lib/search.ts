@@ -5,13 +5,13 @@ export interface SearchResult {
   score: number;
 }
 
-export interface SearchResponse {
+interface SearchResponse {
   results: SearchResult[];
   query: string;
   error?: string;
 }
 
-export interface SimilarResponse {
+interface SimilarResponse {
   results: SearchResult[];
   photoId: string;
   error?: string;

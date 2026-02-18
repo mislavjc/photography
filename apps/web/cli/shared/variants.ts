@@ -5,13 +5,13 @@ import { cleanPrefix } from './r2-client';
 import type { Formats, ProfileName } from './types';
 
 // ----------------------- Variant Generation -----------------------
-export interface VariantQuality {
+interface VariantQuality {
   Q_AVIF: number;
   Q_WEBP: number;
   Q_JPEG: number;
 }
 
-export const buildVariants = (
+const buildVariants = (
   file: string,
   widths: number[],
   fmts: Formats[],
@@ -107,7 +107,7 @@ export const buildVariantsParallel = (
   });
 
 // Build variants from buffer (for regeneration from R2)
-export const buildVariantsFromBuffer = (
+const buildVariantsFromBuffer = (
   buffer: Buffer,
   widths: number[],
   fmts: Formats[],
@@ -149,7 +149,7 @@ export const buildVariantsFromBuffer = (
   });
 
 // Parallel version for buffer input
-export const buildVariantsFromBufferParallel = (
+const buildVariantsFromBufferParallel = (
   buffer: Buffer,
   widths: number[],
   fmts: Formats[],

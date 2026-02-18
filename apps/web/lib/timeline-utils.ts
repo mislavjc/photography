@@ -71,7 +71,7 @@ const MONTH_NAMES_SHORT = [
  * - ISO 8601 format: "2025-03-03T14:12:23Z"
  * - Traditional EXIF format: "2024:08:15 14:30:00"
  */
-export function parseExifDate(dateTime: string | null): Date | null {
+function parseExifDate(dateTime: string | null): Date | null {
   if (!dateTime) return null;
 
   // Try ISO 8601 format first (e.g., "2025-03-03T14:12:23Z")
@@ -113,7 +113,7 @@ export function parseExifDate(dateTime: string | null): Date | null {
 /**
  * Format a date as "Dec 25, 2024"
  */
-export function formatDayLabel(date: Date): string {
+function formatDayLabel(date: Date): string {
   const month = MONTH_NAMES_SHORT[date.getMonth()];
   const day = date.getDate();
   const year = date.getFullYear();
@@ -123,7 +123,7 @@ export function formatDayLabel(date: Date): string {
 /**
  * Get day key for grouping: "2024-12-25"
  */
-export function getDayKey(date: Date): string {
+function getDayKey(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -133,7 +133,7 @@ export function getDayKey(date: Date): string {
 /**
  * Get month key for grouping: "2024-12"
  */
-export function getMonthKey(date: Date): string {
+function getMonthKey(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
@@ -142,7 +142,7 @@ export function getMonthKey(date: Date): string {
 /**
  * Get year key for grouping: "2024"
  */
-export function getYearKey(date: Date): string {
+function getYearKey(date: Date): string {
   return String(date.getFullYear());
 }
 
@@ -291,12 +291,12 @@ export function groupPhotosForTimeline(manifest: Manifest): TimelineData {
 /**
  * Flatten timeline data into a list of renderable items for virtualization
  */
-export type TimelineItem =
+type TimelineItem =
   | { type: 'year-header'; year: YearGroup }
   | { type: 'month-header'; month: MonthGroup; yearKey: string }
   | { type: 'day-row'; day: DayGroup; monthKey: string; yearKey: string };
 
-export function flattenTimelineData(data: TimelineData): TimelineItem[] {
+function flattenTimelineData(data: TimelineData): TimelineItem[] {
   const items: TimelineItem[] = [];
 
   for (const year of data.years) {

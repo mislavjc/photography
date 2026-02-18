@@ -116,7 +116,7 @@ export const analyzeWithAI = (imageBuf: Buffer, prompt: string) =>
   );
 
 // Generate AI description for a single entry
-export const generateDescription = (
+const generateDescription = (
   filePath: string,
   entry: ManifestEntry,
   tags: Tags,

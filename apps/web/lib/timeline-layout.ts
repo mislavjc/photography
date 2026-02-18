@@ -1,6 +1,6 @@
 import type { PhotoWithMeta } from './timeline-utils';
 
-export interface MasonryPhoto {
+interface MasonryPhoto {
   filename: string;
   width: number;
   height: number;
@@ -14,13 +14,13 @@ export interface MasonryColumn {
 }
 
 // Layout tunables
-export const TARGET_COL_WIDTH = 160;
+const TARGET_COL_WIDTH = 160;
 export const GAP = 4;
 
 /**
  * Derive column count from container width, aiming for ~TARGET_COL_WIDTH per column.
  */
-export function getMasonryCols(containerWidth: number): number {
+function getMasonryCols(containerWidth: number): number {
   return Math.max(2, Math.floor((containerWidth + GAP) / (TARGET_COL_WIDTH + GAP)));
 }
 

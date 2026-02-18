@@ -21,17 +21,17 @@ const httpsAgent = new https.Agent({
 });
 
 // Variant profiles - configurable widths for each profile
-export const GRID_WIDTHS = [160, 240, 320, 360, 480, 640, 800, 960] as const;
-export const LARGE_WIDTHS = [
+const GRID_WIDTHS = [160, 240, 320, 360, 480, 640, 800, 960] as const;
+const LARGE_WIDTHS = [
   256, 384, 512, 768, 1024, 1280, 1536, 1920, 2560,
 ] as const;
 
-export const DEFAULT_PROFILES: VariantProfile[] = [
+const DEFAULT_PROFILES: VariantProfile[] = [
   { name: 'grid', widths: GRID_WIDTHS },
   { name: 'large', widths: LARGE_WIDTHS },
 ];
 
-export const DEFAULT_FORMATS: Formats[] = ['avif', 'webp', 'jpeg'];
+const DEFAULT_FORMATS: Formats[] = ['avif', 'webp', 'jpeg'];
 
 export interface ConfigWithS3 extends UploadConfig {
   s3: S3Client;

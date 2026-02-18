@@ -79,7 +79,7 @@ const readExifTagValue = (
 };
 
 // Manual EXIF parser for key metadata fields
-export const parseExifManually = (
+const parseExifManually = (
   exifBuffer: Buffer,
 ): Partial<{
   make: string;
@@ -449,7 +449,7 @@ export const parseExifManually = (
   return result;
 };
 
-export const extractExifMetadata = (file: string) =>
+const extractExifMetadata = (file: string) =>
   Effect.tryPromise({
     try: async () => {
       const image = sharp(file);
@@ -520,7 +520,7 @@ export const extractExifMetadata = (file: string) =>
  * @param maxColors - Maximum number of dominant colors to extract (default: 5)
  * @returns Array of dominant colors with hex, rgb, and percentage values
  */
-export const extractDominantColors = (file: string, maxColors: number = 5) =>
+const extractDominantColors = (file: string, maxColors: number = 5) =>
   Effect.tryPromise({
     try: async () => {
       const image = sharp(file);

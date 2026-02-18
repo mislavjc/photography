@@ -7,7 +7,7 @@ const CHECKPOINT_FILE = './upload-progress.json';
 const CHECKPOINT_VERSION = 1;
 
 // ----------------------- Progress Tracker -----------------------
-export const createProgressTracker = (total: number) => {
+const createProgressTracker = (total: number) => {
   let completed = 0;
   const startTime = Date.now();
 
@@ -128,7 +128,7 @@ export const createEnhancedProgressTracker = (total: number) => {
 };
 
 // ----------------------- Checkpoint System -----------------------
-export const loadCheckpoint = async (): Promise<CheckpointData | null> => {
+const loadCheckpoint = async (): Promise<CheckpointData | null> => {
   try {
     const content = await fsp.readFile(CHECKPOINT_FILE, 'utf-8');
     const data = JSON.parse(content) as CheckpointData;
@@ -142,7 +142,7 @@ export const loadCheckpoint = async (): Promise<CheckpointData | null> => {
   }
 };
 
-export const saveCheckpoint = async (
+const saveCheckpoint = async (
   data: Omit<CheckpointData, 'version' | 'lastUpdatedAt'>,
 ): Promise<void> => {
   const checkpoint: CheckpointData = {
@@ -153,7 +153,7 @@ export const saveCheckpoint = async (
   await fsp.writeFile(CHECKPOINT_FILE, JSON.stringify(checkpoint, null, 2));
 };
 
-export const clearCheckpoint = async (): Promise<void> => {
+const clearCheckpoint = async (): Promise<void> => {
   try {
     await fsp.unlink(CHECKPOINT_FILE);
   } catch {
