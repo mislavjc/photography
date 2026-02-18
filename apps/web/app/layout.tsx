@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
+import { Agentation } from 'agentation';
 import { Analytics } from 'components/analytics';
 import { SITE_CONFIG } from 'lib/constants';
 
@@ -27,13 +28,13 @@ export const metadata: Metadata = {
   description: 'A personal photo archive from my travels.',
 };
 
-const RootLayout = ({
+export default function RootLayout({
   children,
   modal,
 }: Readonly<{
   children: React.ReactNode;
   modal: React.ReactNode;
-}>) => {
+}>) {
   return (
     <html lang="en">
       <head>
@@ -53,9 +54,8 @@ const RootLayout = ({
           {modal}
         </NuqsAdapter>
         <Analytics />
+        {process.env.NODE_ENV === 'development' && <Agentation />}
       </body>
     </html>
   );
-};
-
-export default RootLayout;
+}

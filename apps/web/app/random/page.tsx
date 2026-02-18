@@ -1,10 +1,17 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { connection } from 'next/server';
+import { Suspense } from 'react';
 
 import { PhotoPage } from 'components/photo-display';
+import { SimilarPhotos } from 'components/similar-photos';
 
 import { loadManifest } from 'lib/manifest-server';
 import { selectRandomPhoto } from 'lib/manifest-utils';
+
+export const metadata: Metadata = {
+  title: 'Random Photo',
+};
 
 export default async function RandomPage() {
   // Defer to request time since we use Math.random()
@@ -34,5 +41,17 @@ export default async function RandomPage() {
   const randomPhotoName = selectRandomPhoto(photoNames);
   const photoData = manifest[randomPhotoName];
 
-  return <PhotoPage photoName={randomPhotoName} photoData={photoData} />;
+  return (
+    <Suspense>
+      <PhotoPage
+        photoName={randomPhotoName}
+        photoData={photoData}
+        similarSlot={
+          <Suspense fallback={<div className="h-24 animate-shimmer" />}>
+            <SimilarPhotos photoId={randomPhotoName} />
+          </Suspense>
+        }
+      />
+    </Suspense>
+  );
 }

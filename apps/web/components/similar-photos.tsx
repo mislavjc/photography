@@ -1,65 +1,26 @@
-'use client';
+import Image from 'next/image';
+import { cacheLife } from 'next/cache';
 
-import { memo, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { getSimilarPhotos } from 'lib/search';
 
-import { trackEvent } from 'lib/analytics';
-import { getSimilarPhotos, type SearchResult } from 'lib/search';
-
-interface SimilarPhotosProps {
-  photoId: string;
-}
+import { SimilarPhotoLink } from './similar-photo-link';
 
 function imageUrl(id: string) {
   return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${id}.avif`;
 }
 
-export const SimilarPhotos = memo(function SimilarPhotos({
-  photoId,
-}: SimilarPhotosProps) {
-  const [similar, setSimilar] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(true);
+async function fetchSimilar(photoId: string) {
+  'use cache';
+  cacheLife('days');
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const id = photoId.replace(/\.[^.]+$/, '');
+  return getSimilarPhotos(id);
+}
 
-    async function fetchSimilar() {
-      setLoading(true);
-      try {
-        const id = photoId.replace(/\.[^.]+$/, '');
-        const results = await getSimilarPhotos(id, controller.signal);
-        setSimilar(results);
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          return;
-        }
-        console.error('Failed to fetch similar photos:', error);
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
+export async function SimilarPhotos({ photoId }: { photoId: string }) {
+  const results = await fetchSimilar(photoId);
 
-    fetchSimilar();
-
-    return () => {
-      controller.abort();
-    };
-  }, [photoId]);
-
-  if (loading) {
-    return (
-      <section>
-        <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-3">
-          Similar
-        </div>
-        <div className="h-24 animate-shimmer" />
-      </section>
-    );
-  }
-
-  if (similar.length === 0) {
+  if (results.length === 0) {
     return null;
   }
 
@@ -69,28 +30,24 @@ export const SimilarPhotos = memo(function SimilarPhotos({
         Similar
       </div>
       <div className="flex gap-1 overflow-x-auto -mx-5 px-5 scrollbar-none">
-        {similar.map((result) => (
-          <Link
+        {results.map((result) => (
+          <SimilarPhotoLink
             key={result.id}
-            href={`/photo/${result.id}`}
-            replace
-            onClick={() =>
-              trackEvent('Similar Photo Click', {
-                from_photo: photoId,
-                to_photo: result.id,
-              })
-            }
-            className="flex-shrink-0 h-24 block overflow-hidden bg-neutral-200"
+            photoId={photoId}
+            targetId={result.id}
           >
-            <img
+            <Image
               src={imageUrl(result.id)}
               alt=""
+              width={160}
+              height={96}
               className="h-full w-auto block"
               loading="lazy"
+              unoptimized
             />
-          </Link>
+          </SimilarPhotoLink>
         ))}
       </div>
     </section>
   );
-});
+}

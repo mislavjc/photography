@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
 import { Suspense } from 'react';
 
@@ -6,6 +7,10 @@ import { loadManifest } from 'lib/manifest-server';
 import type { Manifest } from 'types';
 
 import { HomeGrid } from '../components/home-grid';
+
+export const metadata: Metadata = {
+  title: 'Photos',
+};
 
 // Get LCP candidate images (center of the grid, visible on initial load)
 function getLcpCandidates(

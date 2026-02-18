@@ -1,8 +1,13 @@
+import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
 import { Suspense } from 'react';
 
 import { TimelineSkeleton } from 'components/timeline-skeleton';
 import { TimelineWrapper } from 'components/timeline-wrapper';
+
+export const metadata: Metadata = {
+  title: 'Timeline',
+};
 
 import { loadManifest } from 'lib/manifest-server';
 import {

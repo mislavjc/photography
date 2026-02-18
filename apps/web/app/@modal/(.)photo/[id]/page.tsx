@@ -1,9 +1,16 @@
+import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 
 import { PhotoModal } from 'components/photo-display';
+import { SimilarPhotos } from 'components/similar-photos';
 
 import { loadManifest } from 'lib/manifest-server';
+
+export const metadata: Metadata = {
+  title: 'Photo',
+};
 
 interface ModalPageProps {
   params: Promise<{ id: string }>;
@@ -31,5 +38,15 @@ export default async function PhotoModalPage({ params }: ModalPageProps) {
     notFound();
   }
 
-  return <PhotoModal photoName={photoId} photoData={photoData} />;
+  return (
+    <PhotoModal
+      photoName={photoId}
+      photoData={photoData}
+      similarSlot={
+        <Suspense fallback={<div className="h-24 animate-shimmer" />}>
+          <SimilarPhotos photoId={photoId} />
+        </Suspense>
+      }
+    />
+  );
 }

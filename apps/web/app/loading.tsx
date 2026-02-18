@@ -41,9 +41,9 @@ export default function Loading() {
   return (
     <div className="fixed inset-0 bg-neutral-100 overflow-hidden">
       <div className="relative w-full h-full">
-        {layout.map((tile, i) => (
+        {layout.map((tile) => (
           <div
-            key={i}
+            key={`${tile.x}-${tile.y}`}
             className="absolute rounded bg-neutral-200 animate-pulse"
             style={{
               left: tile.x,
