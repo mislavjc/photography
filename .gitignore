@@ -57,3 +57,4 @@ upload-progress.json
 .alchemy/
 .wrangler/
 tmp/
+.claude/
