@@ -20,6 +20,13 @@ const APPS = [
     component: null,
   },
   {
+    id: 'map',
+    name: 'Map',
+    href: '/map',
+    icon: MapIcon,
+    component: null,
+  },
+  {
     id: 'random',
     name: 'Random',
     href: '/random',

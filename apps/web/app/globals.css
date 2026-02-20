@@ -167,3 +167,19 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Mapbox popup styling */
+.mapboxgl-popup-content {
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
+}
+
+.mapboxgl-popup-tip {
+  display: none !important;
+}
+
+.map-photo-popup .mapboxgl-popup-content {
+  background: white !important;
+  overflow: visible !important;
+}
