@@ -45,36 +45,65 @@ export function usePhotoSearch({
 
   // Execute search when query changes
   useEffect(() => {
-    if (query) {
-      startTransition(async () => {
-        try {
-          const results = await searchPhotos(query);
-          const ids = new Set(results.map((r) => r.id));
-          setFilteredIds(ids);
-          setSearchResultCount(ids.size);
-          setSearchPreview(results.slice(0, 8));
-          // Update title inline with search results
-          document.title = searchTitleFormat
-            .replace('%q', query)
-            .replace('%n', String(ids.size));
-          trackEvent('Search', {
-            query,
-            result_count: String(ids.size),
-          });
-        } catch (error) {
-          console.error('Search failed:', error);
-          setFilteredIds(null);
-          setSearchResultCount(undefined);
-          setSearchPreview([]);
-          document.title = baseTitle;
-        }
-      });
-    } else {
+    if (!query) {
       setFilteredIds(null);
       setSearchResultCount(undefined);
       setSearchPreview([]);
       document.title = baseTitle;
+      return;
     }
+
+    const abortController = new AbortController();
+
+    // Start transition for loading state
+    startTransition(() => {
+      setFilteredIds(null);
+      setSearchResultCount(undefined);
+      setSearchPreview([]);
+    });
+
+    // Fetch outside of transition
+    searchPhotos(query)
+      .then((results) => {
+        // Ignore if this search was superseded
+        if (abortController.signal.aborted) return;
+
+        const ids = new Set(results.map((r) => r.id));
+        const preview = results.slice(0, 8);
+
+        // Update state in transition for non-urgent update
+        startTransition(() => {
+          setFilteredIds(ids);
+          setSearchResultCount(ids.size);
+          setSearchPreview(preview);
+        });
+
+        // Update title and analytics immediately
+        document.title = searchTitleFormat
+          .replace('%q', query)
+          .replace('%n', String(ids.size));
+
+        trackEvent('Search', {
+          query,
+          result_count: String(ids.size),
+        });
+      })
+      .catch((error) => {
+        if (abortController.signal.aborted) return;
+
+        console.error('Search failed:', error);
+
+        startTransition(() => {
+          setFilteredIds(null);
+          setSearchResultCount(undefined);
+          setSearchPreview([]);
+        });
+
+        document.title = baseTitle;
+      });
+
+    // Cleanup: abort ongoing search when query changes
+    return () => abortController.abort();
   }, [query, baseTitle, searchTitleFormat]);
 
   const handleSearch = (q: string) => {
