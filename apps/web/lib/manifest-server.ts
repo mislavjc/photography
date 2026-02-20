@@ -29,8 +29,6 @@ export async function loadManifest(): Promise<Manifest> {
 
     const manifest = await response.json();
 
-    console.log(`Loaded manifest with ${Object.keys(manifest).length} images`);
-
     return manifest;
   } catch (error) {
     console.error('Failed to load manifest:', error);
