@@ -1,8 +1,10 @@
 'use client';
 
 import type { Manifest } from 'types';
+
 import type { Layout } from 'lib/layout';
 import { usePhotoSearch } from 'lib/use-photo-search';
+
 import { PannableGrid } from './finite-grid';
 
 type Props = {

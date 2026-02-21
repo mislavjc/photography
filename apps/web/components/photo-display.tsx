@@ -3,7 +3,7 @@
 
 import React, { Suspense, useMemo } from 'react';
 import { X } from 'lucide-react';
-import { LazyMotion, domAnimation, m } from 'motion/react';
+import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -131,13 +131,25 @@ function MapImage({
 
 // Animation variants for metadata sections
 const sectionVariants = {
-  hidden: { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0 },
+  hidden: { opacity: 0, transform: 'translateY(8px)' },
+  visible: {
+    opacity: 1,
+    transform: 'translateY(0px)',
+    transition: {
+      duration: 0.25,
+      ease: [0.23, 1, 0.32, 1] as const, // ease-out-quint (smoother)
+    },
+  },
 };
 
 const containerVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.06 } },
+  visible: {
+    transition: {
+      staggerChildren: 0.03,
+      delayChildren: 0,
+    },
+  },
 };
 
 // Extracted metadata panel for reuse between desktop sidebar and mobile sheet
@@ -158,10 +170,12 @@ function MetadataPanel({
   mapLoading?: 'lazy' | 'eager';
   similarSlot?: React.ReactNode;
 }) {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <m.div
       className="p-5 space-y-5"
-      initial="hidden"
+      initial={shouldReduceMotion ? false : 'hidden'}
       animate="visible"
       variants={containerVariants}
     >
@@ -177,7 +191,7 @@ function MetadataPanel({
 
       <m.section variants={sectionVariants}>
         <Label>Dimensions</Label>
-        <div className="font-mono text-neutral-800">
+        <div className="font-mono text-neutral-800 dark:text-neutral-200">
           {photoData.w} x {photoData.h}
         </div>
       </m.section>
@@ -186,7 +200,7 @@ function MetadataPanel({
         {photoData.exif.camera && (
           <section>
             <Label>Camera</Label>
-            <div className="font-mono text-neutral-800 text-sm">
+            <div className="font-mono text-neutral-800 dark:text-neutral-200 text-sm">
               {photoData.exif.camera}
             </div>
           </section>
@@ -194,7 +208,7 @@ function MetadataPanel({
         {photoData.exif.lens && (
           <section>
             <Label>Lens</Label>
-            <div className="font-mono text-neutral-800 text-sm">
+            <div className="font-mono text-neutral-800 dark:text-neutral-200 text-sm">
               {photoData.exif.lens}
             </div>
           </section>
@@ -205,7 +219,7 @@ function MetadataPanel({
         {photoData.exif.focalLength && (
           <section>
             <Label>Focal Length</Label>
-            <div className="font-mono text-neutral-800 text-sm">
+            <div className="font-mono text-neutral-800 dark:text-neutral-200 text-sm">
               {photoData.exif.focalLength}
             </div>
           </section>
@@ -213,7 +227,7 @@ function MetadataPanel({
         {photoData.exif.aperture && (
           <section>
             <Label>Aperture</Label>
-            <div className="font-mono text-neutral-800 text-sm">
+            <div className="font-mono text-neutral-800 dark:text-neutral-200 text-sm">
               {photoData.exif.aperture}
             </div>
           </section>
@@ -221,7 +235,7 @@ function MetadataPanel({
         {photoData.exif.shutterSpeed && (
           <section>
             <Label>Shutter</Label>
-            <div className="font-mono text-neutral-800 text-sm">
+            <div className="font-mono text-neutral-800 dark:text-neutral-200 text-sm">
               {photoData.exif.shutterSpeed}
             </div>
           </section>
@@ -229,7 +243,7 @@ function MetadataPanel({
         {photoData.exif.iso && (
           <section>
             <Label>ISO</Label>
-            <div className="font-mono text-neutral-800 text-sm">
+            <div className="font-mono text-neutral-800 dark:text-neutral-200 text-sm">
               {photoData.exif.iso}
             </div>
           </section>
@@ -263,17 +277,15 @@ function MetadataPanel({
         </m.section>
       )}
 
-      {similarSlot && (
-        <m.div variants={sectionVariants}>
-          {similarSlot}
-        </m.div>
-      )}
+      {similarSlot && <m.div variants={sectionVariants}>{similarSlot}</m.div>}
     </m.div>
   );
 }
 
 // Color swatches component
 function ColorSwatches({ colors }: { colors: Array<{ hex: string }> }) {
+  const shouldReduceMotion = useReducedMotion();
+
   if (colors.length === 0) return null;
 
   return (
@@ -289,9 +301,17 @@ function ColorSwatches({ colors }: { colors: Array<{ hex: string }> }) {
               zIndex: 5 - i,
               marginLeft: i === 0 ? 0 : -12,
             }}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.2, delay: i * 0.05 }}
+            initial={
+              shouldReduceMotion
+                ? false
+                : { opacity: 0, transform: 'scale(0.96)' }
+            }
+            animate={{ opacity: 1, transform: 'scale(1)' }}
+            transition={{
+              duration: 0.3,
+              delay: shouldReduceMotion ? 0 : i * 0.05,
+              ease: [0.23, 1, 0.32, 1] as const,
+            }}
           />
         ))}
       </div>
@@ -306,9 +326,17 @@ function ColorSwatches({ colors }: { colors: Array<{ hex: string }> }) {
               zIndex: 5 - i,
               marginBottom: i === 0 ? 0 : -12,
             }}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.2, delay: i * 0.05 }}
+            initial={
+              shouldReduceMotion
+                ? false
+                : { opacity: 0, transform: 'scale(0.96)' }
+            }
+            animate={{ opacity: 1, transform: 'scale(1)' }}
+            transition={{
+              duration: 0.3,
+              delay: shouldReduceMotion ? 0 : i * 0.05,
+              ease: [0.23, 1, 0.32, 1] as const,
+            }}
           />
         ))}
       </div>
@@ -429,7 +457,7 @@ function PhotoLayout({
         </div>
 
         <aside className="w-96 p-4">
-          <div className="rounded-2xl bg-neutral-100 overflow-y-auto max-h-[calc(100vh-2rem)]">
+          <div className="rounded-2xl bg-neutral-100 dark:bg-neutral-800/80 overflow-y-auto max-h-[calc(100vh-2rem)]">
             <MetadataPanel
               photoName={photoName}
               photoData={photoData}
@@ -471,9 +499,14 @@ function PhotoLayout({
 
         <div className="h-[60svh]" />
 
-        <div className={`bg-neutral-100 rounded-t-3xl min-h-[60svh] relative ${sheetZClassName}`}>
+        <div
+          className={`bg-neutral-100 dark:bg-neutral-800/80 rounded-t-3xl min-h-[60svh] relative ${sheetZClassName}`}
+        >
           <div className="flex justify-center pt-3 pb-2">
-            <div className="w-10 h-1 rounded-full bg-neutral-300" aria-hidden="true" />
+            <div
+              className="w-10 h-1 rounded-full bg-neutral-300 dark:bg-neutral-600"
+              aria-hidden="true"
+            />
           </div>
 
           <div className="pt-2 pb-8">
@@ -494,7 +527,7 @@ function PhotoLayout({
 }
 
 const closeButtonClassName =
-  'fixed top-4 left-4 w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 active:scale-[0.97] active:transition-transform';
+  'fixed top-4 left-4 w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 dark:focus-visible:ring-neutral-600 active:scale-[0.97] active:transition-transform';
 
 // Back button that reads search params to determine navigation target.
 // Wrapped in Suspense so useSearchParams doesn't bail out the whole page.
@@ -502,7 +535,10 @@ function BackButtonLink({ className }: { className: string }) {
   const backHref = useBackHref();
   return (
     <Link href={backHref} className={className} aria-label="Back to gallery">
-      <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
+      <X
+        className="w-5 h-5 text-neutral-600 dark:text-neutral-300"
+        aria-hidden="true"
+      />
     </Link>
   );
 }
@@ -510,9 +546,13 @@ function BackButtonLink({ className }: { className: string }) {
 // PhotoPage - for /photo/[id] route, uses Link for navigation
 type PhotoPageProps = PhotoDisplayBaseProps;
 
-export function PhotoPage({ photoName, photoData, similarSlot }: PhotoPageProps) {
+export function PhotoPage({
+  photoName,
+  photoData,
+  similarSlot,
+}: PhotoPageProps) {
   return (
-    <div className="min-h-[100svh] bg-white">
+    <div className="min-h-[100svh] bg-white dark:bg-neutral-900">
       <PhotoLayout
         photoName={photoName}
         photoData={photoData}
@@ -528,7 +568,10 @@ export function PhotoPage({ photoName, photoData, similarSlot }: PhotoPageProps)
                 className={`z-50 ${closeButtonClassName}`}
                 aria-label="Back to gallery"
               >
-                <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
+                <X
+                  className="w-5 h-5 text-neutral-600 dark:text-neutral-300"
+                  aria-hidden="true"
+                />
               </a>
             }
           >
@@ -541,19 +584,27 @@ export function PhotoPage({ photoName, photoData, similarSlot }: PhotoPageProps)
 }
 
 // PhotoModal - for intercepted route modal, uses router.back()
-export function PhotoModal({ photoName, photoData, similarSlot }: PhotoDisplayBaseProps) {
+export function PhotoModal({
+  photoName,
+  photoData,
+  similarSlot,
+}: PhotoDisplayBaseProps) {
   const router = useRouter();
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <LazyMotion features={domAnimation}>
       <m.div
-        className="fixed inset-0 z-[100] bg-white lg:overflow-hidden overflow-y-auto overscroll-contain"
+        className="fixed inset-0 z-[100] bg-white dark:bg-neutral-900 lg:overflow-hidden overflow-y-auto overscroll-contain"
         role="dialog"
         aria-modal={true}
         aria-label={`Photo: ${photoAlt(photoData)}`}
-        initial={{ opacity: 0 }}
+        initial={shouldReduceMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.2 }}
+        transition={{
+          duration: 0.15,
+          ease: [0.215, 0.61, 0.355, 1],
+        }}
       >
         <PhotoLayout
           photoName={photoName}
@@ -569,7 +620,10 @@ export function PhotoModal({ photoName, photoData, similarSlot }: PhotoDisplayBa
               className={`z-[110] ${closeButtonClassName}`}
               aria-label="Close"
             >
-              <X className="w-5 h-5 text-neutral-600" aria-hidden="true" />
+              <X
+                className="w-5 h-5 text-neutral-600 dark:text-neutral-300"
+                aria-hidden="true"
+              />
             </button>
           }
         />

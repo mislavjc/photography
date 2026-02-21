@@ -21,7 +21,10 @@ export const GAP = 4;
  * Derive column count from container width, aiming for ~TARGET_COL_WIDTH per column.
  */
 function getMasonryCols(containerWidth: number): number {
-  return Math.max(2, Math.floor((containerWidth + GAP) / (TARGET_COL_WIDTH + GAP)));
+  return Math.max(
+    2,
+    Math.floor((containerWidth + GAP) / (TARGET_COL_WIDTH + GAP)),
+  );
 }
 
 /**

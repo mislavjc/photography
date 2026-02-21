@@ -4,8 +4,15 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Entering/exiting elements (most common) */
+  --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-out-cubic: cubic-bezier(0.215, 0.61, 0.355, 1);
   --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Elements moving on screen */
   --ease-in-out-cubic: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --ease-in-out-quart: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 @theme inline {
@@ -124,6 +131,13 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Hardware acceleration for smooth animations */
+  [data-animate] {
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
 }
 
 /* CSS-only image fade-in animation - avoids React state re-renders */
@@ -137,7 +151,13 @@
 }
 
 .animate-fade-in {
-  animation: picture-fade-in 0.3s ease-out forwards;
+  animation: picture-fade-in 200ms var(--ease-out-cubic) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in {
+    animation: none;
+  }
 }
 
 /* Skeleton shimmer animation */
@@ -157,6 +177,15 @@
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
+.dark .animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.15 0 0) 0%,
+    oklch(0.18 0 0) 50%,
+    oklch(0.15 0 0) 100%
+  );
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -165,6 +194,16 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Disable shimmer in reduced motion */
+  .animate-shimmer {
+    animation: none !important;
+    background: oklch(0.92 0 0);
+  }
+
+  .dark .animate-shimmer {
+    background: oklch(0.15 0 0);
   }
 }
 
@@ -182,4 +221,141 @@
 .map-photo-popup .mapboxgl-popup-content {
   background: white !important;
   overflow: visible !important;
+}
+
+/* Print styles - optimized for photo printing */
+@media print {
+  @page {
+    margin: 0.5cm;
+    size: auto;
+  }
+
+  /* Hide UI elements */
+  nav,
+  button,
+  [role='navigation'],
+  [aria-label='Close'],
+  [aria-label='Back to gallery'],
+  footer {
+    display: none !important;
+  }
+
+  /* Force light mode for printing */
+  :root {
+    color-scheme: light !important;
+  }
+
+  .dark {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Photo display optimization */
+  img {
+    page-break-inside: avoid;
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Ensure photos use full width when printing */
+  picture,
+  picture img {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Photo detail page layout for print */
+  .lg\:flex {
+    display: block !important;
+  }
+
+  aside {
+    page-break-before: always;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Metadata panel styling */
+  .bg-neutral-100,
+  .dark .bg-neutral-100 {
+    background: white !important;
+    border: 1px solid #e5e5e5 !important;
+  }
+
+  /* Ensure text is readable */
+  .text-neutral-500,
+  .text-neutral-400,
+  .text-neutral-600,
+  .text-neutral-700,
+  .text-neutral-800 {
+    color: #404040 !important;
+  }
+
+  /* Hide animations and transitions for faster printing */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Color swatches - keep visible but make smaller */
+  .fixed {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.25rem !important;
+    margin-bottom: 1rem !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  /* Hide mobile sheet handle */
+  [aria-hidden='true'].w-10 {
+    display: none !important;
+  }
+
+  /* Optimize map images */
+  [data-mapcard] img {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Keep EXIF data grouped */
+  section {
+    page-break-inside: avoid;
+  }
+
+  /* Grid view optimization */
+  .grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.5cm !important;
+  }
+
+  /* Prevent orphaned content */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    page-break-after: avoid;
+  }
+
+  /* Force exact colors for photos */
+  img,
+  picture {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

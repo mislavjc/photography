@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { Navbar } from './navbar';
 import { Picture } from './picture';
+import { useTheme } from './theme-provider';
 
 // ============================================================================
 // Types
@@ -36,8 +37,12 @@ type MapViewProps = {
 // Constants
 // ============================================================================
 
+const MAP_STYLES = {
+  light: 'mapbox://styles/mapbox/light-v11',
+  dark: 'mapbox://styles/mapbox/dark-v11',
+} as const;
+
 const MAP_CONFIG = {
-  style: 'mapbox://styles/mapbox/light-v11',
   center: [0, 30] as [number, number],
   zoom: 1.5,
   minZoom: 1,
@@ -139,6 +144,7 @@ export function MapView({ initialData }: MapViewProps) {
   const [selectedPhotos, setSelectedPhotos] = useState<Photo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -157,8 +163,12 @@ export function MapView({ initialData }: MapViewProps) {
 
       mapboxgl.default.accessToken = token;
 
+      const mapStyle =
+        resolvedTheme === 'dark' ? MAP_STYLES.dark : MAP_STYLES.light;
+
       const map = new mapboxgl.default.Map({
         container: mapContainerRef.current,
+        style: mapStyle,
         ...MAP_CONFIG,
       });
 
@@ -198,7 +208,16 @@ export function MapView({ initialData }: MapViewProps) {
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [initialData]);
+  }, [initialData, resolvedTheme]);
+
+  // Update map style when theme changes
+  useEffect(() => {
+    if (!mapRef.current || isLoading) return;
+
+    const newStyle =
+      resolvedTheme === 'dark' ? MAP_STYLES.dark : MAP_STYLES.light;
+    mapRef.current.setStyle(newStyle);
+  }, [resolvedTheme, isLoading]);
 
   return (
     <>
@@ -232,7 +251,19 @@ function addClusterLayers(map: any) {
     filter: ['has', 'point_count'],
     paint: {
       'circle-color': 'rgba(0, 0, 0, 0.1)',
-      'circle-radius': ['step', ['get', 'point_count'], 22, 10, 28, 30, 34, 100, 40, 500, 46],
+      'circle-radius': [
+        'step',
+        ['get', 'point_count'],
+        22,
+        10,
+        28,
+        30,
+        34,
+        100,
+        40,
+        500,
+        46,
+      ],
       'circle-blur': 0.5,
       'circle-translate': [0, 2],
     },
@@ -246,7 +277,19 @@ function addClusterLayers(map: any) {
     filter: ['has', 'point_count'],
     paint: {
       'circle-color': '#171717',
-      'circle-radius': ['step', ['get', 'point_count'], 20, 10, 26, 30, 32, 100, 38, 500, 44],
+      'circle-radius': [
+        'step',
+        ['get', 'point_count'],
+        20,
+        10,
+        26,
+        30,
+        32,
+        100,
+        38,
+        500,
+        44,
+      ],
       'circle-stroke-width': 3,
       'circle-stroke-color': '#ffffff',
       'circle-opacity': 0.95,
@@ -262,7 +305,19 @@ function addClusterLayers(map: any) {
     layout: {
       'text-field': ['get', 'point_count_abbreviated'],
       'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-      'text-size': ['step', ['get', 'point_count'], 12, 10, 13, 30, 14, 100, 15, 500, 16],
+      'text-size': [
+        'step',
+        ['get', 'point_count'],
+        12,
+        10,
+        13,
+        30,
+        14,
+        100,
+        15,
+        500,
+        16,
+      ],
     },
     paint: {
       'text-color': '#ffffff',
@@ -288,7 +343,9 @@ function addPointLayer(map: any) {
 
 function setupClusterInteractions(map: any) {
   map.on('click', 'clusters', (e: any) => {
-    const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+    const features = map.queryRenderedFeatures(e.point, {
+      layers: ['clusters'],
+    });
     const clusterId = features[0]?.properties?.cluster_id;
     if (!clusterId) return;
 
@@ -316,7 +373,11 @@ function setupClusterInteractions(map: any) {
   });
 }
 
-function setupPointInteractions(map: any, data: MapData, setSelected: (photos: Photo[]) => void) {
+function setupPointInteractions(
+  map: any,
+  data: MapData,
+  setSelected: (photos: Photo[]) => void,
+) {
   map.on('click', 'unclustered-point', (e: any) => {
     if (!e.features?.[0]) return;
 
@@ -325,7 +386,7 @@ function setupPointInteractions(map: any, data: MapData, setSelected: (photos: P
     if (!photoId) return;
 
     const photosAtLocation = data.photos.filter(
-      (p) => p.lng === coordinates[0] && p.lat === coordinates[1]
+      (p) => p.lng === coordinates[0] && p.lat === coordinates[1],
     );
 
     setSelected(photosAtLocation);
@@ -353,7 +414,10 @@ function setupPhotoPreview(map: any, data: MapData, mapboxgl: any) {
 
     if (!e.features?.[0]) return;
 
-    const coordinates = e.features[0].geometry.coordinates.slice() as [number, number];
+    const coordinates = e.features[0].geometry.coordinates.slice() as [
+      number,
+      number,
+    ];
     const photoId = e.features[0].properties?.id;
     if (!photoId) return;
 
@@ -402,7 +466,13 @@ function ErrorState({ error }: { error: string }) {
   );
 }
 
-function PhotoSidebar({ photos, onClose }: { photos: Photo[]; onClose: () => void }) {
+function PhotoSidebar({
+  photos,
+  onClose,
+}: {
+  photos: Photo[];
+  onClose: () => void;
+}) {
   return (
     <div className="absolute right-4 top-20 bottom-4 w-80 bg-white rounded-2xl shadow-lg overflow-hidden z-20">
       <div className="h-full flex flex-col">
@@ -420,7 +490,9 @@ function PhotoSidebar({ photos, onClose }: { photos: Photo[]; onClose: () => voi
             </button>
           </div>
           {photos[0]?.date && (
-            <p className="text-xs text-neutral-500 font-mono">{formatDate(photos[0].date)}</p>
+            <p className="text-xs text-neutral-500 font-mono">
+              {formatDate(photos[0].date)}
+            </p>
           )}
         </div>
 

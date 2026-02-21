@@ -611,7 +611,7 @@ export function PannableGrid({
   return (
     <div>
       <div
-        className="fixed inset-0 touch-none overscroll-none select-none bg-neutral-100"
+        className="fixed inset-0 touch-none overscroll-none select-none bg-neutral-100 dark:bg-neutral-900"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -700,8 +700,8 @@ export function PannableGrid({
 
       {/* Empty state when search returns no results */}
       {searchResultCount === 0 && searchQuery && !isSearching && (
-        <div className="fixed inset-0 z-[40] flex items-center justify-center bg-white pt-14 px-4">
-          <div className="w-full max-w-4xl rounded-3xl bg-neutral-100 p-6 sm:p-10">
+        <div className="fixed inset-0 z-[40] flex items-center justify-center bg-white dark:bg-neutral-900 pt-14 px-4">
+          <div className="w-full max-w-4xl rounded-3xl bg-neutral-100 dark:bg-neutral-800 p-6 sm:p-10">
             <div className="mb-8 text-center">
               <h2 className="text-xl sm:text-2xl font-medium text-neutral-900">
                 No results for "{searchQuery}"
@@ -716,7 +716,7 @@ export function PannableGrid({
                   key={cat.id}
                   type="button"
                   onClick={() => onSearch?.(cat.query)}
-                  className={`group flex flex-col overflow-hidden rounded-2xl bg-neutral-200/60 p-3 transition-all hover:bg-neutral-200 hover:ring-2 hover:ring-neutral-300 ${idx >= 4 ? 'hidden sm:flex' : ''}`}
+                  className={`group flex flex-col overflow-hidden rounded-2xl bg-neutral-200/60 dark:bg-neutral-700/60 p-3 transition-all hover:bg-neutral-200 dark:hover:bg-neutral-600 hover:ring-2 hover:ring-neutral-300 dark:hover:ring-neutral-500 ${idx >= 4 ? 'hidden sm:flex' : ''}`}
                 >
                   {/* Photo collage - 3 overlapping images */}
                   <div className="relative h-28 sm:h-32 mb-3">

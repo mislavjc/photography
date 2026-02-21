@@ -1,10 +1,10 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
-import { Suspense } from 'react';
+import type { Manifest } from 'types';
 
 import { computeNearSquareLayout } from 'lib/layout';
 import { loadManifest } from 'lib/manifest-server';
-import type { Manifest } from 'types';
 
 import { HomeGrid } from '../components/home-grid';
 

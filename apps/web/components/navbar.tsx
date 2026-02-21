@@ -2,13 +2,20 @@
 
 import React, { useMemo, useState } from 'react';
 import { Calendar, Map as MapIcon, Search, Shuffle, X } from 'lucide-react';
-import { AnimatePresence, LazyMotion, domAnimation, m } from 'motion/react';
+import {
+  AnimatePresence,
+  domAnimation,
+  LazyMotion,
+  m,
+  useReducedMotion,
+} from 'motion/react';
 import type { Manifest } from 'types';
 
 import type { PlacedItem } from 'lib/layout';
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
 
 import { Minimap } from './minimap';
+import { ThemeToggle } from './theme-toggle';
 
 const APPS = [
   { id: 'canvas', name: 'Canvas', href: '/', icon: MapIcon, component: null },
@@ -229,8 +236,8 @@ function NavbarSearch({
           e.preventDefault();
           handleSearch(inputValue);
         }}
-        className={`flex items-center gap-3 rounded-xl bg-neutral-100 px-4 py-2.5 transition-colors ${
-          searchOpen ? 'bg-neutral-200/70' : ''
+        className={`flex items-center gap-3 rounded-xl bg-neutral-100 dark:bg-neutral-800 px-4 py-2.5 transition-colors ${
+          searchOpen ? 'bg-neutral-200/70 dark:bg-neutral-700/70' : ''
         }`}
       >
         {isSearching ? (
@@ -263,7 +270,7 @@ function NavbarSearch({
               inputRef.current?.blur();
             }
           }}
-          className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 outline-none focus-visible:outline-none placeholder:text-neutral-500"
+          className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 dark:text-neutral-200 outline-none focus-visible:outline-none placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
         />
         {isSearching ? (
           <span className="text-xs text-neutral-500 animate-pulse">
@@ -278,7 +285,7 @@ function NavbarSearch({
           <button
             type="button"
             onClick={handleClear}
-            className="rounded-md p-0.5 hover:bg-neutral-200 focus-visible:ring-2 focus-visible:ring-neutral-400"
+            className="rounded-md p-0.5 hover:bg-neutral-200 dark:hover:bg-neutral-700 focus-visible:ring-2 focus-visible:ring-neutral-400 dark:focus-visible:ring-neutral-600"
             aria-label="Clear search"
           >
             <X className="h-4 w-4 text-neutral-400" aria-hidden="true" />
@@ -290,11 +297,14 @@ function NavbarSearch({
       <AnimatePresence>
         {searchOpen && (
           <m.div
-            initial={{ opacity: 0, y: 4 }}
+            initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.15 }}
-            className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-neutral-200 bg-neutral-100 p-2"
+            exit={{ opacity: 0, y: -4 }}
+            transition={{
+              duration: 0.15,
+              ease: [0.215, 0.61, 0.355, 1] as const,
+            }}
+            className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 p-2"
           >
             {/* Show matching categories as autocomplete (uses memoized filter) */}
             {inputValue.trim() && matchingCategories.length === 0 ? (
@@ -310,15 +320,22 @@ function NavbarSearch({
                       key={cat.id}
                       type="button"
                       onClick={() => {
-                        setInputState((prev) => ({ ...prev, value: cat.query }));
+                        setInputState((prev) => ({
+                          ...prev,
+                          value: cat.query,
+                        }));
                         handleSearch(cat.query);
                         updateSearchOpen(false);
                         inputRef.current?.blur();
                       }}
-                      className="flex items-center gap-3 rounded-xl bg-white p-2.5 text-left transition-colors hover:bg-neutral-50 active:scale-[0.97] active:transition-transform"
-                      initial={{ opacity: 0, y: 8 }}
+                      className="flex items-center gap-3 rounded-xl bg-white dark:bg-neutral-900 p-2.5 text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-700 active:scale-[0.98]"
+                      initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.15, delay: Math.min(i, 6) * 0.03 }}
+                      transition={{
+                        duration: 0.15,
+                        delay: Math.min(i, 6) * 0.025,
+                        ease: [0.215, 0.61, 0.355, 1] as const,
+                      }}
                     >
                       <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
                         <img
@@ -327,7 +344,7 @@ function NavbarSearch({
                           className="h-full w-full object-cover"
                         />
                       </div>
-                      <span className="text-[15px] font-medium text-neutral-800">
+                      <span className="text-[15px] font-medium text-neutral-800 dark:text-neutral-200">
                         {cat.label}
                       </span>
                     </m.button>
@@ -366,6 +383,7 @@ export function Navbar({
   const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
   const [isMobile, setIsMobile] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
   // Detect mobile for logo animation - only update when crossing threshold
   React.useEffect(() => {
@@ -416,6 +434,7 @@ export function Navbar({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
             onClick={() => setOpenWindows(new Set())}
           />
         )}
@@ -423,9 +442,13 @@ export function Navbar({
 
       {/* Navbar */}
       <m.nav
-        initial={{ opacity: 0, y: -10 }}
+        initial={shouldReduceMotion ? false : { opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fixed top-0 left-0 right-0 z-[70] bg-white border-b border-neutral-200/50"
+        transition={{
+          duration: 0.2,
+          ease: [0.215, 0.61, 0.355, 1],
+        }}
+        className="fixed top-0 left-0 right-0 z-[70] bg-white dark:bg-neutral-900 border-b border-neutral-200/50 dark:border-neutral-800"
       >
         <div className="mx-auto flex h-14 items-center gap-3 px-4">
           {/* Left: Logo (desktop) or hidden on mobile when search focused */}
@@ -464,6 +487,7 @@ export function Navbar({
 
           {/* Right: Actions (desktop only) - fixed width to balance left side */}
           <div className="w-32 flex-shrink-0 hidden md:flex items-center justify-end gap-1">
+            <ThemeToggle />
             {/* Year selector for timeline */}
             {timelineProps && (
               <select
@@ -506,6 +530,7 @@ export function Navbar({
 
         {/* Mobile nav links - below search bar */}
         <div className="flex md:hidden items-center gap-1 px-4 pb-2">
+          <ThemeToggle />
           {APPS.filter(
             (app) => app.component !== 'MinimapWindow' && app.id !== 'minimap',
           ).map((app) => (
@@ -575,10 +600,10 @@ function NavbarButton({
   isOpen?: boolean;
   onToggleWindow?: (_component: string) => void;
 }) {
-  const baseClasses = `rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 ${
+  const baseClasses = `rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 dark:focus-visible:ring-neutral-600 ${
     isOpen
-      ? 'bg-neutral-100 text-neutral-900'
-      : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+      ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100'
+      : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100'
   }`;
 
   // Use Link for navigation, button for window toggle
@@ -616,8 +641,10 @@ function MobileNavLink({
   return (
     <a
       href={href}
-      className={`relative min-h-[44px] flex items-center px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 rounded ${
-        isActive ? 'text-neutral-900' : 'text-neutral-500'
+      className={`relative min-h-[44px] flex items-center px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 dark:focus-visible:ring-neutral-600 rounded ${
+        isActive
+          ? 'text-neutral-900 dark:text-neutral-100'
+          : 'text-neutral-500 dark:text-neutral-400'
       }`}
     >
       {label}
@@ -643,7 +670,7 @@ function MinimapWindow({
       transition={{ duration: 0.15 }}
       className="fixed right-4 top-[62px] z-[75]"
     >
-      <div className="rounded-2xl border border-neutral-200 bg-neutral-100 p-2">
+      <div className="rounded-2xl border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 p-2">
         <div className="flex items-center justify-between px-2 pb-2">
           <span className="text-xs font-medium text-neutral-500">Minimap</span>
           <button

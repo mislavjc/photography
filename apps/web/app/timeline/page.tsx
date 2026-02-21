@@ -1,6 +1,6 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
-import { Suspense } from 'react';
 
 import { TimelineSkeleton } from 'components/timeline-skeleton';
 import { TimelineWrapper } from 'components/timeline-wrapper';
@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   title: 'Timeline',
 };
 
+import type { Manifest } from 'types';
+
 import { loadManifest } from 'lib/manifest-server';
 import {
   computeMasonryLayout,
@@ -16,7 +18,6 @@ import {
   type MasonryColumn,
 } from 'lib/timeline-layout';
 import { groupPhotosForTimeline, type TimelineData } from 'lib/timeline-utils';
-import type { Manifest } from 'types';
 
 // Precompute item heights for default desktop width to reduce CLS
 const DEFAULT_CONTAINER_WIDTH = 900; // Approximate desktop photo container width

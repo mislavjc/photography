@@ -1,7 +1,7 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
 import { notFound } from 'next/navigation';
-import { Suspense } from 'react';
 
 import { PhotoModal } from 'components/photo-display';
 import { SimilarPhotos } from 'components/similar-photos';

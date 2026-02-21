@@ -15,10 +15,7 @@ function ensureLoaded(): Promise<void> {
  * Fire a custom Plausible event. Safe to call before the tracker loads —
  * the call will be queued until init completes. No-ops on the server.
  */
-export function trackEvent(
-  name: string,
-  props?: Record<string, string>,
-): void {
+export function trackEvent(name: string, props?: Record<string, string>): void {
   if (typeof window === 'undefined') return;
 
   const fire = () => {

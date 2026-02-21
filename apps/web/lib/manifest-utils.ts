@@ -12,10 +12,7 @@ export function selectRandomPhoto(photoNames: string[]): string {
   return photoNames[Math.floor(Math.random() * photoNames.length)];
 }
 
-function getImageByIndex(
-  manifest: Manifest,
-  index: number,
-): string | null {
+function getImageByIndex(manifest: Manifest, index: number): string | null {
   const keys = getManifestKeys(manifest);
   if (keys.length === 0) return null;
 
@@ -24,10 +21,7 @@ function getImageByIndex(
   return keys[actualIndex];
 }
 
-function getRandomImageBySeed(
-  manifest: Manifest,
-  seed: number,
-): string | null {
+function getRandomImageBySeed(manifest: Manifest, seed: number): string | null {
   const keys = getManifestKeys(manifest);
   if (keys.length === 0) return null;
 

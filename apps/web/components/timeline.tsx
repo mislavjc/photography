@@ -12,7 +12,6 @@ import { ChevronUp } from 'lucide-react';
 import type { Manifest } from 'types';
 
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
-
 import {
   computeMasonryLayout,
   GAP,
@@ -34,7 +33,11 @@ const EXT_RE = /\.[^.]+$/;
 
 // Photo collage layout classes (indexed by position 0-2)
 const COLLAGE_ROTATIONS = ['-rotate-6', 'rotate-3', '-rotate-2'];
-const COLLAGE_OFFSETS = ['left-0 top-2', 'right-0 top-0', 'left-1/2 -translate-x-1/2 top-4'];
+const COLLAGE_OFFSETS = [
+  'left-0 top-2',
+  'right-0 top-0',
+  'left-1/2 -translate-x-1/2 top-4',
+];
 const COLLAGE_Z_INDICES = ['z-10', 'z-20', 'z-30'];
 
 // Type for SSR-precomputed items
@@ -90,7 +93,11 @@ export function Timeline({
   const [viewportHeight, setViewportHeight] = useState(800);
   const [innerWidth, setInnerWidth] = useState<number>(DEFAULT_CONTAINER_WIDTH);
   const [isMobile, setIsMobile] = useState(false);
-  const isHydrated = useSyncExternalStore(emptySubscribe, returnTrue, returnFalse);
+  const isHydrated = useSyncExternalStore(
+    emptySubscribe,
+    returnTrue,
+    returnFalse,
+  );
   // Filter timeline data based on search results
   const filteredData = useMemo(() => {
     if (!filteredIds || filteredIds.size === 0) return data;
@@ -279,10 +286,7 @@ export function Timeline({
         currentTop += MONTH_HEADER_HEIGHT;
 
         for (const day of month.days) {
-          const masonry = computeMasonryLayout(
-            day.photos,
-            photoContainerWidth,
-          );
+          const masonry = computeMasonryLayout(day.photos, photoContainerWidth);
           const dayHeight = Math.max(
             48,
             masonry.height + DAY_ROW_PADDING + MOBILE_DATE_HEIGHT,
@@ -395,7 +399,7 @@ export function Timeline({
   );
 
   return (
-    <div className="min-h-screen bg-white pt-14 pb-24 overflow-x-hidden">
+    <div className="min-h-screen bg-white dark:bg-neutral-900 pt-14 pb-24 overflow-x-hidden">
       {/* Virtual scroll container */}
       <div
         ref={innerContainerRef}
@@ -411,8 +415,8 @@ export function Timeline({
                 className="absolute left-0 right-0 px-2 sm:px-6 lg:px-12"
                 style={{ top: item.top, height: item.height }}
               >
-                <div className="sticky top-14 z-20 bg-white/90 backdrop-blur-sm py-4 sm:py-6">
-                  <h2 className="font-mono text-xl sm:text-2xl font-semibold text-neutral-900 tracking-tight">
+                <div className="sticky top-14 z-20 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm py-4 sm:py-6">
+                  <h2 className="font-mono text-xl sm:text-2xl font-semibold text-neutral-900 dark:text-neutral-100 tracking-tight">
                     {yearData.label}
                   </h2>
                 </div>
@@ -428,8 +432,8 @@ export function Timeline({
                 className="absolute left-0 right-0 px-2 sm:px-6 lg:px-12"
                 style={{ top: item.top, height: item.height }}
               >
-                <div className="sticky top-[88px] z-10 bg-white/90 backdrop-blur-sm py-2 sm:py-3">
-                  <h3 className="font-mono text-xs sm:text-sm uppercase tracking-[0.14em] text-neutral-500">
+                <div className="sticky top-[88px] z-10 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm py-2 sm:py-3">
+                  <h3 className="font-mono text-xs sm:text-sm uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">
                     {monthData.label}
                   </h3>
                 </div>
@@ -462,13 +466,13 @@ export function Timeline({
 
       {/* Empty state when search returns no results */}
       {searchResultCount === 0 && searchQuery && !isSearching && (
-        <div className="fixed inset-0 z-[40] flex items-center justify-center bg-white pt-14 px-4">
-          <div className="w-full max-w-4xl rounded-3xl bg-neutral-100 p-6 sm:p-10">
+        <div className="fixed inset-0 z-[40] flex items-center justify-center bg-white dark:bg-neutral-900 pt-14 px-4">
+          <div className="w-full max-w-4xl rounded-3xl bg-neutral-100 dark:bg-neutral-900 p-6 sm:p-10">
             <div className="mb-8 text-center">
-              <h2 className="text-xl sm:text-2xl font-medium text-neutral-900">
+              <h2 className="text-xl sm:text-2xl font-medium text-neutral-900 dark:text-neutral-100">
                 No results for "{searchQuery}"
               </h2>
-              <p className="mt-2 text-sm text-neutral-500">
+              <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
                 Try searching for one of these categories instead
               </p>
             </div>
@@ -478,7 +482,7 @@ export function Timeline({
                   key={cat.id}
                   type="button"
                   onClick={() => onSearch?.(cat.query)}
-                  className={`group flex flex-col overflow-hidden rounded-2xl bg-neutral-200/60 p-3 transition-all hover:bg-neutral-200 hover:ring-2 hover:ring-neutral-300 ${idx >= 4 ? 'hidden sm:flex' : ''}`}
+                  className={`group flex flex-col overflow-hidden rounded-2xl bg-neutral-200/60 dark:bg-neutral-800/60 p-3 transition-all hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:ring-2 hover:ring-neutral-300 dark:hover:ring-neutral-600 ${idx >= 4 ? 'hidden sm:flex' : ''}`}
                 >
                   {/* Photo collage - 3 overlapping images */}
                   <div className="relative h-28 sm:h-32 mb-3">
@@ -505,7 +509,7 @@ export function Timeline({
                       );
                     })}
                   </div>
-                  <span className="text-sm font-medium text-neutral-700 text-center">
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300 text-center">
                     {cat.label}
                   </span>
                 </button>
@@ -535,7 +539,7 @@ export function Timeline({
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-20 right-4 md:bottom-6 z-[60] flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200"
+          className="fixed bottom-20 right-4 md:bottom-6 z-[60] flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 transition-colors hover:bg-neutral-200 dark:hover:bg-neutral-700"
           aria-label="Scroll to top"
         >
           <ChevronUp className="h-5 w-5" />

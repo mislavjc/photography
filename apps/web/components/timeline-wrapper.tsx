@@ -2,11 +2,12 @@
 
 import type { Manifest } from 'types';
 
-import { usePhotoSearch } from 'lib/use-photo-search';
 import type { TimelineData } from 'lib/timeline-utils';
+import { usePhotoSearch } from 'lib/use-photo-search';
+
+import type { PrecomputedItem } from '../app/timeline/page';
 
 import { Timeline } from './timeline';
-import type { PrecomputedItem } from '../app/timeline/page';
 
 type Props = {
   data: TimelineData;

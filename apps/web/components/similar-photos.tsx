@@ -1,5 +1,5 @@
-import Image from 'next/image';
 import { cacheLife } from 'next/cache';
+import Image from 'next/image';
 
 import { getSimilarPhotos } from 'lib/search';
 
@@ -26,7 +26,7 @@ export async function SimilarPhotos({ photoId }: { photoId: string }) {
 
   return (
     <section>
-      <div className="uppercase tracking-[0.14em] text-neutral-500 text-xs font-mono mb-3">
+      <div className="uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400 text-xs font-mono mb-3">
         Similar
       </div>
       <div className="flex gap-1 overflow-x-auto -mx-5 px-5 scrollbar-none">

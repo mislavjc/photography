@@ -52,12 +52,12 @@ export const TimelineDayRow = memo(function TimelineDayRow({
   return (
     <div className="sm:flex sm:gap-6">
       {/* Timeline line - desktop only */}
-      <div className="hidden sm:block relative shrink-0 w-px bg-neutral-200 self-stretch" />
+      <div className="hidden sm:block relative shrink-0 w-px bg-neutral-200 dark:bg-neutral-800 self-stretch" />
 
       <div className="sm:flex-1 min-w-0">
         {/* Date label - mobile only (above photos) */}
         <div className="py-2.5 sm:hidden">
-          <span className="font-mono text-[11px] text-neutral-500">
+          <span className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
             {day.label}
           </span>
         </div>
@@ -65,7 +65,7 @@ export const TimelineDayRow = memo(function TimelineDayRow({
         <div className="sm:flex sm:items-start sm:gap-6">
           {/* Date column - desktop only */}
           <div className="hidden sm:block w-20 shrink-0 pt-1">
-            <span className="font-mono text-xs text-neutral-500">
+            <span className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
               {day.label}
             </span>
           </div>
@@ -81,8 +81,7 @@ export const TimelineDayRow = memo(function TimelineDayRow({
                 >
                   {col.photos.map((photo) => {
                     const meta = manifest[photo.filename];
-                    const dominantColor =
-                      meta?.exif?.dominantColors?.[0]?.hex;
+                    const dominantColor = meta?.exif?.dominantColors?.[0]?.hex;
 
                     return (
                       <button

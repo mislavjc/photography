@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
 
 import { MapView } from 'components/map-view';
+
 import { loadManifest } from 'lib/manifest-server';
 
 export const metadata: Metadata = {
@@ -41,7 +42,7 @@ export default async function MapPage() {
   const data = await getMapData();
 
   return (
-    <div className="fixed inset-0 bg-neutral-50">
+    <div className="fixed inset-0 bg-neutral-50 dark:bg-neutral-950">
       <MapView initialData={data} />
     </div>
   );
