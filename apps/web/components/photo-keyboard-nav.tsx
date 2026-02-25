@@ -64,6 +64,15 @@ export function PhotoKeyboardNav({
 
   return (
     <>
+      {/* Position counter */}
+      {currentIndex >= 0 && (
+        <div className="fixed bottom-8 right-4 z-50 pointer-events-none">
+          <div className="bg-neutral-900/80 dark:bg-neutral-100/80 text-white dark:text-neutral-900 px-3 py-1.5 rounded-md text-xs font-mono tabular-nums backdrop-blur-sm">
+            {currentIndex + 1} / {allPhotoIds.length}
+          </div>
+        </div>
+      )}
+
       {/* Navigation buttons - visible on hover */}
       {prevId && (
         <button
