@@ -1,6 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useSyncExternalStore,
+} from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -20,61 +26,77 @@ export function useTheme() {
   return context;
 }
 
+// --- localStorage theme store ---
+const THEME_CHANGE = 'theme-storage-change';
+
+function subscribeToTheme(callback: () => void) {
+  window.addEventListener(THEME_CHANGE, callback);
+  window.addEventListener('storage', callback);
+  return () => {
+    window.removeEventListener(THEME_CHANGE, callback);
+    window.removeEventListener('storage', callback);
+  };
+}
+
+function getThemeSnapshot(): Theme {
+  const stored = localStorage.getItem('theme');
+  if (stored === 'light' || stored === 'dark' || stored === 'system') {
+    return stored;
+  }
+  return 'light';
+}
+
+function getThemeServerSnapshot(): Theme {
+  return 'light';
+}
+
+// --- System preference store ---
+function subscribeToSystemPreference(callback: () => void) {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  mq.addEventListener('change', callback);
+  return () => mq.removeEventListener('change', callback);
+}
+
+function getSystemPreferenceSnapshot(): 'light' | 'dark' {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light';
+}
+
+function getSystemPreferenceServerSnapshot(): 'light' | 'dark' {
+  return 'light';
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('light');
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+  const theme = useSyncExternalStore(
+    subscribeToTheme,
+    getThemeSnapshot,
+    getThemeServerSnapshot,
+  );
 
-  // Initialize theme from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem('theme') as Theme | null;
-    if (stored && ['light', 'dark', 'system'].includes(stored)) {
-      setThemeState(stored);
-    } else {
-      setThemeState('light');
-    }
-  }, []);
+  const systemPreference = useSyncExternalStore(
+    subscribeToSystemPreference,
+    getSystemPreferenceSnapshot,
+    getSystemPreferenceServerSnapshot,
+  );
 
-  // Apply theme to document and resolve system preference
+  // Derived — no state needed
+  const resolvedTheme = theme === 'system' ? systemPreference : theme;
+
+  // Apply theme to DOM (side effect only, no setState)
   useEffect(() => {
     const root = document.documentElement;
-    const systemPreference = window.matchMedia('(prefers-color-scheme: dark)')
-      .matches
-      ? 'dark'
-      : 'light';
-
-    const applied = theme === 'system' ? systemPreference : theme;
-    setResolvedTheme(applied);
-
-    if (applied === 'dark') {
+    if (resolvedTheme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-  }, [theme]);
+  }, [resolvedTheme]);
 
-  // Listen for system preference changes
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (theme === 'system') {
-        const systemPreference = mediaQuery.matches ? 'dark' : 'light';
-        setResolvedTheme(systemPreference);
-        if (systemPreference === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-      }
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [theme]);
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
+  const setTheme = useCallback((newTheme: Theme) => {
     localStorage.setItem('theme', newTheme);
-  };
+    window.dispatchEvent(new Event(THEME_CHANGE));
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>

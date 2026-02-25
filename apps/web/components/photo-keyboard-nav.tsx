@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, m, useReducedMotion } from 'motion/react';
 import { useRouter } from 'next/navigation';
+
+const emptySubscribe = () => () => {};
 
 interface PhotoKeyboardNavProps {
   currentPhotoId: string;
@@ -15,8 +17,17 @@ export function PhotoKeyboardNav({
   allPhotoIds,
 }: PhotoKeyboardNavProps) {
   const router = useRouter();
-  const [showHints, setShowHints] = useState(false);
   const shouldReduceMotion = useReducedMotion();
+
+  // Read localStorage via useSyncExternalStore (avoids setState in effect)
+  const hasSeenHints = useSyncExternalStore(
+    emptySubscribe,
+    () => localStorage.getItem('photo-nav-hints-seen') !== null,
+    () => true, // SSR: don't show hints
+  );
+
+  const [hintsDismissed, setHintsDismissed] = useState(false);
+  const showHints = !hasSeenHints && !hintsDismissed;
 
   // Find current index and get prev/next IDs
   const currentIndex = allPhotoIds.indexOf(currentPhotoId);
@@ -49,18 +60,15 @@ export function PhotoKeyboardNav({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [prevId, nextId, router]);
 
-  // Show hints on first visit
+  // Auto-dismiss hints after 3 seconds
   useEffect(() => {
-    const hasSeenHints = localStorage.getItem('photo-nav-hints-seen');
-    if (!hasSeenHints) {
-      setShowHints(true);
-      const timer = setTimeout(() => {
-        setShowHints(false);
-        localStorage.setItem('photo-nav-hints-seen', 'true');
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+    if (hasSeenHints) return;
+    const timer = setTimeout(() => {
+      setHintsDismissed(true);
+      localStorage.setItem('photo-nav-hints-seen', 'true');
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [hasSeenHints]);
 
   return (
     <>

@@ -95,15 +95,17 @@ export function Minimap({
   const camCy = offsetY + (camY + pad + viewH / 2) * scale;
 
   // Trail of recent camera centers (breadcrumbs)
+  // Uses React's "adjusting state during render" pattern to avoid setState in effects
   const [trail, setTrail] = useState<Array<{ x: number; y: number }>>([]);
-  const lastCamRef = useRef<{ x: number; y: number } | null>(null);
+  const [prevCam, setPrevCam] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
-  useEffect(() => {
-    const last = lastCamRef.current;
-    if (last?.x === camCx && last?.y === camCy) return;
-    lastCamRef.current = { x: camCx, y: camCy };
+  if (prevCam?.x !== camCx || prevCam?.y !== camCy) {
+    setPrevCam({ x: camCx, y: camCy });
     setTrail((prev) => [...prev, { x: camCx, y: camCy }].slice(-14));
-  }, [camCx, camCy]);
+  }
 
   // Drag state
   const draggingRef = useRef(false);
@@ -187,7 +189,7 @@ export function Minimap({
   const rects = useMemo(() => {
     const out: React.JSX.Element[] = [];
     for (let i = 0; i < tiles.length; i += Math.max(1, sampleStep)) {
-      const t = tiles[i];
+      const t = tiles[i]!;
       const x = offsetX + (t.x + pad) * scale;
       const y = offsetY + (t.y + pad) * scale;
       const w = Math.max(1, t.w * scale);
