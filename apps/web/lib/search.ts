@@ -1,5 +1,23 @@
 const SEARCH_API_URL = 'https://photos-search-api.mislavjc.workers.dev';
 
+let warmedUp = false;
+
+/** Fire a no-op search on idle to wake the Cloudflare Worker before the user types. */
+export function warmupSearchWorker(): void {
+  if (typeof window === 'undefined' || warmedUp) return;
+  warmedUp = true;
+  const schedule =
+    typeof requestIdleCallback !== 'undefined'
+      ? (fn: () => void) => requestIdleCallback(fn, { timeout: 1500 })
+      : (fn: () => void) => setTimeout(fn, 800);
+  schedule(() => {
+    fetch(`${SEARCH_API_URL}/search?q=a`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    }).catch(() => {});
+  });
+}
+
 export interface SearchResult {
   id: string;
   score: number;

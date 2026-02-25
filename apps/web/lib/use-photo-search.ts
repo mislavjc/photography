@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useQueryState } from 'nuqs';
 
 import { trackEvent } from './analytics';
-import { searchPhotos, type SearchResult } from './search';
+import { searchPhotos, warmupSearchWorker, type SearchResult } from './search';
 
 interface UsePhotoSearchOptions {
   /** Base title to use when no search is active */
@@ -45,6 +45,11 @@ export function usePhotoSearch({
   >(undefined);
   const [searchPreview, setSearchPreview] = useState<SearchResult[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Warm up the Cloudflare Worker on mount so the first real search is fast
+  useEffect(() => {
+    warmupSearchWorker();
+  }, []);
 
   // Execute search when query changes
   useEffect(() => {
