@@ -1,10 +1,11 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
-import type { Manifest } from 'types';
 
+import { EXT_RE } from 'lib/constants';
 import { computeNearSquareLayout } from 'lib/layout';
 import { loadManifest } from 'lib/manifest-server';
+import { trimManifestForClient } from 'lib/manifest-utils';
 
 import { HomeGrid } from '../components/home-grid';
 
@@ -35,7 +36,7 @@ function getLcpCandidates(
     .slice(0, count);
 }
 
-const EXT_RE = /\.[^.]+$/;
+const R2_URL = process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL ?? '';
 
 export default async function Page() {
   'use cache';
@@ -47,16 +48,7 @@ export default async function Page() {
   const lcpCandidates = getLcpCandidates(layout);
 
   // Strip manifest to only fields needed by client: w, h, first dominant color
-  const trimmedManifest = {} as Manifest;
-  for (const [key, value] of Object.entries(manifest)) {
-    trimmedManifest[key] = {
-      w: value.w,
-      h: value.h,
-      exif: {
-        dominantColors: value.exif?.dominantColors?.slice(0, 1),
-      },
-    } as Manifest[string];
-  }
+  const trimmedManifest = trimManifestForClient(manifest);
 
   return (
     <>
@@ -68,7 +60,7 @@ export default async function Page() {
             key={candidate.filename}
             rel="preload"
             as="image"
-            href={`https://r2.photos.mislavjc.com/variants/grid/avif/480/${base}.avif`}
+            href={`${R2_URL}/variants/grid/avif/480/${base}.avif`}
             type="image/avif"
           />
         );

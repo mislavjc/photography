@@ -1,6 +1,6 @@
 import { cacheLife, cacheTag } from 'next/cache';
 
-import type { Manifest } from '../types';
+import type { Manifest, ManifestEntry } from '../types';
 
 const R2_PUBLIC_URL =
   process.env.R2_PUBLIC_URL || process.env.NEXT_PUBLIC_R2_URL;
@@ -34,4 +34,16 @@ export async function loadManifest(): Promise<Manifest> {
     console.error('Failed to load manifest:', error);
     return {};
   }
+}
+
+/** Fetches a single photo's manifest entry by ID (with or without extension). */
+export async function getPhotoData(
+  photoId: string,
+): Promise<ManifestEntry | null> {
+  'use cache';
+  cacheLife('days');
+
+  const manifest = await loadManifest();
+  const key = manifest[photoId] ? photoId : `${photoId}.jpg`;
+  return manifest[key] ?? null;
 }

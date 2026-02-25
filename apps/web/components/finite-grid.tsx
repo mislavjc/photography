@@ -3,6 +3,7 @@
 import React, {
   lazy,
   Suspense,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -12,9 +13,10 @@ import Link from 'next/link';
 import type { Manifest } from 'types';
 
 import { Picture } from 'components/picture';
+import { SearchNoResults } from 'components/search-no-results';
 
+import { EXT_RE } from 'lib/constants';
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
-import { SEARCH_CATEGORIES } from 'lib/search-categories';
 
 // Lazy load Navbar with idle callback to defer heavy dependencies until after LCP
 const Navbar = lazy(() =>
@@ -29,7 +31,6 @@ const Navbar = lazy(() =>
   }).then((m) => ({ default: m.Navbar })),
 );
 
-const EXT_RE = /\.[^.]+$/;
 const SSR_SAFE_VW = 1200;
 const SSR_SAFE_VH = 800;
 
@@ -45,6 +46,18 @@ const PAD = 200;
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
+}
+
+// Find first index where items[i].y + items[i].h > minY (layout.items must be sorted by y)
+function firstInView(items: { y: number; h: number }[], minY: number): number {
+  let lo = 0,
+    hi = items.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (items[mid].y + items[mid].h <= minY) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
 }
 
 // --- helpers ---
@@ -128,12 +141,15 @@ export function PannableGrid({
     return filtered;
   }, [manifest, filteredIds]);
 
+  // Defer the expensive layout recomputation so it doesn't block the UI during search
+  const deferredFilteredManifest = useDeferredValue(filteredManifest);
+
   const layout = useMemo(
     () =>
-      filteredIds && filteredIds.size > 0
-        ? computeNearSquareLayout(filteredManifest)
-        : (initialLayout ?? computeNearSquareLayout(manifest)),
-    [filteredManifest, filteredIds, initialLayout, manifest],
+      deferredFilteredManifest === manifest
+        ? (initialLayout ?? computeNearSquareLayout(manifest))
+        : computeNearSquareLayout(deferredFilteredManifest),
+    [deferredFilteredManifest, manifest, initialLayout],
   );
 
   // Disable browser back/forward gestures on this page
@@ -446,17 +462,17 @@ export function PannableGrid({
   };
 
   const visibleItems = useMemo(() => {
-    const out: typeof layout.items = [];
-    const vx1 = virtualRect.x,
-      vy1 = virtualRect.y;
-    const vx2 = virtualRect.x + virtualRect.w,
-      vy2 = virtualRect.y + virtualRect.h;
-    for (const it of layout.items) {
-      const ix1 = it.x,
-        iy1 = it.y;
-      const ix2 = it.x + it.w,
-        iy2 = it.y + it.h;
-      if (ix1 < vx2 && ix2 > vx1 && iy1 < vy2 && iy2 > vy1) out.push(it);
+    const vx1 = virtualRect.x;
+    const vy1 = virtualRect.y;
+    const vx2 = virtualRect.x + virtualRect.w;
+    const vy2 = virtualRect.y + virtualRect.h;
+    const items = layout.items; // sorted by y
+    const start = firstInView(items, vy1);
+    const out: typeof items = [];
+    for (let i = start; i < items.length; i++) {
+      const it = items[i];
+      if (it.y > vy2) break;
+      if (it.x < vx2 && it.x + it.w > vx1) out.push(it);
     }
     return out;
   }, [layout, virtualRect.x, virtualRect.y, virtualRect.w, virtualRect.h]);
@@ -700,68 +716,7 @@ export function PannableGrid({
 
       {/* Empty state when search returns no results */}
       {searchResultCount === 0 && searchQuery && !isSearching && (
-        <div className="fixed inset-0 z-[40] flex items-center justify-center bg-white dark:bg-neutral-900 pt-14 px-4">
-          <div className="w-full max-w-4xl rounded-3xl bg-neutral-100 dark:bg-neutral-800 p-6 sm:p-10">
-            <div className="mb-8 text-center">
-              <h2 className="text-xl sm:text-2xl font-medium text-neutral-900">
-                No results for "{searchQuery}"
-              </h2>
-              <p className="mt-2 text-sm text-neutral-500">
-                Try searching for one of these categories instead
-              </p>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
-              {SEARCH_CATEGORIES.map((cat, idx) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => onSearch?.(cat.query)}
-                  className={`group flex flex-col overflow-hidden rounded-2xl bg-neutral-200/60 dark:bg-neutral-700/60 p-3 transition-all hover:bg-neutral-200 dark:hover:bg-neutral-600 hover:ring-2 hover:ring-neutral-300 dark:hover:ring-neutral-500 ${idx >= 4 ? 'hidden sm:flex' : ''}`}
-                >
-                  {/* Photo collage - 3 overlapping images */}
-                  <div className="relative h-28 sm:h-32 mb-3">
-                    {cat.previewIds.slice(0, 3).map((id, idx) => {
-                      const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${id}.avif`;
-                      const rotation =
-                        idx === 0
-                          ? '-rotate-6'
-                          : idx === 1
-                            ? 'rotate-3'
-                            : '-rotate-2';
-                      const offset =
-                        idx === 0
-                          ? 'left-0 top-2'
-                          : idx === 1
-                            ? 'right-0 top-0'
-                            : 'left-1/2 -translate-x-1/2 top-4';
-                      const zIndex =
-                        idx === 0 ? 'z-10' : idx === 1 ? 'z-20' : 'z-30';
-                      const size =
-                        idx === 2
-                          ? 'w-20 h-20 sm:w-24 sm:h-24'
-                          : 'w-16 h-16 sm:w-20 sm:h-20';
-                      return (
-                        <div
-                          key={id}
-                          className={`absolute ${offset} ${zIndex} ${rotation} ${size} overflow-hidden rounded-lg bg-white shadow-md transition-transform duration-300 group-hover:rotate-0`}
-                        >
-                          <img
-                            src={imageUrl}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <span className="text-sm font-medium text-neutral-700 text-center">
-                    {cat.label}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <SearchNoResults searchQuery={searchQuery} onSearch={onSearch} />
       )}
 
       {showNavbar && (

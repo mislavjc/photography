@@ -1,12 +1,11 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { cacheLife } from 'next/cache';
 import { notFound } from 'next/navigation';
 
 import { PhotoModal } from 'components/photo-display';
 import { SimilarPhotos } from 'components/similar-photos';
 
-import { loadManifest } from 'lib/manifest-server';
+import { getPhotoData } from 'lib/manifest-server';
 
 export const metadata: Metadata = {
   title: 'Photo',
@@ -14,20 +13,6 @@ export const metadata: Metadata = {
 
 interface ModalPageProps {
   params: Promise<{ id: string }>;
-}
-
-async function getPhotoData(photoId: string) {
-  'use cache';
-  cacheLife('days');
-
-  const manifest = await loadManifest();
-  const key = manifest[photoId] ? photoId : `${photoId}.jpg`;
-
-  if (!manifest[key]) {
-    return null;
-  }
-
-  return manifest[key];
 }
 
 export default async function PhotoModalPage({ params }: ModalPageProps) {

@@ -11,7 +11,9 @@ export const metadata: Metadata = {
 
 import type { Manifest } from 'types';
 
+import { EXT_RE } from 'lib/constants';
 import { loadManifest } from 'lib/manifest-server';
+import { trimManifestForClient } from 'lib/manifest-utils';
 import {
   computeMasonryLayout,
   GAP,
@@ -61,16 +63,7 @@ async function getTimelineData(): Promise<{
   }
 
   // Only send fields the client actually uses: dominant color hex for placeholders
-  const trimmedManifest: Manifest = {};
-  for (const [key, value] of Object.entries(manifest)) {
-    trimmedManifest[key] = {
-      w: value.w,
-      h: value.h,
-      exif: {
-        dominantColors: value.exif?.dominantColors?.slice(0, 1),
-      },
-    } as Manifest[string];
-  }
+  const trimmedManifest = trimManifestForClient(manifest);
 
   // Precompute layout positions for SSR to reduce CLS
   const precomputedItems: PrecomputedItem[] = [];
@@ -143,7 +136,7 @@ async function getTimelineData(): Promise<{
   };
 }
 
-const EXT_RE = /\.[^.]+$/;
+const R2_URL = process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL ?? '';
 
 export default async function TimelinePage() {
   const {
@@ -164,7 +157,7 @@ export default async function TimelinePage() {
             key={filename}
             rel="preload"
             as="image"
-            href={`https://r2.photos.mislavjc.com/variants/grid/avif/480/${base}.avif`}
+            href={`${R2_URL}/variants/grid/avif/480/${base}.avif`}
             type="image/avif"
           />
         );
