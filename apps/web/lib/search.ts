@@ -17,7 +17,10 @@ interface SimilarResponse {
   error?: string;
 }
 
-export async function searchPhotos(query: string): Promise<SearchResult[]> {
+export async function searchPhotos(
+  query: string,
+  signal?: AbortSignal,
+): Promise<SearchResult[]> {
   if (!query.trim()) {
     return [];
   }
@@ -29,6 +32,7 @@ export async function searchPhotos(query: string): Promise<SearchResult[]> {
     headers: {
       Accept: 'application/json',
     },
+    signal,
   });
 
   if (!response.ok) {

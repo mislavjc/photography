@@ -66,8 +66,8 @@ export function usePhotoSearch({
       setSearchPreview([]);
     });
 
-    // Fetch outside of transition
-    searchPhotos(query)
+    // Fetch outside of transition; pass signal so the network request is cancelled on abort
+    searchPhotos(query, abortController.signal)
       .then((results) => {
         // Ignore if this search was superseded
         if (abortController.signal.aborted) return;
@@ -94,7 +94,12 @@ export function usePhotoSearch({
         });
       })
       .catch((error) => {
-        if (abortController.signal.aborted) return;
+        // AbortError means the request was intentionally cancelled (query changed)
+        if (
+          abortController.signal.aborted ||
+          (error instanceof DOMException && error.name === 'AbortError')
+        )
+          return;
 
         console.error('Search failed:', error);
 
