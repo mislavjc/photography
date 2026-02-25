@@ -314,7 +314,7 @@ function NavbarSearch({
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {matchingCategories.map((cat, i) => {
-                  const imageUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
+                  const imageUrl = `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
                   return (
                     <m.button
                       key={cat.id}

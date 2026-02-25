@@ -90,7 +90,7 @@ function buildPhotoGeoJSON(photos: Photo[]): GeoJSON.FeatureCollection {
 
 function buildPhotoUrl(photoId: string): string {
   const base = photoId.replace(/\.[^.]+$/, '');
-  return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/jpeg/320/${base}.jpeg`;
+  return `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/jpeg/320/${base}.jpeg`;
 }
 
 function calculatePopupDimensions(width: number, height: number) {

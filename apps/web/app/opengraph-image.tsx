@@ -13,7 +13,7 @@ function r2VariantUrl(
   format: 'jpeg' | 'webp' = 'jpeg',
 ) {
   const base = uuidWithExt.replace(/\.[^.]+$/, '');
-  return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/${profile}/${format}/${width}/${base}.${format}`;
+  return `${process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL}/variants/${profile}/${format}/${width}/${base}.${format}`;
 }
 
 function toDataUri(buf: ArrayBuffer, mime = 'image/jpeg') {

@@ -1,12 +1,11 @@
 import { cacheLife } from 'next/cache';
-import Image from 'next/image';
 
 import { getSimilarPhotos } from 'lib/search';
 
 import { SimilarPhotoLink } from './similar-photo-link';
 
 function imageUrl(id: string) {
-  return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/variants/grid/avif/480/${id}.avif`;
+  return `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${id}.avif`;
 }
 
 async function fetchSimilar(photoId: string) {
@@ -36,14 +35,13 @@ export async function SimilarPhotos({ photoId }: { photoId: string }) {
             photoId={photoId}
             targetId={result.id}
           >
-            <Image
+            <img
               src={imageUrl(result.id)}
               alt=""
               width={160}
               height={96}
               className="h-full w-auto block"
               loading="lazy"
-              unoptimized
             />
           </SimilarPhotoLink>
         ))}

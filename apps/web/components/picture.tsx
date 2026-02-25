@@ -1,5 +1,6 @@
-// components/picture.tsx
 import React, { memo } from 'react';
+
+import { EXT_RE } from 'lib/constants';
 
 type Formats = 'avif' | 'webp' | 'jpeg';
 type Profile = 'grid' | 'large';
@@ -11,7 +12,7 @@ const LARGE_WIDTHS = [
   256, 384, 512, 768, 1024, 1280, 1536, 1920, 2560,
 ] as const;
 
-const EXT_RE = /\.[^.]+$/;
+const R2_URL = process.env.NEXT_PUBLIC_R2_URL ?? '';
 
 function r2VariantUrl(
   uuidWithExt: string,
@@ -20,7 +21,7 @@ function r2VariantUrl(
   format: Formats,
 ) {
   const base = uuidWithExt.replace(EXT_RE, '');
-  return `https://r2.photos.mislavjc.com/variants/${profile}/${format}/${width}/${base}.${format}`;
+  return `${R2_URL}/variants/${profile}/${format}/${width}/${base}.${format}`;
 }
 function buildSrcSet(
   uuidWithExt: string,

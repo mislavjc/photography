@@ -41,12 +41,8 @@ export default function RootLayout({
     <html lang="en">
       <head>
         {/* Resource hints for image CDN */}
-        <link rel="dns-prefetch" href="//r2.photos.mislavjc.com" />
-        <link
-          rel="preconnect"
-          href={process.env.NEXT_PUBLIC_R2_PUBLIC_URL}
-          crossOrigin="anonymous"
-        />
+        <link rel="preconnect" href={process.env.NEXT_PUBLIC_R2_URL} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_R2_URL} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
