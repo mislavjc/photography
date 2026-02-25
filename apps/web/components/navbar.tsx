@@ -77,6 +77,7 @@ interface NavbarSearchProps {
   searchResultCount?: number;
   initialQuery: string;
   onOpenChange?: (open: boolean) => void;
+  categorySampleIds?: string[];
 }
 
 function NavbarSearch({
@@ -86,6 +87,7 @@ function NavbarSearch({
   searchResultCount,
   initialQuery,
   onOpenChange,
+  categorySampleIds,
 }: NavbarSearchProps) {
   const [inputState, setInputState] = useState({
     value: initialQuery,
@@ -314,7 +316,14 @@ function NavbarSearch({
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {matchingCategories.map((cat, i) => {
-                  const imageUrl = `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${cat.previewIds[0]}.avif`;
+                  const catIdx = SEARCH_CATEGORIES.indexOf(cat);
+                  const sampleId =
+                    categorySampleIds && catIdx >= 0
+                      ? categorySampleIds[catIdx]
+                      : undefined;
+                  const imageUrl = sampleId
+                    ? `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${sampleId}.avif`
+                    : undefined;
                   return (
                     <m.button
                       key={cat.id}
@@ -337,13 +346,15 @@ function NavbarSearch({
                         ease: [0.215, 0.61, 0.355, 1] as const,
                       }}
                     >
-                      <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
-                        <img
-                          src={imageUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
+                      {imageUrl && (
+                        <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
+                          <img
+                            src={imageUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      )}
                       <span className="text-[15px] font-medium text-neutral-800 dark:text-neutral-200">
                         {cat.label}
                       </span>
@@ -368,6 +379,8 @@ type NavbarProps = {
   isSearching?: boolean;
   searchResultCount?: number;
   searchQuery?: string;
+  /** One photo ID (no extension) per search category, used for dropdown thumbnails */
+  categorySampleIds?: string[];
 };
 
 export function Navbar({
@@ -379,6 +392,7 @@ export function Navbar({
   isSearching = false,
   searchResultCount,
   searchQuery: initialQuery = '',
+  categorySampleIds,
 }: NavbarProps) {
   const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
   const [isMobile, setIsMobile] = useState(false);
@@ -480,6 +494,7 @@ export function Navbar({
               searchResultCount={searchResultCount}
               initialQuery={initialQuery}
               onOpenChange={setSearchOpen}
+              categorySampleIds={categorySampleIds}
             />
           ) : (
             <div className="flex-1" />

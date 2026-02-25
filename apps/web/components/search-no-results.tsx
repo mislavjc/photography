@@ -13,58 +13,89 @@ const COLLAGE_Z_INDICES = ['z-10', 'z-20', 'z-30'];
 interface SearchNoResultsProps {
   searchQuery: string;
   onSearch?: (query: string) => void;
+  /** Photo IDs (without extension) sampled from the manifest for collage previews */
+  sampleIds?: string[];
+  /** Non-null when the search API call failed */
+  searchError?: string | null;
 }
 
-export function SearchNoResults({ searchQuery, onSearch }: SearchNoResultsProps) {
+export function SearchNoResults({
+  searchQuery,
+  onSearch,
+  sampleIds,
+  searchError,
+}: SearchNoResultsProps) {
   return (
     <div className="fixed inset-0 z-[40] flex items-center justify-center bg-white dark:bg-neutral-900 pt-14 px-4">
       <div className="w-full max-w-4xl rounded-3xl bg-neutral-100 dark:bg-neutral-900 p-6 sm:p-10">
         <div className="mb-8 text-center">
-          <h2 className="text-xl sm:text-2xl font-medium text-neutral-900 dark:text-neutral-100">
-            No results for &ldquo;{searchQuery}&rdquo;
-          </h2>
-          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            Try searching for one of these categories instead
-          </p>
+          {searchError ? (
+            <>
+              <h2 className="text-xl sm:text-2xl font-medium text-neutral-900 dark:text-neutral-100">
+                Search unavailable
+              </h2>
+              <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+                {searchError}
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl sm:text-2xl font-medium text-neutral-900 dark:text-neutral-100">
+                No results for &ldquo;{searchQuery}&rdquo;
+              </h2>
+              <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+                Try searching for one of these categories instead
+              </p>
+            </>
+          )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
-          {SEARCH_CATEGORIES.map((cat, idx) => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => onSearch?.(cat.query)}
-              className={`group flex flex-col overflow-hidden rounded-2xl bg-neutral-200/60 dark:bg-neutral-800/60 p-3 transition-all hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:ring-2 hover:ring-neutral-300 dark:hover:ring-neutral-600 ${idx >= 4 ? 'hidden sm:flex' : ''}`}
-            >
-              <div className="relative h-28 sm:h-32 mb-3">
-                {cat.previewIds.slice(0, 3).map((id, idx) => {
-                  const imageUrl = `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${id}.avif`;
-                  const rotation = COLLAGE_ROTATIONS[idx];
-                  const offset = COLLAGE_OFFSETS[idx];
-                  const zIndex = COLLAGE_Z_INDICES[idx];
-                  const size =
-                    idx === 2
-                      ? 'w-20 h-20 sm:w-24 sm:h-24'
-                      : 'w-16 h-16 sm:w-20 sm:h-20';
-                  return (
-                    <div
-                      key={id}
-                      className={`absolute ${offset} ${zIndex} ${rotation} ${size} overflow-hidden rounded-lg bg-white shadow-md transition-transform duration-300 group-hover:rotate-0`}
-                    >
-                      <img
-                        src={imageUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300 text-center">
-                {cat.label}
-              </span>
-            </button>
-          ))}
+          {SEARCH_CATEGORIES.map((cat, catIdx) => {
+            const catIds = sampleIds?.slice(catIdx * 3, catIdx * 3 + 3) ?? [];
+            const showCollage = catIds.length === 3;
+
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => onSearch?.(cat.query)}
+                className={`group flex flex-col overflow-hidden rounded-2xl bg-neutral-200/60 dark:bg-neutral-800/60 p-3 transition-all hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:ring-2 hover:ring-neutral-300 dark:hover:ring-neutral-600 ${catIdx >= 4 ? 'hidden sm:flex' : ''}`}
+              >
+                {showCollage && (
+                  <div className="relative h-28 sm:h-32 mb-3">
+                    {catIds.map((id, imgIdx) => {
+                      const imageUrl = `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${id}.avif`;
+                      const rotation = COLLAGE_ROTATIONS[imgIdx];
+                      const offset = COLLAGE_OFFSETS[imgIdx];
+                      const zIndex = COLLAGE_Z_INDICES[imgIdx];
+                      const size =
+                        imgIdx === 2
+                          ? 'w-20 h-20 sm:w-24 sm:h-24'
+                          : 'w-16 h-16 sm:w-20 sm:h-20';
+                      return (
+                        <div
+                          key={id}
+                          className={`absolute ${offset} ${zIndex} ${rotation} ${size} overflow-hidden rounded-lg bg-white shadow-md transition-transform duration-300 group-hover:rotate-0`}
+                        >
+                          <img
+                            src={imageUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <span
+                  className={`text-sm font-medium text-neutral-700 dark:text-neutral-300 text-center ${showCollage ? '' : 'py-4'}`}
+                >
+                  {cat.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
