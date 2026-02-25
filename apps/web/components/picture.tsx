@@ -82,6 +82,7 @@ export const Picture = memo(function Picture({
     profile === 'grid'
       ? '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 220px'
       : '(max-width: 1024px) calc(100vw - 2rem), 100vw';
+  const effectiveSizes = sizes || defaultSizes;
 
   // Image styles based on mode
   const intrinsicImgStyles: React.CSSProperties = {
@@ -131,19 +132,19 @@ export const Picture = memo(function Picture({
         <source
           type="image/avif"
           srcSet={buildSrcSet(uuidWithExt, profile, 'avif', widths)}
-          sizes={sizes || defaultSizes}
+          sizes={effectiveSizes}
         />
         <source
           type="image/webp"
           srcSet={buildSrcSet(uuidWithExt, profile, 'webp', widths)}
-          sizes={sizes || defaultSizes}
+          sizes={effectiveSizes}
         />
         <img
           width={intrinsicWidth}
           height={intrinsicHeight}
           src={r2VariantUrl(uuidWithExt, profile, 320, 'jpeg')}
           srcSet={buildSrcSet(uuidWithExt, profile, 'jpeg', widths)}
-          sizes={sizes || defaultSizes}
+          sizes={effectiveSizes}
           alt={alt}
           loading={loading}
           fetchPriority={fetchPriority}

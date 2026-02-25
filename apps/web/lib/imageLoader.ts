@@ -47,45 +47,30 @@ function supportsFormat(format: string): boolean {
   return supported;
 }
 
+// Cache the best supported format so the loop only runs once per page load
+let cachedBestFormat: string | null = null;
+
+function getBestFormat(): string {
+  if (cachedBestFormat !== null) return cachedBestFormat;
+  if (typeof window === 'undefined') return 'webp'; // SSR default
+  for (const format of FORMATS) {
+    if (supportsFormat(format)) {
+      cachedBestFormat = format;
+      return format;
+    }
+  }
+  cachedBestFormat = 'jpeg';
+  return cachedBestFormat;
+}
+
 export default function r2ImageLoader({
   src,
   width,
 }: ImageLoaderProps): string {
-  // Extract filename from src (assuming src is just the filename like "DSCF1911.jpg")
-  const filename = src;
-  const baseName = getImageBaseName(filename);
+  const baseName = getImageBaseName(src);
   const optimalWidth = selectOptimalWidth(width);
-
-  // Determine best format based on browser support
-  let selectedFormat = 'jpeg';
-  if (typeof window !== 'undefined') {
-    for (const format of FORMATS) {
-      if (supportsFormat(format)) {
-        selectedFormat = format;
-        break;
-      }
-    }
-  } else {
-    // Use WebP as default for SSR (good browser support, better than JPEG)
-    selectedFormat = 'webp';
-  }
-
-  // Build R2 URL for variant: {R2_URL}/variants/{format}/{width}/{baseName}.{format}
+  const format = getBestFormat();
   const baseUrl = process.env.NEXT_PUBLIC_R2_URL ?? '';
-  const variantPath = `variants/${selectedFormat}/${optimalWidth}/${baseName}.${selectedFormat}`;
-
-  return `${baseUrl}/${variantPath}`;
+  return `${baseUrl}/variants/${format}/${optimalWidth}/${baseName}.${format}`;
 }
 
-// Fallback loader for SSR or when format detection fails
-export function r2ImageLoaderSSR({ src, width }: ImageLoaderProps): string {
-  const filename = src;
-  const baseName = getImageBaseName(filename);
-  const optimalWidth = selectOptimalWidth(width);
-
-  // Use WebP as default for SSR (good browser support, better than JPEG)
-  const baseUrl = process.env.NEXT_PUBLIC_R2_URL ?? '';
-  const variantPath = `variants/webp/${optimalWidth}/${baseName}.webp`;
-
-  return `${baseUrl}/${variantPath}`;
-}

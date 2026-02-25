@@ -288,33 +288,3 @@ export function groupPhotosForTimeline(manifest: Manifest): TimelineData {
   return { years, allYears };
 }
 
-/**
- * Flatten timeline data into a list of renderable items for virtualization
- */
-type TimelineItem =
-  | { type: 'year-header'; year: YearGroup }
-  | { type: 'month-header'; month: MonthGroup; yearKey: string }
-  | { type: 'day-row'; day: DayGroup; monthKey: string; yearKey: string };
-
-function flattenTimelineData(data: TimelineData): TimelineItem[] {
-  const items: TimelineItem[] = [];
-
-  for (const year of data.years) {
-    items.push({ type: 'year-header', year });
-
-    for (const month of year.months) {
-      items.push({ type: 'month-header', month, yearKey: year.key });
-
-      for (const day of month.days) {
-        items.push({
-          type: 'day-row',
-          day,
-          monthKey: month.key,
-          yearKey: year.key,
-        });
-      }
-    }
-  }
-
-  return items;
-}

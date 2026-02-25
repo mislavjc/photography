@@ -317,10 +317,7 @@ function NavbarSearch({
               <div className="grid grid-cols-2 gap-1.5">
                 {matchingCategories.map((cat, i) => {
                   const catIdx = SEARCH_CATEGORIES.indexOf(cat);
-                  const sampleId =
-                    categorySampleIds && catIdx >= 0
-                      ? categorySampleIds[catIdx]
-                      : undefined;
+                  const sampleId = categorySampleIds?.[catIdx];
                   const imageUrl = sampleId
                     ? `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${sampleId}.avif`
                     : undefined;
