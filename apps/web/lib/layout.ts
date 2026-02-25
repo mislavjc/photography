@@ -109,6 +109,9 @@ export function computeNearSquareLayout(manifest: Manifest): Layout {
     }
   }
 
+  // Sort by y so viewport culling can use binary search
+  best!.items.sort((a, b) => a.y - b.y);
+
   // Cache the result (with LRU eviction)
   if (layoutCache.size >= MAX_CACHE_SIZE) {
     // Remove oldest entry

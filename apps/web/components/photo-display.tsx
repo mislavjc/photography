@@ -354,19 +354,20 @@ function usePhotoDisplayData(photoData: PhotoData) {
   const dominant = dominantColors[0]?.hex ?? '#e2001a';
   const hasLocation = Boolean(photoData.exif.location);
 
+  const lat = photoData.exif.location?.latitude;
+  const lon = photoData.exif.location?.longitude;
   const mapUrl = useMemo(() => {
-    if (!hasLocation) return null;
-    const { latitude, longitude } = photoData.exif.location!;
+    if (!hasLocation || lat == null || lon == null) return null;
     const zoom = isPortrait(photoData.w, photoData.h) ? 15 : 14;
     return mapboxStaticUrl({
-      lat: latitude,
-      lon: longitude,
+      lat,
+      lon,
       zoom,
       width: 600,
       height: 300,
       colorHex: dominant.replace('#', ''),
     });
-  }, [hasLocation, photoData, dominant]);
+  }, [hasLocation, lat, lon, photoData.w, photoData.h, dominant]);
 
   const formattedDate = useMemo(() => {
     if (!photoData.exif.dateTime) return null;

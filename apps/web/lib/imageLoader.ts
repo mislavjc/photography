@@ -22,21 +22,29 @@ function getImageBaseName(filename: string): string {
   return filename.replace(/\.[^.]+$/, '');
 }
 
+const formatSupportCache = new Map<string, boolean>();
+
 function supportsFormat(format: string): boolean {
+  if (formatSupportCache.has(format)) return formatSupportCache.get(format)!;
   if (typeof window === 'undefined') return false;
 
   const canvas = document.createElement('canvas');
   canvas.width = 1;
   canvas.height = 1;
 
+  let supported: boolean;
   switch (format) {
     case 'avif':
-      return canvas.toDataURL('image/avif').startsWith('data:image/avif');
+      supported = canvas.toDataURL('image/avif').startsWith('data:image/avif');
+      break;
     case 'webp':
-      return canvas.toDataURL('image/webp').startsWith('data:image/webp');
+      supported = canvas.toDataURL('image/webp').startsWith('data:image/webp');
+      break;
     default:
-      return true; // JPEG is universally supported
+      supported = true; // JPEG is universally supported
   }
+  formatSupportCache.set(format, supported);
+  return supported;
 }
 
 export default function r2ImageLoader({
@@ -62,9 +70,8 @@ export default function r2ImageLoader({
     selectedFormat = 'webp';
   }
 
-  // Build R2 URL for variant
-  // Pattern: https://r2.photos.mislavjc.com/variants/{format}/{width}/{baseName}.{format}
-  const baseUrl = 'https://r2.photos.mislavjc.com';
+  // Build R2 URL for variant: {R2_URL}/variants/{format}/{width}/{baseName}.{format}
+  const baseUrl = process.env.NEXT_PUBLIC_R2_URL ?? '';
   const variantPath = `variants/${selectedFormat}/${optimalWidth}/${baseName}.${selectedFormat}`;
 
   return `${baseUrl}/${variantPath}`;
@@ -77,7 +84,7 @@ export function r2ImageLoaderSSR({ src, width }: ImageLoaderProps): string {
   const optimalWidth = selectOptimalWidth(width);
 
   // Use WebP as default for SSR (good browser support, better than JPEG)
-  const baseUrl = 'https://r2.photos.mislavjc.com';
+  const baseUrl = process.env.NEXT_PUBLIC_R2_URL ?? '';
   const variantPath = `variants/webp/${optimalWidth}/${baseName}.webp`;
 
   return `${baseUrl}/${variantPath}`;
