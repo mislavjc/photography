@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type mapboxgl from 'mapbox-gl';
 import Link from 'next/link';
 
 import { Navbar } from './navbar';
@@ -145,7 +146,7 @@ function buildPopupElement(photo: Photo): HTMLElement {
 
 export function MapView({ initialData }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
   const [selectedPhotos, setSelectedPhotos] = useState<Photo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -195,7 +196,7 @@ export function MapView({ initialData }: MapViewProps) {
         // Add interactions
         setupClusterInteractions(map);
         setupPointInteractions(map, initialData, setSelectedPhotos);
-        setupPhotoPreview(map, initialData, mapboxgl);
+        setupPhotoPreview(map, initialData, mapboxgl.default);
 
         setIsLoading(false);
       });
@@ -238,7 +239,7 @@ export function MapView({ initialData }: MapViewProps) {
 // Map Setup Functions
 // ============================================================================
 
-function addClusterLayers(map: any) {
+function addClusterLayers(map: mapboxgl.Map) {
   // Shadow layer for depth
   map.addLayer({
     id: 'cluster-shadow',
@@ -321,7 +322,7 @@ function addClusterLayers(map: any) {
   });
 }
 
-function addPointLayer(map: any) {
+function addPointLayer(map: mapboxgl.Map) {
   map.addLayer({
     id: 'unclustered-point',
     type: 'circle',
@@ -337,20 +338,24 @@ function addPointLayer(map: any) {
   });
 }
 
-function setupClusterInteractions(map: any) {
-  map.on('click', 'clusters', (e: any) => {
+function setupClusterInteractions(map: mapboxgl.Map) {
+  map.on('click', 'clusters', (e) => {
     const features = map.queryRenderedFeatures(e.point, {
       layers: ['clusters'],
     });
-    const clusterId = features[0]?.properties?.cluster_id;
-    if (!clusterId) return;
+    const feature = features[0];
+    if (!feature?.properties?.cluster_id) return;
+    const clusterId = feature.properties.cluster_id as number;
 
-    const source = map.getSource('photos');
-    source.getClusterExpansionZoom(clusterId, (err: any, zoom: number) => {
+    const source = map.getSource('photos') as mapboxgl.GeoJSONSource;
+    source.getClusterExpansionZoom(clusterId, (err, zoom) => {
       if (err) return;
       map.easeTo({
-        center: features[0].geometry.coordinates,
-        zoom: zoom || 10,
+        center: (feature.geometry as GeoJSON.Point).coordinates as [
+          number,
+          number,
+        ],
+        zoom: zoom ?? 10,
         duration: ANIMATION.cluster.duration,
       });
     });
@@ -370,15 +375,19 @@ function setupClusterInteractions(map: any) {
 }
 
 function setupPointInteractions(
-  map: any,
+  map: mapboxgl.Map,
   data: MapData,
   setSelected: (photos: Photo[]) => void,
 ) {
-  map.on('click', 'unclustered-point', (e: any) => {
-    if (!e.features?.[0]) return;
+  map.on('click', 'unclustered-point', (e) => {
+    const feature = e.features?.[0];
+    if (!feature) return;
 
-    const coordinates = e.features[0].geometry.coordinates as [number, number];
-    const photoId = e.features[0].properties?.id;
+    const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [
+      number,
+      number,
+    ];
+    const photoId = feature.properties?.id;
     if (!photoId) return;
 
     const photosAtLocation = data.photos.filter(
@@ -395,26 +404,30 @@ function setupPointInteractions(
   });
 }
 
-function setupPhotoPreview(map: any, data: MapData, mapboxgl: any) {
-  const popup = new mapboxgl.default.Popup({
+function setupPhotoPreview(
+  map: mapboxgl.Map,
+  data: MapData,
+  mb: typeof mapboxgl,
+) {
+  const popup = new mb.Popup({
     closeButton: false,
     closeOnClick: false,
     offset: POPUP_CONFIG.offset,
     className: 'map-photo-popup',
   });
 
-  map.on('mouseenter', 'unclustered-point', (e: any) => {
+  map.on('mouseenter', 'unclustered-point', (e) => {
     map.getCanvas().style.cursor = 'pointer';
     map.setPaintProperty('unclustered-point', 'circle-radius', 9);
     map.setPaintProperty('unclustered-point', 'circle-opacity', 1);
 
-    if (!e.features?.[0]) return;
+    const feature = e.features?.[0];
+    if (!feature) return;
 
-    const coordinates = e.features[0].geometry.coordinates.slice() as [
-      number,
-      number,
-    ];
-    const photoId = e.features[0].properties?.id;
+    const coordinates = (
+      feature.geometry as GeoJSON.Point
+    ).coordinates.slice() as [number, number];
+    const photoId = feature.properties?.id;
     if (!photoId) return;
 
     const photo = data.photos.find((p) => p.id === photoId);
@@ -425,7 +438,10 @@ function setupPhotoPreview(map: any, data: MapData, mapboxgl: any) {
       coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
     }
 
-    popup.setLngLat(coordinates).setDOMContent(buildPopupElement(photo)).addTo(map);
+    popup
+      .setLngLat(coordinates)
+      .setDOMContent(buildPopupElement(photo))
+      .addTo(map);
   });
 
   map.on('mouseleave', 'unclustered-point', () => {
