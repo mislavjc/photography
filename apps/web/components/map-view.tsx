@@ -215,15 +215,6 @@ export function MapView({ initialData }: MapViewProps) {
     };
   }, [initialData, resolvedTheme]);
 
-  // Update map style when theme changes
-  useEffect(() => {
-    if (!mapRef.current || isLoading) return;
-
-    const newStyle =
-      resolvedTheme === 'dark' ? MAP_STYLES.dark : MAP_STYLES.light;
-    mapRef.current.setStyle(newStyle);
-  }, [resolvedTheme, isLoading]);
-
   return (
     <>
       <Navbar activePage="map" />
