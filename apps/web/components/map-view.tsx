@@ -115,23 +115,28 @@ function formatDate(date: string | null): string {
   });
 }
 
-function buildPopupHTML(photo: Photo): string {
+function buildPopupElement(photo: Photo): HTMLElement {
   const { width, height } = calculatePopupDimensions(photo.w, photo.h);
   const photoUrl = buildPhotoUrl(photo.id);
 
-  return `
-    <div style="padding: 0; margin: 0;">
-      <img
-        src="${photoUrl}"
-        alt="Photo preview"
-        style="width: ${width}px; height: ${height}px; object-fit: contain; display: block;"
-        loading="lazy"
-      />
-      <div style="padding: 8px 4px 4px; font-size: 11px; color: #737373; font-family: ui-monospace, monospace;">
-        ${formatDate(photo.date)}
-      </div>
-    </div>
-  `;
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'padding: 0; margin: 0;';
+
+  const img = document.createElement('img');
+  img.src = photoUrl;
+  img.alt = 'Photo preview';
+  img.style.cssText = `width: ${width}px; height: ${height}px; object-fit: contain; display: block;`;
+  img.loading = 'lazy';
+
+  const dateDiv = document.createElement('div');
+  dateDiv.style.cssText =
+    'padding: 8px 4px 4px; font-size: 11px; color: #737373; font-family: ui-monospace, monospace;';
+  dateDiv.textContent = formatDate(photo.date);
+
+  wrapper.appendChild(img);
+  wrapper.appendChild(dateDiv);
+
+  return wrapper;
 }
 
 // ============================================================================
@@ -429,7 +434,7 @@ function setupPhotoPreview(map: any, data: MapData, mapboxgl: any) {
       coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
     }
 
-    popup.setLngLat(coordinates).setHTML(buildPopupHTML(photo)).addTo(map);
+    popup.setLngLat(coordinates).setDOMContent(buildPopupElement(photo)).addTo(map);
   });
 
   map.on('mouseleave', 'unclustered-point', () => {
