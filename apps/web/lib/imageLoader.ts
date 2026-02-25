@@ -14,7 +14,7 @@ function selectOptimalWidth(requestedWidth: number): number {
   // Find the smallest width that's >= requested width
   const optimal = AVAILABLE_WIDTHS.find((w) => w >= requestedWidth);
   // If no width is large enough, use the largest available
-  return optimal || AVAILABLE_WIDTHS[AVAILABLE_WIDTHS.length - 1];
+  return optimal || AVAILABLE_WIDTHS[AVAILABLE_WIDTHS.length - 1]!;
 }
 
 function getImageBaseName(filename: string): string {
@@ -73,4 +73,3 @@ export default function r2ImageLoader({
   const baseUrl = process.env.NEXT_PUBLIC_R2_URL ?? '';
   return `${baseUrl}/variants/${format}/${optimalWidth}/${baseName}.${format}`;
 }
-

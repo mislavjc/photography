@@ -351,7 +351,8 @@ function NavbarSearch({
                     <div className="flex-shrink-0 h-14 w-14 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-700/50">
                       <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium text-center leading-tight">
                         +{searchResultCount - 6}
-                        <br />more
+                        <br />
+                        more
                       </span>
                     </div>
                   )}

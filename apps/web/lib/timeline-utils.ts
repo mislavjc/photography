@@ -89,12 +89,12 @@ function parseExifDate(dateTime: string | null): Date | null {
   if (exifMatch) {
     const [, year, month, day, hour, minute, second] = exifMatch;
     const date = new Date(
-      parseInt(year, 10),
-      parseInt(month, 10) - 1, // months are 0-indexed
-      parseInt(day, 10),
-      parseInt(hour, 10),
-      parseInt(minute, 10),
-      parseInt(second, 10),
+      parseInt(year!, 10),
+      parseInt(month!, 10) - 1, // months are 0-indexed
+      parseInt(day!, 10),
+      parseInt(hour!, 10),
+      parseInt(minute!, 10),
+      parseInt(second!, 10),
     );
     if (!Number.isNaN(date.getTime())) {
       return date;
@@ -137,13 +137,6 @@ function getMonthKey(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
-}
-
-/**
- * Get year key for grouping: "2024"
- */
-function getYearKey(date: Date): string {
-  return String(date.getFullYear());
 }
 
 /**
@@ -234,7 +227,7 @@ export function groupPhotosForTimeline(manifest: Manifest): TimelineData {
         const dayPhotos = dayMap.get(dayKey);
         if (!dayPhotos || dayPhotos.length === 0) continue;
         // Get the date from the first photo to format the label
-        const sampleDate = dayPhotos[0].dateTime;
+        const sampleDate = dayPhotos[0]!.dateTime;
         const label = sampleDate ? formatDayLabel(sampleDate) : dayKey;
 
         days.push({
@@ -246,7 +239,7 @@ export function groupPhotosForTimeline(manifest: Manifest): TimelineData {
 
       months.push({
         key: getMonthKey(new Date(year, month, 1)),
-        label: MONTH_NAMES[month],
+        label: MONTH_NAMES[month]!,
         year,
         month,
         days,
@@ -287,4 +280,3 @@ export function groupPhotosForTimeline(manifest: Manifest): TimelineData {
 
   return { years, allYears };
 }
-

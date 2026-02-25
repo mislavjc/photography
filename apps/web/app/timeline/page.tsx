@@ -14,11 +14,7 @@ import type { Manifest } from 'types';
 import { EXT_RE } from 'lib/constants';
 import { loadManifest } from 'lib/manifest-server';
 import { trimManifestForClient } from 'lib/manifest-utils';
-import {
-  computeMasonryLayout,
-  GAP,
-  type MasonryColumn,
-} from 'lib/timeline-layout';
+import { computeMasonryLayout, type MasonryColumn } from 'lib/timeline-layout';
 import { groupPhotosForTimeline, type TimelineData } from 'lib/timeline-utils';
 
 // Precompute item heights for default desktop width to reduce CLS
@@ -136,7 +132,8 @@ async function getTimelineData(): Promise<{
   };
 }
 
-const R2_URL = process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL ?? '';
+const R2_URL =
+  process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL ?? '';
 
 export default async function TimelinePage() {
   const {

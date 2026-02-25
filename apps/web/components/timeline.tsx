@@ -13,11 +13,7 @@ import type { Manifest } from 'types';
 
 import { EXT_RE } from 'lib/constants';
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
-import {
-  computeMasonryLayout,
-  GAP,
-  type MasonryColumn,
-} from 'lib/timeline-layout';
+import { computeMasonryLayout, type MasonryColumn } from 'lib/timeline-layout';
 import type {
   DayGroup,
   MonthGroup,
@@ -101,7 +97,7 @@ export function Timeline({
     const needed = SEARCH_CATEGORIES.length * 3;
     const step = Math.max(1, Math.floor(keys.length / needed));
     return Array.from({ length: Math.min(needed, keys.length) }, (_, i) =>
-      keys[(i * step) % keys.length].replace(EXT_RE, ''),
+      keys[(i * step) % keys.length]!.replace(EXT_RE, ''),
     );
   }, [manifest]);
 
@@ -372,14 +368,14 @@ export function Timeline({
       hi = items.length;
     while (lo < hi) {
       const mid = (lo + hi) >>> 1;
-      if (items[mid].top + items[mid].height <= viewTop) lo = mid + 1;
+      if (items[mid]!.top + items[mid]!.height <= viewTop) lo = mid + 1;
       else hi = mid;
     }
 
     const out = [];
     for (let i = lo; i < items.length; i++) {
-      if (items[i].top >= viewBottom) break;
-      out.push(items[i]);
+      if (items[i]!.top >= viewBottom) break;
+      out.push(items[i]!);
     }
     return out;
   }, [itemsWithPositions.items, scrollTop, viewportHeight]);

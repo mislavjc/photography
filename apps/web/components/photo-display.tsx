@@ -397,7 +397,7 @@ interface PhotoDisplayBaseProps {
 
 // Hook to compute back href from search params (client-side only)
 // This enables the page to be prerendered while back navigation is dynamic
-function useBackHref(fallback = '/') {
+function useBackHref() {
   const searchParams = useSearchParams();
   return useMemo(() => {
     const from = searchParams.get('from');
@@ -564,7 +564,7 @@ export function PhotoPage({
         closeButton={
           <Suspense
             fallback={
-              <a
+              <Link
                 href="/"
                 className={`z-50 ${closeButtonClassName}`}
                 aria-label="Back to gallery"
@@ -573,7 +573,7 @@ export function PhotoPage({
                   className="w-5 h-5 text-neutral-600 dark:text-neutral-300"
                   aria-hidden="true"
                 />
-              </a>
+              </Link>
             }
           >
             <BackButtonLink className={`z-50 ${closeButtonClassName}`} />

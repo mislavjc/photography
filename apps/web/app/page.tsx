@@ -36,7 +36,8 @@ function getLcpCandidates(
     .slice(0, count);
 }
 
-const R2_URL = process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL ?? '';
+const R2_URL =
+  process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL ?? '';
 
 export default async function Page() {
   'use cache';

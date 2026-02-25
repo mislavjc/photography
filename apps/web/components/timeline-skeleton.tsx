@@ -17,17 +17,17 @@ export function TimelineSkeleton() {
         </div>
 
         {/* Day rows skeleton - static structure for performance */}
-        <DayRowSkeleton rowId="row-1" />
-        <DayRowSkeleton rowId="row-2" />
-        <DayRowSkeleton rowId="row-3" />
-        <DayRowSkeleton rowId="row-4" />
-        <DayRowSkeleton rowId="row-5" />
+        <DayRowSkeleton />
+        <DayRowSkeleton />
+        <DayRowSkeleton />
+        <DayRowSkeleton />
+        <DayRowSkeleton />
       </div>
     </div>
   );
 }
 
-function DayRowSkeleton({ rowId }: { rowId: string }) {
+function DayRowSkeleton() {
   return (
     <div className="flex gap-3 sm:gap-6 py-3">
       {/* Timeline line */}
