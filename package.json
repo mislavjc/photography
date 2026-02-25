@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.4.1",
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "portless photography pnpm --filter web dev",
     "build": "turbo build",
     "start": "turbo start",
     "lint": "turbo lint",
