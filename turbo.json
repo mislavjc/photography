@@ -26,6 +26,7 @@
     "deploy": {
       "dependsOn": ["^build"],
       "cache": false
-    }
+    },
+    "test": {}
   }
 }
