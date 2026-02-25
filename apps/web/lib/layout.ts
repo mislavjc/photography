@@ -6,9 +6,6 @@ const BASE_COL_WIDTH = 220; // target column width
 const MIN_COLS = 3;
 const MAX_COLS = 64;
 const SEARCH_BAND = 8; // try [est-8 .. est+8]
-// Optional world width targeting (keeps the plane nice & square-ish visually)
-const TARGET_MIN_WORLD = 6000;
-const TARGET_MAX_WORLD = 11000;
 // -----------------------------------------------------------------------------
 
 export type PlacedItem = {
