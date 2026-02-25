@@ -127,6 +127,7 @@ export function PannableGrid({
   isSearching,
   searchResultCount,
   searchQuery,
+  searchPreview,
   searchError,
 }: Props) {
   const { vw, vh } = useViewportSize();
@@ -763,6 +764,7 @@ export function PannableGrid({
             isSearching={isSearching}
             searchResultCount={searchResultCount}
             searchQuery={searchQuery}
+            searchPreview={searchPreview}
             categorySampleIds={sampleIds.filter((_, i) => i % 3 === 0)}
           />
         </Suspense>

@@ -27,6 +27,7 @@ export function TimelineWrapper({
     filteredIds,
     isSearching,
     searchResultCount,
+    searchPreview,
     searchError,
     handleSearch,
     handleClearSearch,
@@ -46,6 +47,7 @@ export function TimelineWrapper({
       onClearSearch={handleClearSearch}
       isSearching={isSearching}
       searchResultCount={searchResultCount}
+      searchPreview={searchPreview}
       searchQuery={query ?? ''}
       searchError={searchError}
     />

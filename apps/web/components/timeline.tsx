@@ -58,6 +58,7 @@ interface TimelineProps {
   isSearching?: boolean;
   searchResultCount?: number;
   searchQuery?: string;
+  searchPreview?: Array<{ id: string }>;
   searchError?: string | null;
 }
 
@@ -80,6 +81,7 @@ export function Timeline({
   isSearching,
   searchResultCount,
   searchQuery,
+  searchPreview,
   searchError,
 }: TimelineProps) {
   const innerContainerRef = useRef<HTMLDivElement>(null);
@@ -507,6 +509,7 @@ export function Timeline({
         isSearching={isSearching}
         searchResultCount={searchResultCount}
         searchQuery={searchQuery}
+        searchPreview={searchPreview}
         categorySampleIds={sampleIds.filter((_, i) => i % 3 === 0)}
       />
 

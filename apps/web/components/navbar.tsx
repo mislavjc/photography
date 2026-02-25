@@ -78,7 +78,10 @@ interface NavbarSearchProps {
   initialQuery: string;
   onOpenChange?: (open: boolean) => void;
   categorySampleIds?: string[];
+  searchPreview?: Array<{ id: string }>;
 }
+
+const R2_URL = process.env.NEXT_PUBLIC_R2_URL ?? '';
 
 function NavbarSearch({
   onSearch,
@@ -88,14 +91,17 @@ function NavbarSearch({
   initialQuery,
   onOpenChange,
   categorySampleIds,
+  searchPreview = [],
 }: NavbarSearchProps) {
   const [inputState, setInputState] = useState({
     value: initialQuery,
     syncedProp: initialQuery,
   });
   const [searchOpen, setSearchOpen] = useState(false);
+  const [focusedCatIdx, setFocusedCatIdx] = useState(-1);
   const searchRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const categoryRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
@@ -114,6 +120,7 @@ function NavbarSearch({
   const updateSearchOpen = React.useCallback(
     (open: boolean) => {
       setSearchOpen(open);
+      if (!open) setFocusedCatIdx(-1);
       onOpenChange?.(open);
     },
     [onOpenChange],
@@ -143,6 +150,7 @@ function NavbarSearch({
   // Uses AbortController to cancel stale searches
   const handleInputChange = (value: string) => {
     setInputState((prev) => ({ ...prev, value }));
+    setFocusedCatIdx(-1);
 
     // Clear pending debounce and abort any in-flight search
     if (debounceRef.current) {
@@ -165,6 +173,13 @@ function NavbarSearch({
       onClearSearch();
     }
   };
+
+  // Move DOM focus to the highlighted category button
+  React.useEffect(() => {
+    if (focusedCatIdx >= 0) {
+      categoryRefs.current[focusedCatIdx]?.focus();
+    }
+  }, [focusedCatIdx]);
 
   // Cleanup AbortController on unmount
   React.useEffect(() => {
@@ -271,6 +286,10 @@ function NavbarSearch({
               updateSearchOpen(false);
               inputRef.current?.blur();
             }
+            if (e.key === 'ArrowDown' && matchingCategories.length > 0) {
+              e.preventDefault();
+              setFocusedCatIdx(0);
+            }
           }}
           className="flex-1 bg-transparent text-base sm:text-sm text-neutral-700 dark:text-neutral-200 outline-none focus-visible:outline-none placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
         />
@@ -308,6 +327,39 @@ function NavbarSearch({
             }}
             className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 p-2"
           >
+            {/* Search result preview thumbnails (shown when search is active) */}
+            {searchPreview.length > 0 && (
+              <div className="mb-2">
+                <div className="flex gap-1.5">
+                  {searchPreview.slice(0, 6).map((result) => (
+                    <button
+                      key={result.id}
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => updateSearchOpen(false)}
+                      className="flex-shrink-0 h-14 w-14 overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-700 hover:opacity-80 transition-opacity"
+                    >
+                      <img
+                        src={`${R2_URL}/variants/grid/avif/160/${result.id}.avif`}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        loading="eager"
+                      />
+                    </button>
+                  ))}
+                  {searchResultCount !== undefined && searchResultCount > 6 && (
+                    <div className="flex-shrink-0 h-14 w-14 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-700/50">
+                      <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium text-center leading-tight">
+                        +{searchResultCount - 6}
+                        <br />more
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="h-px bg-neutral-200 dark:bg-neutral-700 my-2" />
+              </div>
+            )}
+
             {/* Show matching categories as autocomplete (uses memoized filter) */}
             {inputValue.trim() && matchingCategories.length === 0 ? (
               <div className="py-4 text-center text-sm text-neutral-500">
@@ -319,22 +371,43 @@ function NavbarSearch({
                   const catIdx = SEARCH_CATEGORIES.indexOf(cat);
                   const sampleId = categorySampleIds?.[catIdx];
                   const imageUrl = sampleId
-                    ? `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${sampleId}.avif`
+                    ? `${R2_URL}/variants/grid/avif/480/${sampleId}.avif`
                     : undefined;
                   return (
                     <m.button
                       key={cat.id}
+                      ref={(el) => {
+                        categoryRefs.current[i] = el;
+                      }}
                       type="button"
                       onClick={() => {
                         setInputState((prev) => ({
                           ...prev,
                           value: cat.query,
                         }));
+                        setFocusedCatIdx(-1);
                         handleSearch(cat.query);
                         updateSearchOpen(false);
                         inputRef.current?.blur();
                       }}
-                      className="flex items-center gap-3 rounded-xl bg-white dark:bg-neutral-900 p-2.5 text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-700 active:scale-[0.98]"
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setFocusedCatIdx(
+                            Math.min(i + 1, matchingCategories.length - 1),
+                          );
+                        }
+                        if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          if (i === 0) {
+                            setFocusedCatIdx(-1);
+                            inputRef.current?.focus();
+                          } else {
+                            setFocusedCatIdx(i - 1);
+                          }
+                        }
+                      }}
+                      className="flex items-center gap-3 rounded-xl bg-white dark:bg-neutral-900 p-2.5 text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:focus-visible:ring-neutral-600 active:scale-[0.98]"
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{
@@ -378,6 +451,8 @@ type NavbarProps = {
   searchQuery?: string;
   /** One photo ID (no extension) per search category, used for dropdown thumbnails */
   categorySampleIds?: string[];
+  /** First few search results for showing thumbnails in the dropdown */
+  searchPreview?: Array<{ id: string }>;
 };
 
 export function Navbar({
@@ -390,6 +465,7 @@ export function Navbar({
   searchResultCount,
   searchQuery: initialQuery = '',
   categorySampleIds,
+  searchPreview,
 }: NavbarProps) {
   const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
   const [isMobile, setIsMobile] = useState(false);
@@ -492,6 +568,7 @@ export function Navbar({
               initialQuery={initialQuery}
               onOpenChange={setSearchOpen}
               categorySampleIds={categorySampleIds}
+              searchPreview={searchPreview}
             />
           ) : (
             <div className="flex-1" />
