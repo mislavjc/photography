@@ -20,5 +20,5 @@ export function trimManifestForClient(manifest: Manifest): Manifest {
  * Uses Math.random() so it should be called once per request in server components.
  */
 export function selectRandomPhoto(photoNames: string[]): string {
-  return photoNames[Math.floor(Math.random() * photoNames.length)];
+  return photoNames[Math.floor(Math.random() * photoNames.length)]!;
 }

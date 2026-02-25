@@ -55,20 +55,20 @@ export function computeMasonryLayout(
     // Find the shortest column
     let shortestIdx = 0;
     for (let i = 1; i < cols; i++) {
-      if (columns[i].height < columns[shortestIdx].height) {
+      if (columns[i]!.height < columns[shortestIdx]!.height) {
         shortestIdx = i;
       }
     }
 
     const photoHeight = Math.round(cellWidth * (photo.h / photo.w));
-    columns[shortestIdx].photos.push({
+    columns[shortestIdx]!.photos.push({
       filename: photo.filename,
       width: cellWidth,
       height: photoHeight,
       originalW: photo.w,
       originalH: photo.h,
     });
-    columns[shortestIdx].height += photoHeight + gap;
+    columns[shortestIdx]!.height += photoHeight + gap;
   }
 
   // Remove trailing gap

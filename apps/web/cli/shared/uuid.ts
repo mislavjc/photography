@@ -47,20 +47,20 @@ export function uuidv7FromHash(tsMs: number, hash: Buffer): string {
   bytes[5] = Number(ts & BigInt(0xff));
 
   // version 7 + 12 bits rand
-  const randA = ((h[0] << 8) | h[1]) & 0x0fff;
+  const randA = ((h[0]! << 8) | h[1]!) & 0x0fff;
   bytes[6] = 0x70 | ((randA >> 8) & 0x0f);
   bytes[7] = randA & 0xff;
 
   // variant + 62 bits rand
   const rb = Buffer.from(h.slice(2, 10)); // 8 bytes
-  bytes[8] = (rb[0] & 0x3f) | 0x80; // 10xxxxxx
-  bytes[9] = rb[1];
-  bytes[10] = rb[2];
-  bytes[11] = rb[3];
-  bytes[12] = rb[4];
-  bytes[13] = rb[5];
-  bytes[14] = rb[6];
-  bytes[15] = rb[7];
+  bytes[8] = (rb[0]! & 0x3f) | 0x80; // 10xxxxxx
+  bytes[9] = rb[1]!;
+  bytes[10] = rb[2]!;
+  bytes[11] = rb[3]!;
+  bytes[12] = rb[4]!;
+  bytes[13] = rb[5]!;
+  bytes[14] = rb[6]!;
+  bytes[15] = rb[7]!;
 
   const hex = bytes.toString('hex');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(

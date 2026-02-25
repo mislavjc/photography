@@ -29,8 +29,8 @@ function computeSkeletonLayout() {
   const colHeights = [0, 0, 0, 0, 0, 0];
   return SKELETON_TILES.map(({ col, h }) => {
     const x = col * (COLUMN_WIDTH + GAP);
-    const y = colHeights[col];
-    colHeights[col] += h + GAP;
+    const y = colHeights[col]!;
+    colHeights[col]! += h + GAP;
     return { x, y, w: COLUMN_WIDTH, h };
   });
 }

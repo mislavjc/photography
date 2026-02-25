@@ -137,8 +137,8 @@ const parseExifManually = (
         // Convert EXIF date format to ISO format for JavaScript Date parsing
         // From: "2025:05:06 19:49:17" To: "2025-05-06T19:49:17"
         const parts = dateString.split(' ');
-        const datePart = parts[0].replace(/:/g, '-');
-        const timePart = parts[1];
+        const datePart = parts[0]!.replace(/:/g, '-');
+        const timePart = parts[1]!;
         result.dateTime = `${datePart}T${timePart}`;
       }
     }
@@ -244,7 +244,7 @@ const parseExifManually = (
           // Look for decimal exposure times like "0.004" or "1/125"
           const decimalMatch = exposureData.match(/(\d+\.?\d*)/);
           if (decimalMatch) {
-            const exposureValue = parseFloat(decimalMatch[1]);
+            const exposureValue = parseFloat(decimalMatch[1]!);
             if (exposureValue > 0 && exposureValue < 60) {
               // Reasonable exposure range
               result.exposureTime = exposureValue;
@@ -255,8 +255,8 @@ const parseExifManually = (
           // Look for fractional patterns like "1/125"
           const fractionMatch = exposureData.match(/(\d+)\/(\d+)/);
           if (fractionMatch) {
-            const numerator = parseInt(fractionMatch[1]);
-            const denominator = parseInt(fractionMatch[2]);
+            const numerator = parseInt(fractionMatch[1]!);
+            const denominator = parseInt(fractionMatch[2]!);
             if (numerator > 0 && denominator > 0) {
               result.exposureTime = numerator / denominator;
               break;
@@ -381,9 +381,9 @@ const parseExifManually = (
         /(\d{1,3})[^\d]*(\d{1,2})[^\d]*(\d{1,2}(?:\.\d+)?)/,
       );
       if (coordMatch) {
-        const degrees = parseInt(coordMatch[1]);
-        const minutes = parseInt(coordMatch[2]);
-        const seconds = parseFloat(coordMatch[3]);
+        const degrees = parseInt(coordMatch[1]!);
+        const minutes = parseInt(coordMatch[2]!);
+        const seconds = parseFloat(coordMatch[3]!);
         latitude = degrees + minutes / 60 + seconds / 3600;
 
         // Check latitude reference (N/S)
@@ -413,9 +413,9 @@ const parseExifManually = (
         /(\d{1,3})[^\d]*(\d{1,2})[^\d]*(\d{1,2}(?:\.\d+)?)/,
       );
       if (coordMatch) {
-        const degrees = parseInt(coordMatch[1]);
-        const minutes = parseInt(coordMatch[2]);
-        const seconds = parseFloat(coordMatch[3]);
+        const degrees = parseInt(coordMatch[1]!);
+        const minutes = parseInt(coordMatch[2]!);
+        const seconds = parseFloat(coordMatch[3]!);
         longitude = degrees + minutes / 60 + seconds / 3600;
 
         // Check longitude reference (E/W)
@@ -542,9 +542,9 @@ const extractDominantColors = (file: string, maxColors: number = 5) =>
       const pixels: Array<{ r: number; g: number; b: number }> = [];
       for (let i = 0; i < data.length; i += 3) {
         pixels.push({
-          r: data[i],
-          g: data[i + 1],
-          b: data[i + 2],
+          r: data[i]!,
+          g: data[i + 1]!,
+          b: data[i + 2]!,
         });
       }
 

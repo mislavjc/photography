@@ -34,5 +34,5 @@ export default async function NotFound() {
   const randomPhotoName = selectRandomPhoto(photoNames);
   const photoData = manifest[randomPhotoName];
 
-  return <PhotoPage photoName={randomPhotoName} photoData={photoData} />;
+  return <PhotoPage photoName={randomPhotoName} photoData={photoData!} />;
 }

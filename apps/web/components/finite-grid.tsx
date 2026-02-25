@@ -55,7 +55,7 @@ function firstInView(items: { y: number; h: number }[], minY: number): number {
     hi = items.length;
   while (lo < hi) {
     const mid = (lo + hi) >>> 1;
-    if (items[mid].y + items[mid].h <= minY) lo = mid + 1;
+    if (items[mid]!.y + items[mid]!.h <= minY) lo = mid + 1;
     else hi = mid;
   }
   return lo;
@@ -152,7 +152,7 @@ export function PannableGrid({
     const needed = SEARCH_CATEGORIES.length * 3;
     const step = Math.max(1, Math.floor(keys.length / needed));
     return Array.from({ length: Math.min(needed, keys.length) }, (_, i) =>
-      keys[(i * step) % keys.length].replace(EXT_RE, ''),
+      keys[(i * step) % keys.length]!.replace(EXT_RE, ''),
     );
   }, [manifest]);
 
@@ -485,7 +485,7 @@ export function PannableGrid({
     const start = firstInView(items, vy1);
     const out: typeof items = [];
     for (let i = start; i < items.length; i++) {
-      const it = items[i];
+      const it = items[i]!;
       if (it.y > vy2) break;
       if (it.x < vx2 && it.x + it.w > vx1) out.push(it);
     }

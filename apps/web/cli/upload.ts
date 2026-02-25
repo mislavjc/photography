@@ -516,7 +516,7 @@ const processFile = (
     // Update checkpoint
     checkpoint.markProcessed(file, {
       key: `${uuid}${ext}`,
-      entry: manifest[`${uuid}${ext}`],
+      entry: manifest[`${uuid}${ext}`]!,
     });
     checkpoint.addVariants(needed.length, bytesUploaded);
 

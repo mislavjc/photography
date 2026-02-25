@@ -208,7 +208,7 @@ export default async function OpengraphImage({ params }: { params: Params }) {
   const leftRows: typeof rows = [];
   const rightRows: typeof rows = [];
   for (let i = 0; i < rows.length; i++) {
-    (i % 2 === 0 ? leftRows : rightRows).push(rows[i]);
+    (i % 2 === 0 ? leftRows : rightRows).push(rows[i]!);
   }
 
   return new ImageResponse(

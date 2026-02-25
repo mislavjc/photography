@@ -344,8 +344,8 @@ const program = Effect.gen(function* () {
         originalKey,
       );
 
-      const uuid = variants[0].uuid;
-      const ext = variants[0].ext;
+      const uuid = variants[0]!.uuid;
+      const ext = variants[0]!.ext;
       const manifestKey = `${uuid}${ext}`;
 
       // Generate blurhash if not in manifest

@@ -47,7 +47,7 @@ export default async function RandomPage() {
     <Suspense>
       <PhotoPage
         photoName={randomPhotoName}
-        photoData={photoData}
+        photoData={photoData!}
         similarSlot={
           <Suspense fallback={<div className="h-24 animate-shimmer" />}>
             <SimilarPhotos photoId={randomPhotoName} />

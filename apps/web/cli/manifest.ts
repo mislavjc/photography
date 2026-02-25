@@ -283,7 +283,7 @@ const processFile = (
       if (verbose) {
         yield* Console.log(`  🎨 blurhash: ${bh.w}x${bh.h}`);
         if (dominantColors && dominantColors.length > 0) {
-          yield* Console.log(`  🌈 dominant color: ${dominantColors[0].hex}`);
+          yield* Console.log(`  🌈 dominant color: ${dominantColors[0]!.hex}`);
         }
       }
     } else {
