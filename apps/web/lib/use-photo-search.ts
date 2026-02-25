@@ -24,6 +24,8 @@ interface UsePhotoSearchReturn {
   searchResultCount: number | undefined;
   /** Preview of search results (first 8) */
   searchPreview: SearchResult[];
+  /** Error message when search fails, null when ok */
+  searchError: string | null;
   /** Handler to execute a search */
   handleSearch: (q: string) => void;
   /** Handler to clear the search */
@@ -42,6 +44,7 @@ export function usePhotoSearch({
     number | undefined
   >(undefined);
   const [searchPreview, setSearchPreview] = useState<SearchResult[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // Execute search when query changes
   useEffect(() => {
@@ -49,6 +52,7 @@ export function usePhotoSearch({
       setFilteredIds(null);
       setSearchResultCount(undefined);
       setSearchPreview([]);
+      setSearchError(null);
       document.title = baseTitle;
       return;
     }
@@ -76,6 +80,7 @@ export function usePhotoSearch({
           setFilteredIds(ids);
           setSearchResultCount(ids.size);
           setSearchPreview(preview);
+          setSearchError(null);
         });
 
         // Update title and analytics immediately
@@ -93,10 +98,18 @@ export function usePhotoSearch({
 
         console.error('Search failed:', error);
 
+        const isTimeout =
+          error instanceof DOMException && error.name === 'TimeoutError';
+
         startTransition(() => {
           setFilteredIds(null);
           setSearchResultCount(undefined);
           setSearchPreview([]);
+          setSearchError(
+            isTimeout
+              ? 'Search timed out. Please try again.'
+              : 'Search is unavailable. Please try again later.',
+          );
         });
 
         document.title = baseTitle;
@@ -123,6 +136,7 @@ export function usePhotoSearch({
     isSearching,
     searchResultCount,
     searchPreview,
+    searchError,
     handleSearch,
     handleClearSearch,
   };

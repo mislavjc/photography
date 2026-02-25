@@ -12,6 +12,7 @@ import { ChevronUp } from 'lucide-react';
 import type { Manifest } from 'types';
 
 import { EXT_RE } from 'lib/constants';
+import { SEARCH_CATEGORIES } from 'lib/search-categories';
 import {
   computeMasonryLayout,
   GAP,
@@ -57,6 +58,7 @@ interface TimelineProps {
   isSearching?: boolean;
   searchResultCount?: number;
   searchQuery?: string;
+  searchError?: string | null;
 }
 
 // SSR-safe default width (reasonable desktop width minus typical sidebar)
@@ -78,6 +80,7 @@ export function Timeline({
   isSearching,
   searchResultCount,
   searchQuery,
+  searchError,
 }: TimelineProps) {
   const innerContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -89,6 +92,17 @@ export function Timeline({
     returnTrue,
     returnFalse,
   );
+  // Sample IDs from manifest for SearchNoResults collage (spread across the full collection)
+  const sampleIds = useMemo(() => {
+    const keys = Object.keys(manifest);
+    if (keys.length === 0) return [];
+    const needed = SEARCH_CATEGORIES.length * 3;
+    const step = Math.max(1, Math.floor(keys.length / needed));
+    return Array.from({ length: Math.min(needed, keys.length) }, (_, i) =>
+      keys[(i * step) % keys.length].replace(EXT_RE, ''),
+    );
+  }, [manifest]);
+
   // Filter timeline data based on search results
   const filteredData = useMemo(() => {
     if (!filteredIds || filteredIds.size === 0) return data;
@@ -468,10 +482,17 @@ export function Timeline({
         })}
       </div>
 
-      {/* Empty state when search returns no results */}
-      {searchResultCount === 0 && searchQuery && !isSearching && (
-        <SearchNoResults searchQuery={searchQuery} onSearch={onSearch} />
-      )}
+      {/* Empty state when search returns no results or fails */}
+      {(searchResultCount === 0 || searchError) &&
+        searchQuery &&
+        !isSearching && (
+          <SearchNoResults
+            searchQuery={searchQuery}
+            onSearch={onSearch}
+            sampleIds={sampleIds}
+            searchError={searchError}
+          />
+        )}
 
       {/* Navbar with year selector and search */}
       <Navbar
@@ -486,6 +507,7 @@ export function Timeline({
         isSearching={isSearching}
         searchResultCount={searchResultCount}
         searchQuery={searchQuery}
+        categorySampleIds={sampleIds.filter((_, i) => i % 3 === 0)}
       />
 
       {/* Scroll to top button */}

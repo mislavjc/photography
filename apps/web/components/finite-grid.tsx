@@ -17,6 +17,7 @@ import { SearchNoResults } from 'components/search-no-results';
 
 import { EXT_RE } from 'lib/constants';
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
+import { SEARCH_CATEGORIES } from 'lib/search-categories';
 
 // Lazy load Navbar with idle callback to defer heavy dependencies until after LCP
 const Navbar = lazy(() =>
@@ -113,6 +114,7 @@ type Props = {
   searchResultCount?: number;
   searchQuery?: string;
   searchPreview?: SearchPreview[];
+  searchError?: string | null;
 };
 
 export function PannableGrid({
@@ -125,6 +127,7 @@ export function PannableGrid({
   isSearching,
   searchResultCount,
   searchQuery,
+  searchError,
 }: Props) {
   const { vw, vh } = useViewportSize();
 
@@ -140,6 +143,17 @@ export function PannableGrid({
     }
     return filtered;
   }, [manifest, filteredIds]);
+
+  // Sample IDs from manifest for SearchNoResults collage (spread across the full collection)
+  const sampleIds = useMemo(() => {
+    const keys = Object.keys(manifest);
+    if (keys.length === 0) return [];
+    const needed = SEARCH_CATEGORIES.length * 3;
+    const step = Math.max(1, Math.floor(keys.length / needed));
+    return Array.from({ length: Math.min(needed, keys.length) }, (_, i) =>
+      keys[(i * step) % keys.length].replace(EXT_RE, ''),
+    );
+  }, [manifest]);
 
   // Defer the expensive layout recomputation so it doesn't block the UI during search
   const deferredFilteredManifest = useDeferredValue(filteredManifest);
@@ -714,10 +728,17 @@ export function PannableGrid({
         </div>
       </div>
 
-      {/* Empty state when search returns no results */}
-      {searchResultCount === 0 && searchQuery && !isSearching && (
-        <SearchNoResults searchQuery={searchQuery} onSearch={onSearch} />
-      )}
+      {/* Empty state when search returns no results or fails */}
+      {(searchResultCount === 0 || searchError) &&
+        searchQuery &&
+        !isSearching && (
+          <SearchNoResults
+            searchQuery={searchQuery}
+            onSearch={onSearch}
+            sampleIds={sampleIds}
+            searchError={searchError}
+          />
+        )}
 
       {showNavbar && (
         <Suspense fallback={null}>
@@ -742,6 +763,7 @@ export function PannableGrid({
             isSearching={isSearching}
             searchResultCount={searchResultCount}
             searchQuery={searchQuery}
+            categorySampleIds={sampleIds.filter((_, i) => i % 3 === 0)}
           />
         </Suspense>
       )}

@@ -29,6 +29,7 @@ export async function searchPhotos(query: string): Promise<SearchResult[]> {
     headers: {
       Accept: 'application/json',
     },
+    signal: AbortSignal.timeout(8000),
   });
 
   if (!response.ok) {
@@ -52,12 +53,16 @@ export async function getSimilarPhotos(
 ): Promise<SearchResult[]> {
   const url = `${SEARCH_API_URL}/similar?id=${encodeURIComponent(photoId)}`;
 
+  const effectiveSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(8000)])
+    : AbortSignal.timeout(8000);
+
   const response = await fetch(url, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
     },
-    signal,
+    signal: effectiveSignal,
   });
 
   if (!response.ok) {

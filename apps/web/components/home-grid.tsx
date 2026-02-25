@@ -19,6 +19,7 @@ export function HomeGrid({ manifest, initialLayout }: Props) {
     isSearching,
     searchResultCount,
     searchPreview,
+    searchError,
     handleSearch,
     handleClearSearch,
   } = usePhotoSearch({
@@ -38,6 +39,7 @@ export function HomeGrid({ manifest, initialLayout }: Props) {
       searchResultCount={searchResultCount}
       searchQuery={query ?? ''}
       searchPreview={searchPreview}
+      searchError={searchError}
     />
   );
 }
