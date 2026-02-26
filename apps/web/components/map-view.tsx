@@ -137,10 +137,7 @@ function formatDate(date: string | null): string {
   });
 }
 
-function buildPopupElement(
-  photo: Photo,
-  theme: 'light' | 'dark',
-): HTMLElement {
+function buildPopupElement(photo: Photo, theme: 'light' | 'dark'): HTMLElement {
   const { width, height } = calculatePopupDimensions(photo.w, photo.h);
   const photoUrl = buildPhotoUrl(photo.id);
   const colors = THEME_COLORS[theme];
@@ -442,7 +439,10 @@ function setupPhotoPreview(
     closeButton: false,
     closeOnClick: false,
     offset: POPUP_CONFIG.offset,
-    className: theme === 'dark' ? 'map-photo-popup map-photo-popup-dark' : 'map-photo-popup',
+    className:
+      theme === 'dark'
+        ? 'map-photo-popup map-photo-popup-dark'
+        : 'map-photo-popup',
   });
 
   map.on('mouseenter', 'unclustered-point', (e) => {

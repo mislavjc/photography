@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import type { Manifest } from '../types';
 
-import { trimManifestForClient, selectRandomPhoto } from './manifest-utils';
+import { selectRandomPhoto, trimManifestForClient } from './manifest-utils';
 
 /** Helper to create a full manifest entry with all EXIF fields. */
 function fullEntry(
   w: number,
   h: number,
-  colors?: Array<{ hex: string; rgb: { r: number; g: number; b: number }; percentage: number }>,
+  colors?: Array<{
+    hex: string;
+    rgb: { r: number; g: number; b: number };
+    percentage: number;
+  }>,
 ): Manifest[string] {
   return {
     blurhash: 'L00000fQfQfQfQfQfQfQfQfQfQfQ',

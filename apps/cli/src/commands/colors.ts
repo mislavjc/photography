@@ -52,9 +52,9 @@ async function extractDominantColors(
   const quantize = (v: number) => Math.min(255, Math.round(v / 8) * 8);
 
   for (let i = 0; i < data.length; i += 3) {
-    const r = quantize(data[i]);
-    const g = quantize(data[i + 1]);
-    const b = quantize(data[i + 2]);
+    const r = quantize(data[i]!);
+    const g = quantize(data[i + 1]!);
+    const b = quantize(data[i + 2]!);
     const key = `${r},${g},${b}`;
 
     const existing = colorCounts.get(key);

@@ -1,15 +1,10 @@
-import { describe, expect, it } from 'vitest';
-
 import type { Manifest } from 'types';
+import { describe, expect, it } from 'vitest';
 
 import { groupPhotosForTimeline } from './timeline-utils';
 
 /** Helper to create a minimal manifest entry. */
-function entry(
-  dateTime: string | null,
-  w = 4000,
-  h = 3000,
-): Manifest[string] {
+function entry(dateTime: string | null, w = 4000, h = 3000): Manifest[string] {
   return {
     blurhash: 'L00000fQfQfQfQfQfQfQfQfQfQfQ',
     w,
@@ -46,9 +41,7 @@ describe('groupPhotosForTimeline', () => {
       expect(result.years).toHaveLength(1);
       expect(result.years[0]!.key).toBe('2024');
       expect(result.years[0]!.months[0]!.label).toBe('August');
-      expect(result.years[0]!.months[0]!.days[0]!.label).toBe(
-        'Aug 15, 2024',
-      );
+      expect(result.years[0]!.months[0]!.days[0]!.label).toBe('Aug 15, 2024');
     });
 
     it('handles null dates by grouping into "Unknown Date"', () => {
@@ -121,11 +114,7 @@ describe('groupPhotosForTimeline', () => {
         'c.jpg': entry('2023:01:01 12:00:00'),
       };
       const result = groupPhotosForTimeline(manifest);
-      expect(result.years.map((y) => y.key)).toEqual([
-        '2025',
-        '2023',
-        '2020',
-      ]);
+      expect(result.years.map((y) => y.key)).toEqual(['2025', '2023', '2020']);
       expect(result.allYears).toEqual([2025, 2023, 2020]);
     });
 
