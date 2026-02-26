@@ -61,6 +61,27 @@ const POPUP_CONFIG = {
   offset: 15,
 } as const;
 
+const THEME_COLORS = {
+  light: {
+    clusterFill: '#171717',
+    clusterStroke: '#ffffff',
+    clusterText: '#ffffff',
+    clusterShadow: 'rgba(0, 0, 0, 0.1)',
+    pointFill: '#404040',
+    pointStroke: '#ffffff',
+    popupDate: '#737373',
+  },
+  dark: {
+    clusterFill: '#e5e5e5',
+    clusterStroke: '#171717',
+    clusterText: '#171717',
+    clusterShadow: 'rgba(0, 0, 0, 0.4)',
+    pointFill: '#d4d4d4',
+    pointStroke: '#262626',
+    popupDate: '#a3a3a3',
+  },
+} as const;
+
 const ANIMATION = {
   cluster: { duration: 500 },
   photo: { duration: 800, minZoom: 14 },
@@ -116,9 +137,13 @@ function formatDate(date: string | null): string {
   });
 }
 
-function buildPopupElement(photo: Photo): HTMLElement {
+function buildPopupElement(
+  photo: Photo,
+  theme: 'light' | 'dark',
+): HTMLElement {
   const { width, height } = calculatePopupDimensions(photo.w, photo.h);
   const photoUrl = buildPhotoUrl(photo.id);
+  const colors = THEME_COLORS[theme];
 
   const wrapper = document.createElement('div');
   wrapper.style.cssText = 'padding: 0; margin: 0;';
@@ -130,8 +155,7 @@ function buildPopupElement(photo: Photo): HTMLElement {
   img.loading = 'lazy';
 
   const dateDiv = document.createElement('div');
-  dateDiv.style.cssText =
-    'padding: 8px 4px 4px; font-size: 11px; color: #737373; font-family: ui-monospace, monospace;';
+  dateDiv.style.cssText = `padding: 8px 4px 4px; font-size: 11px; color: ${colors.popupDate}; font-family: ui-monospace, monospace;`;
   dateDiv.textContent = formatDate(photo.date);
 
   wrapper.appendChild(img);
@@ -189,14 +213,16 @@ export function MapView({ initialData }: MapViewProps) {
           clusterRadius: CLUSTER_CONFIG.radius,
         });
 
+        const activeTheme = resolvedTheme === 'dark' ? 'dark' : 'light';
+
         // Add layers
-        addClusterLayers(map);
-        addPointLayer(map);
+        addClusterLayers(map, activeTheme);
+        addPointLayer(map, activeTheme);
 
         // Add interactions
         setupClusterInteractions(map);
         setupPointInteractions(map, initialData, setSelectedPhotos);
-        setupPhotoPreview(map, initialData, mapboxgl.default);
+        setupPhotoPreview(map, initialData, mapboxgl.default, activeTheme);
 
         setIsLoading(false);
       });
@@ -219,7 +245,7 @@ export function MapView({ initialData }: MapViewProps) {
   return (
     <>
       <Navbar activePage="map" />
-      <div className="fixed inset-0 pt-16 bg-white">
+      <div className="fixed inset-0 pt-16 bg-white dark:bg-neutral-950">
         <div ref={mapContainerRef} className="w-full h-full" />
 
         {isLoading && <LoadingState />}
@@ -239,7 +265,9 @@ export function MapView({ initialData }: MapViewProps) {
 // Map Setup Functions
 // ============================================================================
 
-function addClusterLayers(map: mapboxgl.Map) {
+function addClusterLayers(map: mapboxgl.Map, theme: 'light' | 'dark') {
+  const colors = THEME_COLORS[theme];
+
   // Shadow layer for depth
   map.addLayer({
     id: 'cluster-shadow',
@@ -247,7 +275,7 @@ function addClusterLayers(map: mapboxgl.Map) {
     source: 'photos',
     filter: ['has', 'point_count'],
     paint: {
-      'circle-color': 'rgba(0, 0, 0, 0.1)',
+      'circle-color': colors.clusterShadow,
       'circle-radius': [
         'step',
         ['get', 'point_count'],
@@ -273,7 +301,7 @@ function addClusterLayers(map: mapboxgl.Map) {
     source: 'photos',
     filter: ['has', 'point_count'],
     paint: {
-      'circle-color': '#171717',
+      'circle-color': colors.clusterFill,
       'circle-radius': [
         'step',
         ['get', 'point_count'],
@@ -288,7 +316,7 @@ function addClusterLayers(map: mapboxgl.Map) {
         44,
       ],
       'circle-stroke-width': 3,
-      'circle-stroke-color': '#ffffff',
+      'circle-stroke-color': colors.clusterStroke,
       'circle-opacity': 0.95,
     },
   });
@@ -317,22 +345,24 @@ function addClusterLayers(map: mapboxgl.Map) {
       ],
     },
     paint: {
-      'text-color': '#ffffff',
+      'text-color': colors.clusterText,
     },
   });
 }
 
-function addPointLayer(map: mapboxgl.Map) {
+function addPointLayer(map: mapboxgl.Map, theme: 'light' | 'dark') {
+  const colors = THEME_COLORS[theme];
+
   map.addLayer({
     id: 'unclustered-point',
     type: 'circle',
     source: 'photos',
     filter: ['!', ['has', 'point_count']],
     paint: {
-      'circle-color': '#404040',
+      'circle-color': colors.pointFill,
       'circle-radius': 7,
       'circle-stroke-width': 2.5,
-      'circle-stroke-color': '#ffffff',
+      'circle-stroke-color': colors.pointStroke,
       'circle-opacity': 0.9,
     },
   });
@@ -408,12 +438,13 @@ function setupPhotoPreview(
   map: mapboxgl.Map,
   data: MapData,
   mb: typeof mapboxgl,
+  theme: 'light' | 'dark',
 ) {
   const popup = new mb.Popup({
     closeButton: false,
     closeOnClick: false,
     offset: POPUP_CONFIG.offset,
-    className: 'map-photo-popup',
+    className: `map-photo-popup ${theme === 'dark' ? 'map-photo-popup-dark' : ''}`,
   });
 
   map.on('mouseenter', 'unclustered-point', (e) => {
@@ -440,7 +471,7 @@ function setupPhotoPreview(
 
     popup
       .setLngLat(coordinates)
-      .setDOMContent(buildPopupElement(photo))
+      .setDOMContent(buildPopupElement(photo, theme))
       .addTo(map);
   });
 
@@ -458,10 +489,12 @@ function setupPhotoPreview(
 
 function LoadingState() {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-white">
+    <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-neutral-950">
       <div className="text-center">
-        <div className="w-8 h-8 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm text-neutral-600 font-mono">Loading map...</p>
+        <div className="w-8 h-8 border-2 border-neutral-300 dark:border-neutral-700 border-t-neutral-600 dark:border-t-neutral-400 rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400 font-mono">
+          Loading map...
+        </p>
       </div>
     </div>
   );
@@ -469,10 +502,14 @@ function LoadingState() {
 
 function ErrorState({ error }: { error: string }) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-white">
+    <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-neutral-950">
       <div className="text-center max-w-md px-4">
-        <p className="text-neutral-900 font-medium mb-2">Failed to load map</p>
-        <p className="text-sm text-neutral-600">{error}</p>
+        <p className="text-neutral-900 dark:text-neutral-100 font-medium mb-2">
+          Failed to load map
+        </p>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          {error}
+        </p>
       </div>
     </div>
   );
@@ -486,23 +523,25 @@ function PhotoSidebar({
   onClose: () => void;
 }) {
   return (
-    <div className="absolute right-4 top-20 bottom-4 w-80 bg-white rounded-2xl shadow-lg overflow-hidden z-20">
+    <div className="absolute right-4 top-20 bottom-4 w-80 bg-white dark:bg-neutral-900 rounded-2xl shadow-lg dark:shadow-black/40 overflow-hidden z-20">
       <div className="h-full flex flex-col">
-        <div className="p-4 border-b border-neutral-200">
+        <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-sm font-semibold text-neutral-900">
+            <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
               {photos.length} {photos.length === 1 ? 'photo' : 'photos'}
             </h2>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-neutral-100 rounded-lg transition-colors"
+              className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
               aria-label="Close"
             >
-              <span className="text-neutral-500 text-xs">✕</span>
+              <span className="text-neutral-500 dark:text-neutral-400 text-xs">
+                ✕
+              </span>
             </button>
           </div>
           {photos[0]?.date && (
-            <p className="text-xs text-neutral-500 font-mono">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-mono">
               {formatDate(photos[0].date)}
             </p>
           )}
@@ -514,7 +553,7 @@ function PhotoSidebar({
               <Link
                 key={photo.id}
                 href={`/photo/${photo.id}?from=map`}
-                className="group relative aspect-square overflow-hidden rounded-lg bg-neutral-100"
+                className="group relative aspect-square overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800"
               >
                 <Picture
                   uuidWithExt={photo.id}
