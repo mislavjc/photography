@@ -193,12 +193,12 @@ export function MapView({ initialData }: MapViewProps) {
 
       mapboxgl.default.accessToken = token;
 
-      const mapStyle =
-        resolvedTheme === 'dark' ? MAP_STYLES.dark : MAP_STYLES.light;
+      const activeTheme: 'light' | 'dark' =
+        resolvedTheme === 'dark' ? 'dark' : 'light';
 
       const map = new mapboxgl.default.Map({
         container: mapContainerRef.current,
-        style: mapStyle,
+        style: MAP_STYLES[activeTheme],
         ...MAP_CONFIG,
       });
 
@@ -212,8 +212,6 @@ export function MapView({ initialData }: MapViewProps) {
           clusterMaxZoom: CLUSTER_CONFIG.maxZoom,
           clusterRadius: CLUSTER_CONFIG.radius,
         });
-
-        const activeTheme = resolvedTheme === 'dark' ? 'dark' : 'light';
 
         // Add layers
         addClusterLayers(map, activeTheme);
@@ -444,7 +442,7 @@ function setupPhotoPreview(
     closeButton: false,
     closeOnClick: false,
     offset: POPUP_CONFIG.offset,
-    className: `map-photo-popup ${theme === 'dark' ? 'map-photo-popup-dark' : ''}`,
+    className: theme === 'dark' ? 'map-photo-popup map-photo-popup-dark' : 'map-photo-popup',
   });
 
   map.on('mouseenter', 'unclustered-point', (e) => {
