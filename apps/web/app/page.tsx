@@ -13,18 +13,22 @@ export const metadata: Metadata = {
   title: 'Photos',
 };
 
+const SSR_VIEWPORT_WIDTH = 1200;
+const SSR_VIEWPORT_HEIGHT = 800;
+const LCP_PRELOAD_COUNT = 3;
+
 // Get LCP candidate images (center of the grid, visible on initial load)
 function getLcpCandidates(
   layout: ReturnType<typeof computeNearSquareLayout>,
-  count = 4,
+  count = LCP_PRELOAD_COUNT,
 ) {
   const centerX = layout.width / 2;
   const centerY = layout.height / 2;
-  // Approximate initial viewport size
-  const viewW = 1400;
-  const viewH = 900;
+  // Match the client grid's SSR-safe viewport to keep preload targets aligned.
+  const viewW = SSR_VIEWPORT_WIDTH;
+  const viewH = SSR_VIEWPORT_HEIGHT;
 
-  // Find images near center that will be visible first
+  // Find images near center that will be visible first and prioritize larger tiles.
   return layout.items
     .filter(
       (it) =>
@@ -33,6 +37,7 @@ function getLcpCandidates(
         it.y < centerY + viewH / 2 &&
         it.y + it.h > centerY - viewH / 2,
     )
+    .sort((a, b) => b.w * b.h - a.w * a.h)
     .slice(0, count);
 }
 
@@ -54,18 +59,20 @@ export default async function Page() {
   return (
     <>
       {/* Preload LCP candidate images for faster initial paint */}
-      {lcpCandidates.map((candidate) => {
-        const base = candidate.filename.replace(EXT_RE, '');
-        return (
-          <link
-            key={candidate.filename}
-            rel="preload"
-            as="image"
-            href={`${R2_URL}/variants/grid/avif/480/${base}.avif`}
-            type="image/avif"
-          />
-        );
-      })}
+      {R2_URL &&
+        lcpCandidates.map((candidate) => {
+          const base = candidate.filename.replace(EXT_RE, '');
+          return (
+            <link
+              key={candidate.filename}
+              rel="preload"
+              as="image"
+              href={`${R2_URL}/variants/grid/avif/320/${base}.avif`}
+              type="image/avif"
+              crossOrigin="anonymous"
+            />
+          );
+        })}
       <main>
         <Suspense fallback={null}>
           <HomeGrid manifest={trimmedManifest} initialLayout={layout} />

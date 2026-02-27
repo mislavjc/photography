@@ -49,6 +49,18 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function getCenteredCam(layout: Layout, vw: number, vh: number) {
+  const minX = -PAD;
+  const minY = -PAD;
+  const maxX = Math.max(0, layout.width - vw + PAD);
+  const maxY = Math.max(0, layout.height - vh + PAD);
+
+  return {
+    x: clamp((layout.width - vw) / 2, minX, maxX),
+    y: clamp((layout.height - vh) / 2, minY, maxY),
+  };
+}
+
 // Find first index where items[i].y + items[i].h > minY (layout.items must be sorted by y)
 function firstInView(items: { y: number; h: number }[], minY: number): number {
   let lo = 0,
@@ -189,11 +201,10 @@ export function PannableGrid({
     };
   }, []);
 
-  // Track whether we restored from storage to avoid recentering over it
-  const restoredFromStorageRef = useRef(false);
-
-  // Initial cam: start at top-left (0,0). Apply saved position AFTER hydrate to avoid SSR mismatch.
-  const [cam, setCam] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Start centered on both server and client so first paint and preload targets align.
+  const [cam, setCam] = useState<{ x: number; y: number }>(() =>
+    getCenteredCam(layout, SSR_SAFE_VW, SSR_SAFE_VH),
+  );
   const camRef = useRef(cam);
   useEffect(() => {
     camRef.current = cam;
@@ -205,9 +216,8 @@ export function PannableGrid({
   const maxX = Math.max(0, layout.width - vw + PAD);
   const maxY = Math.max(0, layout.height - vh + PAD);
 
-  // Initialize camera once: restore saved if present else center.
-  // Wrapped in requestAnimationFrame to avoid synchronous setState in effect
-  // (which the React Compiler can't optimize).
+  // Initialize camera once: restore saved if present.
+  // Wrapped in requestAnimationFrame to avoid synchronous setState in effect.
   const didInitRef = useRef(false);
   useEffect(() => {
     if (didInitRef.current) return;
@@ -220,19 +230,13 @@ export function PannableGrid({
       if (saved) {
         const nx = clamp(saved.x, minX, maxX);
         const ny = clamp(saved.y, minY, maxY);
-        restoredFromStorageRef.current = true;
-        setCam({ x: nx, y: ny });
-        camRef.current = { x: nx, y: ny };
-      } else {
-        const nx = clamp((layout.width - vw) / 2, minX, maxX);
-        const ny = clamp((layout.height - vh) / 2, minY, maxY);
         setCam({ x: nx, y: ny });
         camRef.current = { x: nx, y: ny };
       }
     });
 
     return () => cancelAnimationFrame(id);
-  }, [stateKey, minX, maxX, minY, maxY, layout.width, layout.height, vw, vh]);
+  }, [stateKey, minX, maxX, minY, maxY]);
 
   // Dragging state
   const draggingRef = useRef(false);
@@ -492,6 +496,24 @@ export function PannableGrid({
     return out;
   }, [layout, virtualRect.x, virtualRect.y, virtualRect.w, virtualRect.h]);
 
+  const lcpCandidateFilenames = useMemo(() => {
+    const candidates = new Set<string>();
+
+    for (const it of visibleItems) {
+      const isInViewport =
+        it.x < viewRect.x + viewRect.w &&
+        it.x + it.w > viewRect.x &&
+        it.y < viewRect.y + viewRect.h &&
+        it.y + it.h > viewRect.y;
+
+      if (!isInViewport) continue;
+      candidates.add(it.filename);
+      if (candidates.size >= 4) break;
+    }
+
+    return candidates;
+  }, [visibleItems, viewRect.x, viewRect.y, viewRect.w, viewRect.h]);
+
   // On bounds changes: clamp camera
   useEffect(() => {
     const clamped = {
@@ -677,7 +699,7 @@ export function PannableGrid({
             height: layout.height,
           }}
         >
-          {visibleItems.map((it, idx) => {
+          {visibleItems.map((it) => {
             const meta = manifest[it.filename]; // { w, h, ... } from Manifest
             const intrinsicW = meta?.w ?? 3; // fallback guards
             const intrinsicH = meta?.h ?? 2;
@@ -686,8 +708,8 @@ export function PannableGrid({
               it.x + it.w > viewRect.x &&
               it.y < viewRect.y + viewRect.h &&
               it.y + it.h > viewRect.y;
-            // Only first 4 viewport images get high priority for LCP
-            const isLCPCandidate = isInViewport && idx < 4;
+            // Only a small viewport subset should be eager/high priority.
+            const isLCPCandidate = lcpCandidateFilenames.has(it.filename);
 
             return (
               <article
@@ -716,8 +738,10 @@ export function PannableGrid({
                     pictureClassName="block w-full h-full"
                     imgClassName="block w-full h-full object-cover"
                     sizes={`${Math.round(it.w)}px`}
-                    loading={isInViewport ? 'eager' : 'lazy'}
-                    fetchPriority={isLCPCandidate ? 'high' : 'auto'}
+                    loading={isLCPCandidate ? 'eager' : 'lazy'}
+                    fetchPriority={
+                      isLCPCandidate ? 'high' : isInViewport ? 'low' : 'auto'
+                    }
                     dominantColor={
                       meta?.exif?.dominantColors?.[0]?.hex ?? '#f9fafb'
                     }
