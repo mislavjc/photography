@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PhotoWithMeta } from './timeline-utils';
 import { computeMasonryLayout, GAP } from './timeline-layout';
+import type { PhotoWithMeta } from './timeline-utils';
 
 /** Helper to build a PhotoWithMeta for testing. */
-function photo(
-  filename: string,
-  w: number,
-  h: number,
-): PhotoWithMeta {
+function photo(filename: string, w: number, h: number): PhotoWithMeta {
   return {
     filename,
     w,
@@ -31,7 +27,10 @@ describe('computeMasonryLayout', () => {
     const { columns } = computeMasonryLayout(photos, 600, 3);
 
     // All 5 photos should be distributed across 3 columns
-    const totalPhotos = columns.reduce((sum, col) => sum + col.photos.length, 0);
+    const totalPhotos = columns.reduce(
+      (sum, col) => sum + col.photos.length,
+      0,
+    );
     expect(totalPhotos).toBe(5);
     expect(columns).toHaveLength(3);
     // Each column should have at least 1 photo
@@ -41,10 +40,7 @@ describe('computeMasonryLayout', () => {
   });
 
   it('respects container width', () => {
-    const photos = [
-      photo('a.jpg', 4000, 3000),
-      photo('b.jpg', 3000, 4000),
-    ];
+    const photos = [photo('a.jpg', 4000, 3000), photo('b.jpg', 3000, 4000)];
 
     const containerWidth = 800;
     const numCols = 4;
@@ -82,7 +78,10 @@ describe('computeMasonryLayout', () => {
     const { columns, height } = computeMasonryLayout(photos, 600, 3);
 
     expect(columns).toHaveLength(3);
-    const totalPhotos = columns.reduce((sum, col) => sum + col.photos.length, 0);
+    const totalPhotos = columns.reduce(
+      (sum, col) => sum + col.photos.length,
+      0,
+    );
     expect(totalPhotos).toBe(1);
     expect(height).toBeGreaterThan(0);
   });

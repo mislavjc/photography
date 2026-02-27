@@ -27,6 +27,12 @@
     "vitest": "^4.0.18"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver",
+      "workerd"
+    ],
     "overrides": {
       "@types/react": "19.2.7",
       "@types/react-dom": "19.2.3"

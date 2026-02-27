@@ -1,6 +1,5 @@
-import { describe, expect, it } from 'vitest';
-
 import type { Manifest } from 'types';
+import { describe, expect, it } from 'vitest';
 
 import { computeNearSquareLayout } from './layout';
 
@@ -112,9 +111,7 @@ describe('computeNearSquareLayout', () => {
     const layout = computeNearSquareLayout(manifest);
 
     for (let i = 1; i < layout.items.length; i++) {
-      expect(layout.items[i]!.y).toBeGreaterThanOrEqual(
-        layout.items[i - 1]!.y,
-      );
+      expect(layout.items[i]!.y).toBeGreaterThanOrEqual(layout.items[i - 1]!.y);
     }
   });
 
