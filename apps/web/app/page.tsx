@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 const SSR_VIEWPORT_WIDTH = 1200;
 const SSR_VIEWPORT_HEIGHT = 800;
-const LCP_PRELOAD_COUNT = 3;
+const LCP_PRELOAD_COUNT = 4;
 
 // Get LCP candidate images (center of the grid, visible on initial load)
 function getLcpCandidates(

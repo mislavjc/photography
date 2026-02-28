@@ -44,6 +44,7 @@ const MAX_SPEED = 3.5; // clamp swipe velocity
 const MIN_INERTIA_SPEED = 0.06; // only fling on intentional swipes
 const DRAG_GAIN = 0.9; // move world a bit less than the cursor (heavier feel)
 const PAD = 200;
+const LCP_HIGH_PRIORITY_COUNT = 3;
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -496,23 +497,34 @@ export function PannableGrid({
     return out;
   }, [layout, virtualRect.x, virtualRect.y, virtualRect.w, virtualRect.h]);
 
-  const lcpCandidateFilenames = useMemo(() => {
-    const candidates = new Set<string>();
+  const viewportItems = useMemo(() => {
+    const vx1 = viewRect.x;
+    const vy1 = viewRect.y;
+    const vx2 = viewRect.x + viewRect.w;
+    const vy2 = viewRect.y + viewRect.h;
 
-    for (const it of visibleItems) {
-      const isInViewport =
-        it.x < viewRect.x + viewRect.w &&
-        it.x + it.w > viewRect.x &&
-        it.y < viewRect.y + viewRect.h &&
-        it.y + it.h > viewRect.y;
-
-      if (!isInViewport) continue;
-      candidates.add(it.filename);
-      if (candidates.size >= 4) break;
-    }
-
-    return candidates;
+    return visibleItems.filter(
+      (it) => it.x < vx2 && it.x + it.w > vx1 && it.y < vy2 && it.y + it.h > vy1,
+    );
   }, [visibleItems, viewRect.x, viewRect.y, viewRect.w, viewRect.h]);
+
+  const lcpCandidateFilenames = useMemo(() => {
+    const centerX = viewRect.x + viewRect.w / 2;
+    const centerY = viewRect.y + viewRect.h / 2;
+
+    const ranked = [...viewportItems].sort((a, b) => {
+      const areaDelta = b.w * b.h - a.w * a.h;
+      if (areaDelta !== 0) return areaDelta;
+
+      const aDist = Math.hypot(a.x + a.w / 2 - centerX, a.y + a.h / 2 - centerY);
+      const bDist = Math.hypot(b.x + b.w / 2 - centerX, b.y + b.h / 2 - centerY);
+      return aDist - bDist;
+    });
+
+    return new Set(
+      ranked.slice(0, LCP_HIGH_PRIORITY_COUNT).map((item) => item.filename),
+    );
+  }, [viewportItems, viewRect.x, viewRect.y, viewRect.w, viewRect.h]);
 
   // On bounds changes: clamp camera
   useEffect(() => {
@@ -738,10 +750,9 @@ export function PannableGrid({
                     pictureClassName="block w-full h-full"
                     imgClassName="block w-full h-full object-cover"
                     sizes={`${Math.round(it.w)}px`}
-                    loading={isLCPCandidate ? 'eager' : 'lazy'}
-                    fetchPriority={
-                      isLCPCandidate ? 'high' : isInViewport ? 'low' : 'auto'
-                    }
+                    loading={isInViewport ? 'eager' : 'lazy'}
+                    fetchPriority={isLCPCandidate ? 'high' : 'auto'}
+                    disableFadeIn={isInViewport}
                     dominantColor={
                       meta?.exif?.dominantColors?.[0]?.hex ?? '#f9fafb'
                     }
