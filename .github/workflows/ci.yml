@@ -23,6 +23,17 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - run: pnpm turbo typecheck lint test build
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test (coverage)
+        run: pnpm test:coverage
+
+      - name: Build
+        run: pnpm build
