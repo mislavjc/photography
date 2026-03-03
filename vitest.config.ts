@@ -5,7 +5,17 @@ const webRoot = path.resolve(__dirname, 'apps/web');
 
 export default defineConfig({
   test: {
-    include: ['apps/web/**/*.test.ts'],
+    include: ['apps/**/*.test.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        statements: 70,
+        branches: 50,
+      },
+    },
   },
   resolve: {
     alias: {
