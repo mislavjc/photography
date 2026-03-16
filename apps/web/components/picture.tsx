@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 
 import { EXT_RE } from 'lib/constants';
+import { env } from 'lib/env';
 
 type Formats = 'avif' | 'webp' | 'jpeg';
 type Profile = 'grid' | 'large';
@@ -12,7 +13,7 @@ const LARGE_WIDTHS = [
   256, 384, 512, 768, 1024, 1280, 1536, 1920, 2560,
 ] as const;
 
-const R2_URL = process.env.NEXT_PUBLIC_R2_URL ?? '';
+const R2_URL = env.NEXT_PUBLIC_R2_URL;
 
 function r2VariantUrl(
   uuidWithExt: string,

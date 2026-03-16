@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
 
 import { EXT_RE } from 'lib/constants';
+import { R2_URL } from 'lib/env';
 import { computeNearSquareLayout } from 'lib/layout';
 import { loadManifest } from 'lib/manifest-server';
 import { trimManifestForClient } from 'lib/manifest-utils';
@@ -35,9 +36,6 @@ function getLcpCandidates(
     )
     .slice(0, count);
 }
-
-const R2_URL =
-  process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL ?? '';
 
 export default async function Page() {
   'use cache';

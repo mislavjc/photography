@@ -2,20 +2,14 @@ import { cacheLife, cacheTag } from 'next/cache';
 
 import type { Manifest, ManifestEntry } from '../types';
 
-const R2_PUBLIC_URL =
-  process.env.R2_PUBLIC_URL || process.env.NEXT_PUBLIC_R2_URL;
-const R2_VARIANTS_PREFIX = process.env.R2_VARIANTS_PREFIX || 'variants';
+import { env, R2_URL } from './env';
 
 export async function loadManifest(): Promise<Manifest> {
   'use cache';
   cacheLife('days');
   cacheTag('manifest');
 
-  if (!R2_PUBLIC_URL) {
-    return {};
-  }
-
-  const manifestUrl = `${R2_PUBLIC_URL.replace(/\/$/, '')}/${R2_VARIANTS_PREFIX}/r2-manifest.json`;
+  const manifestUrl = `${R2_URL.replace(/\/$/, '')}/${env.R2_VARIANTS_PREFIX}/r2-manifest.json`;
 
   try {
     const response = await fetch(manifestUrl);

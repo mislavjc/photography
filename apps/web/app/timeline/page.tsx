@@ -1,21 +1,21 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
+import type { Manifest } from 'types';
 
 import { TimelineSkeleton } from 'components/timeline-skeleton';
 import { TimelineWrapper } from 'components/timeline-wrapper';
 
-export const metadata: Metadata = {
-  title: 'Timeline',
-};
-
-import type { Manifest } from 'types';
-
 import { EXT_RE } from 'lib/constants';
+import { R2_URL } from 'lib/env';
 import { loadManifest } from 'lib/manifest-server';
 import { trimManifestForClient } from 'lib/manifest-utils';
 import { computeMasonryLayout, type MasonryColumn } from 'lib/timeline-layout';
 import { groupPhotosForTimeline, type TimelineData } from 'lib/timeline-utils';
+
+export const metadata: Metadata = {
+  title: 'Timeline',
+};
 
 // Precompute item heights for default desktop width to reduce CLS
 const DEFAULT_CONTAINER_WIDTH = 900; // Approximate desktop photo container width
@@ -131,9 +131,6 @@ async function getTimelineData(): Promise<{
     totalHeight: currentTop,
   };
 }
-
-const R2_URL =
-  process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL ?? '';
 
 export default async function TimelinePage() {
   const {

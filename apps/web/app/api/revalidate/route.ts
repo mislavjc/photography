@@ -2,10 +2,12 @@ import { revalidateTag } from 'next/cache';
 import { after } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import { env } from 'lib/env';
+
 export async function POST(request: Request) {
   const secret = request.headers.get('x-revalidation-secret');
 
-  if (secret !== process.env.REVALIDATION_SECRET) {
+  if (secret !== env.REVALIDATION_SECRET) {
     return NextResponse.json({ error: 'Invalid secret' }, { status: 401 });
   }
 

@@ -7,6 +7,7 @@ import { Analytics } from 'components/analytics';
 import { ThemeProvider } from 'components/theme-provider';
 
 import { SITE_CONFIG } from 'lib/constants';
+import { env } from 'lib/env';
 
 import './globals.css';
 
@@ -43,10 +44,10 @@ export default function RootLayout({
         {/* Resource hints for image CDN */}
         <link
           rel="preconnect"
-          href={process.env.NEXT_PUBLIC_R2_URL}
+          href={env.NEXT_PUBLIC_R2_URL}
           crossOrigin="anonymous"
         />
-        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_R2_URL} />
+        <link rel="dns-prefetch" href={env.NEXT_PUBLIC_R2_URL} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

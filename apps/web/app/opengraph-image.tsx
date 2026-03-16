@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og';
 
+import { R2_URL } from 'lib/env';
 import { loadManifest } from 'lib/manifest-server';
 
 export const runtime = 'nodejs';
@@ -13,7 +14,7 @@ function r2VariantUrl(
   format: 'jpeg' | 'webp' = 'jpeg',
 ) {
   const base = uuidWithExt.replace(/\.[^.]+$/, '');
-  return `${process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL}/variants/${profile}/${format}/${width}/${base}.${format}`;
+  return `${R2_URL}/variants/${profile}/${format}/${width}/${base}.${format}`;
 }
 
 function toDataUri(buf: ArrayBuffer, mime = 'image/jpeg') {

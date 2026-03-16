@@ -11,6 +11,7 @@ import {
 } from 'motion/react';
 import type { Manifest } from 'types';
 
+import { env } from 'lib/env';
 import type { PlacedItem } from 'lib/layout';
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
 
@@ -81,7 +82,7 @@ interface NavbarSearchProps {
   searchPreview?: Array<{ id: string }>;
 }
 
-const R2_URL = process.env.NEXT_PUBLIC_R2_URL ?? '';
+const R2_URL = env.NEXT_PUBLIC_R2_URL;
 
 function NavbarSearch({
   onSearch,
