@@ -45,6 +45,7 @@ const MIN_INERTIA_SPEED = 0.06; // only fling on intentional swipes
 const DRAG_GAIN = 0.9; // move world a bit less than the cursor (heavier feel)
 const PAD = 200;
 const LCP_HIGH_PRIORITY_COUNT = 3;
+const EAGER_VIEWPORT_COUNT = 8;
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -508,11 +509,11 @@ export function PannableGrid({
     );
   }, [visibleItems, viewRect.x, viewRect.y, viewRect.w, viewRect.h]);
 
-  const lcpCandidateFilenames = useMemo(() => {
+  const rankedViewportItems = useMemo(() => {
     const centerX = viewRect.x + viewRect.w / 2;
     const centerY = viewRect.y + viewRect.h / 2;
 
-    const ranked = [...viewportItems].sort((a, b) => {
+    return [...viewportItems].sort((a, b) => {
       const areaDelta = b.w * b.h - a.w * a.h;
       if (areaDelta !== 0) return areaDelta;
 
@@ -520,11 +521,21 @@ export function PannableGrid({
       const bDist = Math.hypot(b.x + b.w / 2 - centerX, b.y + b.h / 2 - centerY);
       return aDist - bDist;
     });
-
-    return new Set(
-      ranked.slice(0, LCP_HIGH_PRIORITY_COUNT).map((item) => item.filename),
-    );
   }, [viewportItems, viewRect.x, viewRect.y, viewRect.w, viewRect.h]);
+
+  const lcpCandidateFilenames = useMemo(() => {
+    return new Set(
+      rankedViewportItems
+        .slice(0, LCP_HIGH_PRIORITY_COUNT)
+        .map((item) => item.filename),
+    );
+  }, [rankedViewportItems]);
+
+  const eagerViewportFilenames = useMemo(() => {
+    return new Set(
+      rankedViewportItems.slice(0, EAGER_VIEWPORT_COUNT).map((item) => item.filename),
+    );
+  }, [rankedViewportItems]);
 
   // On bounds changes: clamp camera
   useEffect(() => {
@@ -722,6 +733,9 @@ export function PannableGrid({
               it.y + it.h > viewRect.y;
             // Only a small viewport subset should be eager/high priority.
             const isLCPCandidate = lcpCandidateFilenames.has(it.filename);
+            const isEagerViewportCandidate = eagerViewportFilenames.has(
+              it.filename,
+            );
 
             return (
               <article
@@ -750,9 +764,9 @@ export function PannableGrid({
                     pictureClassName="block w-full h-full"
                     imgClassName="block w-full h-full object-cover"
                     sizes={`${Math.round(it.w)}px`}
-                    loading={isInViewport ? 'eager' : 'lazy'}
+                    loading={isEagerViewportCandidate ? 'eager' : 'lazy'}
                     fetchPriority={isLCPCandidate ? 'high' : 'auto'}
-                    disableFadeIn={isInViewport}
+                    disableFadeIn={isEagerViewportCandidate}
                     dominantColor={
                       meta?.exif?.dominantColors?.[0]?.hex ?? '#f9fafb'
                     }
