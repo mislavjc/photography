@@ -3,10 +3,10 @@ import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
 
 import { EXT_RE } from 'lib/constants';
-import { R2_URL } from 'lib/env';
 import { computeNearSquareLayout } from 'lib/layout';
 import { loadManifest } from 'lib/manifest-server';
 import { trimManifestForClient } from 'lib/manifest-utils';
+import { R2_URL } from 'lib/r2-url';
 
 import { HomeGrid } from '../components/home-grid';
 

@@ -1,6 +1,6 @@
 import { cacheLife } from 'next/cache';
 
-import { R2_URL } from 'lib/env';
+import { R2_URL } from 'lib/r2-url';
 import { getSimilarPhotos } from 'lib/search';
 
 import { SimilarPhotoLink } from './similar-photo-link';

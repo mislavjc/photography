@@ -16,9 +16,3 @@ export const env = createEnv({
     NEXT_PUBLIC_MAPBOX_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_TOKEN,
   },
 });
-
-/**
- * Resolved public R2 URL. Prefers the server-only `R2_PUBLIC_URL`
- * (e.g. a CDN origin) and falls back to the client-visible URL.
- */
-export const R2_URL = env.R2_PUBLIC_URL ?? env.NEXT_PUBLIC_R2_URL;

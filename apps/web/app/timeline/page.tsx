@@ -7,9 +7,9 @@ import { TimelineSkeleton } from 'components/timeline-skeleton';
 import { TimelineWrapper } from 'components/timeline-wrapper';
 
 import { EXT_RE } from 'lib/constants';
-import { R2_URL } from 'lib/env';
 import { loadManifest } from 'lib/manifest-server';
 import { trimManifestForClient } from 'lib/manifest-utils';
+import { R2_URL } from 'lib/r2-url';
 import {
   computeMasonryLayout,
   DAY_ROW_PADDING,

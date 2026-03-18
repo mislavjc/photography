@@ -2,7 +2,8 @@ import { cacheLife, cacheTag } from 'next/cache';
 
 import type { Manifest, ManifestEntry } from '../types';
 
-import { env, R2_URL } from './env';
+import { env } from './env';
+import { R2_URL } from './r2-url';
 
 export async function loadManifest(): Promise<Manifest> {
   'use cache';

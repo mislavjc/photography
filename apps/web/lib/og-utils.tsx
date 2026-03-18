@@ -1,5 +1,5 @@
 import { EXT_RE } from 'lib/constants';
-import { R2_URL } from 'lib/env';
+import { R2_URL } from 'lib/r2-url';
 
 export function r2VariantUrl(
   uuidWithExt: string,
