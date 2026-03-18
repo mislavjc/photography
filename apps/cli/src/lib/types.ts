@@ -1,36 +1,10 @@
-// ----------------------- Types -----------------------
-interface ExifLocation {
-  latitude: number;
-  longitude: number;
-  altitude?: number;
-  address?: string | null;
-}
-
-interface ExifMetadata {
-  camera: string | null;
-  lens: string | null;
-  focalLength: string | null;
-  aperture: string | null;
-  shutterSpeed: string | null;
-  iso: string | null;
-  location: ExifLocation | null;
-  dateTime: string | null;
-  dominantColors?: Array<{
-    hex: string;
-    rgb: { r: number; g: number; b: number };
-    percentage: number;
-  }>;
-}
-
-export interface ManifestEntry {
-  blurhash: string;
-  w: number;
-  h: number;
-  exif: ExifMetadata;
-  description?: string;
-}
-
-export type Manifest = Record<string, ManifestEntry>;
+// Re-export shared types
+export type {
+  ExifLocation,
+  ExifMetadata,
+  ManifestEntry,
+  Manifest,
+} from '@repo/shared-types';
 
 type Formats = 'avif' | 'webp' | 'jpeg';
 type ProfileName = 'grid' | 'large';
