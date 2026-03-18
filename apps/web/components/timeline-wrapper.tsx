@@ -3,16 +3,15 @@
 import type { Manifest } from 'types';
 
 import type { TimelineData } from 'lib/timeline-utils';
+import type { TimelineLayoutItem } from 'lib/timeline-utils';
 import { usePhotoSearch } from 'lib/use-photo-search';
-
-import type { PrecomputedItem } from '../app/timeline/page';
 
 import { Timeline } from './timeline';
 
 type Props = {
   data: TimelineData;
   manifest: Manifest;
-  ssrItems: PrecomputedItem[];
+  ssrItems: TimelineLayoutItem[];
   ssrTotalHeight: number;
 };
 

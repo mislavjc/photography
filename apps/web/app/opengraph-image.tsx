@@ -1,26 +1,19 @@
 import { ImageResponse } from 'next/og';
 
-import { R2_URL } from 'lib/env';
 import { loadManifest } from 'lib/manifest-server';
+import {
+  GRID_INSET_BOTTOM,
+  GRID_INSET_LEFT,
+  GRID_INSET_RIGHT,
+  GRID_INSET_TOP,
+  OgGridLines,
+  r2VariantUrl,
+  toDataUri,
+} from 'lib/og-utils';
 
 export const runtime = 'nodejs';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
-
-function r2VariantUrl(
-  uuidWithExt: string,
-  profile: 'grid' | 'large',
-  width: number,
-  format: 'jpeg' | 'webp' = 'jpeg',
-) {
-  const base = uuidWithExt.replace(/\.[^.]+$/, '');
-  return `${R2_URL}/variants/${profile}/${format}/${width}/${base}.${format}`;
-}
-
-function toDataUri(buf: ArrayBuffer, mime = 'image/jpeg') {
-  const b64 = Buffer.from(buf).toString('base64');
-  return `data:${mime};base64,${b64}`;
-}
 
 type ManifestEntry = {
   width?: number;
@@ -70,12 +63,6 @@ export default async function OpengraphImage() {
   const PAD = 20;
 
   // ---- Grid insets & label geometry ----
-  const GRID_INSET_TOP = 56;
-  const GRID_INSET_BOTTOM = 56; // bottom X line is at y = H - GRID_INSET_BOTTOM
-  const GRID_INSET_LEFT = 72;
-  const GRID_INSET_RIGHT = 72; // right Y line is at x = W - GRID_INSET_RIGHT
-  const GRID_THICKNESS = 1;
-  const GRID_COLOR = 'rgba(0,0,0,0.14)';
 
   // Label sits in the band between bottom X line and bottom edge,
   // right-aligned, just to the left of the right Y line.
@@ -174,56 +161,7 @@ export default async function OpengraphImage() {
       }}
     >
       {/* GRID LINES (below photos) */}
-      <div tw="flex absolute inset-0">
-        {/* Top */}
-        <div
-          tw="flex"
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: GRID_INSET_TOP,
-            height: GRID_THICKNESS,
-            background: GRID_COLOR,
-          }}
-        />
-        {/* Bottom */}
-        <div
-          tw="flex"
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: GRID_INSET_BOTTOM,
-            height: GRID_THICKNESS,
-            background: GRID_COLOR,
-          }}
-        />
-        {/* Left */}
-        <div
-          tw="flex"
-          style={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            left: GRID_INSET_LEFT,
-            width: GRID_THICKNESS,
-            background: GRID_COLOR,
-          }}
-        />
-        {/* Right */}
-        <div
-          tw="flex"
-          style={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            right: GRID_INSET_RIGHT,
-            width: GRID_THICKNESS,
-            background: GRID_COLOR,
-          }}
-        />
-      </div>
+      <OgGridLines />
 
       {/* PHOTOS */}
       <div tw="flex absolute inset-0">

@@ -1,29 +1,22 @@
 // app/(photos)/[photo-name]/opengraph-image.tsx
 import { ImageResponse } from 'next/og';
 
-import { R2_URL } from 'lib/env';
 import { loadManifest } from 'lib/manifest-server';
+import {
+  GRID_INSET_BOTTOM,
+  GRID_INSET_LEFT,
+  GRID_INSET_RIGHT,
+  GRID_INSET_TOP,
+  OgGridLines,
+  r2VariantUrl,
+  toDataUri,
+} from 'lib/og-utils';
 
 export const runtime = 'nodejs';
 export const contentType = 'image/png';
 export const size = { width: 1200, height: 630 };
 
 type Params = { id: string };
-
-function r2VariantUrl(
-  uuidWithExt: string,
-  profile: 'grid' | 'large',
-  width: number,
-  format: 'jpeg' | 'webp',
-) {
-  const base = uuidWithExt.replace(/\.[^.]+$/, '');
-  return `${R2_URL}/variants/${profile}/${format}/${width}/${base}.${format}`;
-}
-
-function toDataUri(buf: ArrayBuffer, mime: 'image/jpeg' | 'image/webp') {
-  const b64 = Buffer.from(buf).toString('base64');
-  return `data:${mime};base64,${b64}`;
-}
 
 async function fetchInlineBest(uuidWithExt: string) {
   const tries: Array<{ url: string; mime: 'image/jpeg' | 'image/webp' }> = [];
@@ -117,13 +110,6 @@ export default async function OpengraphImage({ params }: { params: Params }) {
   // Canvas & grid
   const W = size.width;
   const H = size.height;
-
-  const GRID_INSET_TOP = 56;
-  const GRID_INSET_BOTTOM = 56;
-  const GRID_INSET_LEFT = 72;
-  const GRID_INSET_RIGHT = 72;
-  const GRID_THICKNESS = 1;
-  const GRID_COLOR = 'rgba(0,0,0,0.14)';
 
   const innerW = W - GRID_INSET_LEFT - GRID_INSET_RIGHT;
   const innerH = H - GRID_INSET_TOP - GRID_INSET_BOTTOM;
@@ -224,52 +210,7 @@ export default async function OpengraphImage({ params }: { params: Params }) {
       }}
     >
       {/* GRID LINES — below content */}
-      <div tw="flex absolute inset-0">
-        <div
-          tw="flex"
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: GRID_INSET_TOP,
-            height: GRID_THICKNESS,
-            background: GRID_COLOR,
-          }}
-        />
-        <div
-          tw="flex"
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: GRID_INSET_BOTTOM,
-            height: GRID_THICKNESS,
-            background: GRID_COLOR,
-          }}
-        />
-        <div
-          tw="flex"
-          style={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            left: GRID_INSET_LEFT,
-            width: GRID_THICKNESS,
-            background: GRID_COLOR,
-          }}
-        />
-        <div
-          tw="flex"
-          style={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            right: GRID_INSET_RIGHT,
-            width: GRID_THICKNESS,
-            background: GRID_COLOR,
-          }}
-        />
-      </div>
+      <OgGridLines />
 
       {/* CONTENT inside inner border */}
       <div

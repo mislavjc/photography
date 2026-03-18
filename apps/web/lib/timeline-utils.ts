@@ -1,5 +1,7 @@
 import type { Manifest, ManifestEntry } from 'types';
 
+import type { MasonryColumn } from './timeline-layout';
+
 export interface PhotoWithMeta {
   filename: string;
   w: number;
@@ -279,4 +281,15 @@ export function groupPhotosForTimeline(manifest: Manifest): TimelineData {
   }
 
   return { years, allYears };
+}
+
+/** Layout item used by both server precomputation and client virtualization */
+export interface TimelineLayoutItem {
+  type: 'year' | 'month' | 'day';
+  key: string;
+  top: number;
+  height: number;
+  yearKey: string;
+  monthKey?: string;
+  precomputedMasonry?: MasonryColumn[];
 }
