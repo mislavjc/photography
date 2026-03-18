@@ -37,3 +37,6 @@ jobs:
 
       - name: Build
         run: pnpm build
+        env:
+          NEXT_PUBLIC_R2_URL: https://example.com
+          NEXT_PUBLIC_MAPBOX_TOKEN: dummy
