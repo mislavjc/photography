@@ -13,6 +13,9 @@ const main = defineCommand({
     manifest: () => import('./commands/manifest.js').then((m) => m.default),
     embeddings: () => import('./commands/embeddings.js').then((m) => m.default),
     colors: () => import('./commands/colors.js').then((m) => m.default),
+    upload: () => import('./commands/upload.js').then((m) => m.default),
+    regenerate: () => import('./commands/regenerate.js').then((m) => m.default),
+    empty: () => import('./commands/empty.js').then((m) => m.default),
   },
 });
 

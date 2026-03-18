@@ -57,7 +57,7 @@ export async function generateDescription(
       {
         role: 'user',
         content: [
-          { type: 'image', image: resized, mimeType: 'image/jpeg' },
+          { type: 'image', image: resized, mediaType: 'image/jpeg' },
           { type: 'text', text: prompt },
         ],
       },
