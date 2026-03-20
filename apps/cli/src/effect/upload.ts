@@ -96,265 +96,270 @@ const discoverFiles = (srcDir: string) =>
   });
 
 // ----------------------- Main Pipeline -----------------------
-const program = Effect.gen(function* () {
-  const cfg = yield* getConfig;
-  const opts = parseCLIOptions(process.argv);
+const createProgram = (srcDirOverride?: string) =>
+  Effect.gen(function* () {
+    const cfg = yield* getConfig;
+    const opts = parseCLIOptions(process.argv);
+    if (srcDirOverride) opts.srcDir = srcDirOverride;
 
-  // Handle --reset flag
-  if (opts.reset) {
+    // Handle --reset flag
+    if (opts.reset) {
+      const checkpoint = createCheckpointManager();
+      yield* Effect.promise(() => checkpoint.clear());
+      yield* Console.log('🗑️  Checkpoint cleared');
+    }
+
+    // Location-only mode - update addresses in existing manifest
+    if (opts.locationOnly) {
+      yield* runLocationOnlyMode(cfg);
+      return;
+    }
+
+    // Discover files
+    const files = yield* discoverFiles(opts.srcDir.replace(/\/$/, ''));
+
+    // Load checkpoint if resuming
     const checkpoint = createCheckpointManager();
-    yield* Effect.promise(() => checkpoint.clear());
-    yield* Console.log('🗑️  Checkpoint cleared');
-  }
+    let filesToProcess = files;
 
-  // Location-only mode - update addresses in existing manifest
-  if (opts.locationOnly) {
-    yield* runLocationOnlyMode(cfg);
-    return;
-  }
+    if (opts.resume) {
+      const loaded = yield* Effect.promise(() => checkpoint.load());
+      if (loaded) {
+        yield* Console.log(
+          `📋 Resuming from checkpoint (${loaded.processedFiles.length} already processed)`,
+        );
+        filesToProcess = files.filter((f) => !checkpoint.isProcessed(f));
+        yield* Console.log(`   Remaining files: ${filesToProcess.length}`);
+      }
+    }
 
-  // Discover files
-  const files = yield* discoverFiles(opts.srcDir.replace(/\/$/, ''));
+    checkpoint.setTotalFiles(files.length);
 
-  // Load checkpoint if resuming
-  const checkpoint = createCheckpointManager();
-  let filesToProcess = files;
+    // Apply --only-missing filter
+    if (opts.onlyMissing && !opts.manifestOnly) {
+      yield* Console.log('🔍 Checking for files with missing variants...');
+      const filtered: string[] = [];
 
-  if (opts.resume) {
-    const loaded = yield* Effect.promise(() => checkpoint.load());
-    if (loaded) {
+      for (const file of filesToProcess) {
+        const exif = yield* readExif(file).pipe(
+          Effect.catchAll(() => Effect.succeed(emptyExifMetadata)),
+        );
+        const st = yield* statFile(file);
+        const hashHex = yield* sha256File(file);
+        const hashBuf = Buffer.from(hashHex, 'hex');
+        const tsMs = fileTimestampMs(st, exif.dateTime);
+        const uuid = uuidv7FromHash(tsMs, hashBuf);
+
+        // Check if any variants are missing
+        const keysToCheck: string[] = [];
+        for (const { name: profile, widths } of cfg.PROFILES) {
+          // Apply profile filter
+          if (opts.profile && profile !== opts.profile) continue;
+
+          for (const w of widths) {
+            // Apply width filter
+            if (opts.width && w !== opts.width) continue;
+
+            for (const fmt of cfg.FORMATS) {
+              // Apply format filter
+              if (opts.format && fmt !== opts.format) continue;
+
+              keysToCheck.push(
+                toVariantKey(
+                  uuid,
+                  cfg.R2_VARIANTS_PREFIX,
+                  profile,
+                  fmt,
+                  w,
+                  `.${fmt}`,
+                ),
+              );
+            }
+          }
+        }
+
+        const existsMap = yield* batchHeadObjects(
+          cfg.s3,
+          cfg.R2_BUCKET,
+          keysToCheck,
+        );
+        const hasMissing = Array.from(existsMap.values()).some(
+          (exists) => !exists,
+        );
+
+        if (hasMissing) {
+          filtered.push(file);
+        }
+      }
+
+      filesToProcess = filtered;
       yield* Console.log(
-        `📋 Resuming from checkpoint (${loaded.processedFiles.length} already processed)`,
+        `   Found ${filesToProcess.length} files with missing variants`,
       );
-      filesToProcess = files.filter((f) => !checkpoint.isProcessed(f));
-      yield* Console.log(`   Remaining files: ${filesToProcess.length}`);
-    }
-  }
-
-  checkpoint.setTotalFiles(files.length);
-
-  // Apply --only-missing filter
-  if (opts.onlyMissing && !opts.manifestOnly) {
-    yield* Console.log('🔍 Checking for files with missing variants...');
-    const filtered: string[] = [];
-
-    for (const file of filesToProcess) {
-      const exif = yield* readExif(file).pipe(
-        Effect.catchAll(() => Effect.succeed(emptyExifMetadata)),
-      );
-      const st = yield* statFile(file);
-      const hashHex = yield* sha256File(file);
-      const hashBuf = Buffer.from(hashHex, 'hex');
-      const tsMs = fileTimestampMs(st, exif.dateTime);
-      const uuid = uuidv7FromHash(tsMs, hashBuf);
-
-      // Check if any variants are missing
-      const keysToCheck: string[] = [];
-      for (const { name: profile, widths } of cfg.PROFILES) {
-        // Apply profile filter
-        if (opts.profile && profile !== opts.profile) continue;
-
-        for (const w of widths) {
-          // Apply width filter
-          if (opts.width && w !== opts.width) continue;
-
-          for (const fmt of cfg.FORMATS) {
-            // Apply format filter
-            if (opts.format && fmt !== opts.format) continue;
-
-            keysToCheck.push(
-              toVariantKey(
-                uuid,
-                cfg.R2_VARIANTS_PREFIX,
-                profile,
-                fmt,
-                w,
-                `.${fmt}`,
-              ),
-            );
-          }
-        }
-      }
-
-      const existsMap = yield* batchHeadObjects(
-        cfg.s3,
-        cfg.R2_BUCKET,
-        keysToCheck,
-      );
-      const hasMissing = Array.from(existsMap.values()).some(
-        (exists) => !exists,
-      );
-
-      if (hasMissing) {
-        filtered.push(file);
-      }
     }
 
-    filesToProcess = filtered;
+    // Mode messages
+    const modeMessage = opts.manifestOnly
+      ? 'Manifest regeneration'
+      : opts.dryRun
+        ? 'Dry run'
+        : 'Upload';
+
     yield* Console.log(
-      `   Found ${filesToProcess.length} files with missing variants`,
-    );
-  }
-
-  // Mode messages
-  const modeMessage = opts.manifestOnly
-    ? 'Manifest regeneration'
-    : opts.dryRun
-      ? 'Dry run'
-      : 'Upload';
-
-  yield* Console.log(
-    `${modeMessage} from ${opts.srcDir} → s3://${cfg.R2_BUCKET}/{${cfg.R2_PREFIX}, ${cfg.R2_VARIANTS_PREFIX}}`,
-  );
-  yield* Console.log(
-    `Found ${filesToProcess.length} files | concurrency ${cfg.CONCURRENCY}`,
-  );
-
-  if (opts.dryRun) {
-    yield* Console.log('\n🔍 DRY RUN - No files will be uploaded\n');
-  }
-
-  if (opts.manifestOnly) {
-    yield* Console.log(
-      `📋 Manifest-only mode: will verify ALL originals AND variants exist in R2`,
-    );
-  }
-
-  // Filter info
-  if (opts.profile || opts.format || opts.width) {
-    yield* Console.log(`🎯 Filters:`);
-    if (opts.profile) yield* Console.log(`   Profile: ${opts.profile}`);
-    if (opts.format) yield* Console.log(`   Format: ${opts.format}`);
-    if (opts.width) yield* Console.log(`   Width: ${opts.width}px`);
-  }
-
-  if (cfg.VERBOSE) {
-    yield* Console.log(`🔧 Config:`);
-    yield* Console.log(`   Formats: ${cfg.FORMATS.join(', ')}`);
-    yield* Console.log(
-      `   Q (AVIF/WebP/JPEG): ${cfg.Q_AVIF}/${cfg.Q_WEBP}/${cfg.Q_JPEG}`,
+      `${modeMessage} from ${opts.srcDir} → s3://${cfg.R2_BUCKET}/{${cfg.R2_PREFIX}, ${cfg.R2_VARIANTS_PREFIX}}`,
     );
     yield* Console.log(
-      `   Preserve metadata on variants: ${cfg.PRESERVE_METADATA ? 'yes' : 'no'}`,
+      `Found ${filesToProcess.length} files | concurrency ${cfg.CONCURRENCY}`,
     );
-    yield* Console.log(
-      `   BlurHash: ${cfg.GEN_BLURHASH ? 'enabled' : 'disabled'} (max ${cfg.BLURHASH_MAX})`,
-    );
-    yield* Console.log(
-      `   AI Descriptions: ${cfg.GEN_AI_DESCRIPTIONS && !opts.skipAi ? 'enabled' : 'disabled'}`,
-    );
-  }
 
-  const progress = createEnhancedProgressTracker(filesToProcess.length);
+    if (opts.dryRun) {
+      yield* Console.log('\n🔍 DRY RUN - No files will be uploaded\n');
+    }
 
-  // Load existing manifest from R2 and merge with checkpoint entries
-  const existingManifest = yield* loadManifestFromR2(
-    cfg.s3,
-    cfg.R2_BUCKET,
-    cfg.R2_VARIANTS_PREFIX,
-  ).pipe(
-    Effect.catchAll(() => {
-      // No existing manifest or failed to load - start fresh
-      return Effect.succeed({} as Manifest);
-    }),
-  );
+    if (opts.manifestOnly) {
+      yield* Console.log(
+        `📋 Manifest-only mode: will verify ALL originals AND variants exist in R2`,
+      );
+    }
 
-  const checkpointEntries = checkpoint.getManifestEntries();
-  const manifest: Manifest = { ...existingManifest, ...checkpointEntries };
+    // Filter info
+    if (opts.profile || opts.format || opts.width) {
+      yield* Console.log(`🎯 Filters:`);
+      if (opts.profile) yield* Console.log(`   Profile: ${opts.profile}`);
+      if (opts.format) yield* Console.log(`   Format: ${opts.format}`);
+      if (opts.width) yield* Console.log(`   Width: ${opts.width}px`);
+    }
 
-  if (Object.keys(existingManifest).length > 0) {
-    yield* Console.log(
-      `📂 Loaded existing manifest: ${Object.keys(existingManifest).length} entries`,
-    );
-  }
+    if (cfg.VERBOSE) {
+      yield* Console.log(`🔧 Config:`);
+      yield* Console.log(`   Formats: ${cfg.FORMATS.join(', ')}`);
+      yield* Console.log(
+        `   Q (AVIF/WebP/JPEG): ${cfg.Q_AVIF}/${cfg.Q_WEBP}/${cfg.Q_JPEG}`,
+      );
+      yield* Console.log(
+        `   Preserve metadata on variants: ${cfg.PRESERVE_METADATA ? 'yes' : 'no'}`,
+      );
+      yield* Console.log(
+        `   BlurHash: ${cfg.GEN_BLURHASH ? 'enabled' : 'disabled'} (max ${cfg.BLURHASH_MAX})`,
+      );
+      yield* Console.log(
+        `   AI Descriptions: ${cfg.GEN_AI_DESCRIPTIONS && !opts.skipAi ? 'enabled' : 'disabled'}`,
+      );
+    }
 
-  const failedFiles: Array<{ file: string; error: string }> = [];
-  const t0 = Date.now();
+    const progress = createEnhancedProgressTracker(filesToProcess.length);
 
-  // Process files
-  yield* Effect.all(
-    filesToProcess.map((file) =>
-      Effect.gen(function* () {
-        try {
-          yield* processFile(file, manifest, cfg, opts, progress, checkpoint);
-        } catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error);
-          failedFiles.push({ file, error: errMsg });
-          checkpoint.markFailed(file, errMsg);
-          progress.update({ failedFiles: 1 });
-
-          if (cfg.VERBOSE) {
-            yield* Console.log(
-              `\n❌ Failed: ${path.basename(file)}: ${errMsg}`,
-            );
-          }
-        }
-      }),
-    ),
-    { concurrency: cfg.CONCURRENCY },
-  );
-
-  // Generate AI descriptions if enabled
-  if (
-    cfg.GEN_AI_DESCRIPTIONS &&
-    !opts.skipAi &&
-    cfg.GEN_BLURHASH &&
-    !opts.dryRun
-  ) {
-    yield* generateAIDescriptions(filesToProcess, manifest, cfg);
-  }
-
-  // Upload manifest (unless skipped or dry-run)
-  if (cfg.GEN_BLURHASH && !opts.skipManifest && !opts.dryRun) {
-    const result = yield* saveManifestToR2(
+    // Load existing manifest from R2 and merge with checkpoint entries
+    const existingManifest = yield* loadManifestFromR2(
       cfg.s3,
       cfg.R2_BUCKET,
       cfg.R2_VARIANTS_PREFIX,
-      manifest,
+    ).pipe(
+      Effect.catchAll(() => {
+        // No existing manifest or failed to load - start fresh
+        return Effect.succeed({} as Manifest);
+      }),
     );
 
-    const action = opts.manifestOnly ? 'regenerated' : 'uploaded';
-    yield* Console.log(
-      `\n📄 Manifest ${action}: s3://${cfg.R2_BUCKET}/${manifestKeys(cfg.R2_VARIANTS_PREFIX).compressed}`,
-    );
-    yield* Console.log(`   Entries: ${result.entries}`);
-    yield* Console.log(
-      `   Compression: ${formatBytes(result.originalSize)} → ${formatBytes(result.compressedSize)} (${result.encoding}, ${((result.compressedSize / result.originalSize) * 100).toFixed(1)}%)`,
-    );
+    const checkpointEntries = checkpoint.getManifestEntries();
+    const manifest: Manifest = { ...existingManifest, ...checkpointEntries };
 
-    // Revalidate production cache
-    yield* Effect.promise(() => revalidateManifestCache());
-  }
-
-  // Print summary
-  const dt = Date.now() - t0;
-  progress.printSummary();
-
-  if (failedFiles.length > 0) {
-    yield* Console.log(`\n⚠️  Failed files (${failedFiles.length}):`);
-    for (const { file, error } of failedFiles.slice(0, 10)) {
-      yield* Console.log(`   ${path.basename(file)}: ${error}`);
+    if (Object.keys(existingManifest).length > 0) {
+      yield* Console.log(
+        `📂 Loaded existing manifest: ${Object.keys(existingManifest).length} entries`,
+      );
     }
-    if (failedFiles.length > 10) {
-      yield* Console.log(`   ... and ${failedFiles.length - 10} more`);
+
+    const failedFiles: Array<{ file: string; error: string }> = [];
+    const t0 = Date.now();
+
+    // Process files
+    yield* Effect.all(
+      filesToProcess.map((file) =>
+        Effect.gen(function* () {
+          try {
+            yield* processFile(file, manifest, cfg, opts, progress, checkpoint);
+          } catch (error) {
+            const errMsg =
+              error instanceof Error ? error.message : String(error);
+            failedFiles.push({ file, error: errMsg });
+            checkpoint.markFailed(file, errMsg);
+            progress.update({ failedFiles: 1 });
+
+            if (cfg.VERBOSE) {
+              yield* Console.log(
+                `\n❌ Failed: ${path.basename(file)}: ${errMsg}`,
+              );
+            }
+          }
+        }),
+      ),
+      { concurrency: cfg.CONCURRENCY },
+    );
+
+    // Generate AI descriptions if enabled
+    if (
+      cfg.GEN_AI_DESCRIPTIONS &&
+      !opts.skipAi &&
+      cfg.GEN_BLURHASH &&
+      !opts.dryRun
+    ) {
+      yield* generateAIDescriptions(filesToProcess, manifest, cfg);
     }
-  }
 
-  // Clear checkpoint on successful completion
-  if (failedFiles.length === 0 && !opts.dryRun) {
-    yield* Effect.promise(() => checkpoint.clear());
-  } else if (!opts.dryRun) {
-    yield* Effect.promise(() => checkpoint.save());
-    yield* Console.log(`\n💾 Checkpoint saved. Run with --resume to continue.`);
-  }
+    // Upload manifest (unless skipped or dry-run)
+    if (cfg.GEN_BLURHASH && !opts.skipManifest && !opts.dryRun) {
+      const result = yield* saveManifestToR2(
+        cfg.s3,
+        cfg.R2_BUCKET,
+        cfg.R2_VARIANTS_PREFIX,
+        manifest,
+      );
 
-  const completionMode = opts.manifestOnly
-    ? 'Manifest regeneration'
-    : opts.dryRun
-      ? 'Dry run'
-      : 'Upload';
-  yield* Console.log(`\n✅ ${completionMode} done in ${formatDuration(dt)}`);
-}).pipe(Effect.ensuring(shutdownExiftool));
+      const action = opts.manifestOnly ? 'regenerated' : 'uploaded';
+      yield* Console.log(
+        `\n📄 Manifest ${action}: s3://${cfg.R2_BUCKET}/${manifestKeys(cfg.R2_VARIANTS_PREFIX).compressed}`,
+      );
+      yield* Console.log(`   Entries: ${result.entries}`);
+      yield* Console.log(
+        `   Compression: ${formatBytes(result.originalSize)} → ${formatBytes(result.compressedSize)} (${result.encoding}, ${((result.compressedSize / result.originalSize) * 100).toFixed(1)}%)`,
+      );
+
+      // Revalidate production cache
+      yield* Effect.promise(() => revalidateManifestCache());
+    }
+
+    // Print summary
+    const dt = Date.now() - t0;
+    progress.printSummary();
+
+    if (failedFiles.length > 0) {
+      yield* Console.log(`\n⚠️  Failed files (${failedFiles.length}):`);
+      for (const { file, error } of failedFiles.slice(0, 10)) {
+        yield* Console.log(`   ${path.basename(file)}: ${error}`);
+      }
+      if (failedFiles.length > 10) {
+        yield* Console.log(`   ... and ${failedFiles.length - 10} more`);
+      }
+    }
+
+    // Clear checkpoint on successful completion
+    if (failedFiles.length === 0 && !opts.dryRun) {
+      yield* Effect.promise(() => checkpoint.clear());
+    } else if (!opts.dryRun) {
+      yield* Effect.promise(() => checkpoint.save());
+      yield* Console.log(
+        `\n💾 Checkpoint saved. Run with --resume to continue.`,
+      );
+    }
+
+    const completionMode = opts.manifestOnly
+      ? 'Manifest regeneration'
+      : opts.dryRun
+        ? 'Dry run'
+        : 'Upload';
+    yield* Console.log(`\n✅ ${completionMode} done in ${formatDuration(dt)}`);
+  }).pipe(Effect.ensuring(shutdownExiftool));
 
 // ----------------------- Process Single File -----------------------
 const processFile = (
@@ -808,13 +813,15 @@ const runLocationOnlyMode = (cfg: ConfigWithS3) =>
   });
 
 // ----------------------- Run -----------------------
-pipe(
-  program,
-  Effect.catchAll((e) =>
-    Effect.gen(function* () {
-      const msg = e instanceof Error ? e.message : String(e);
-      yield* Console.error(`Error: ${msg}`);
-      yield* Effect.sync(() => process.exit(1));
-    }),
-  ),
-).pipe(Effect.runPromise);
+export function runUpload(srcDir?: string) {
+  return pipe(
+    createProgram(srcDir),
+    Effect.catchAll((e) =>
+      Effect.gen(function* () {
+        const msg = e instanceof Error ? e.message : String(e);
+        yield* Console.error(`Error: ${msg}`);
+        yield* Effect.sync(() => process.exit(1));
+      }),
+    ),
+  ).pipe(Effect.runPromise);
+}

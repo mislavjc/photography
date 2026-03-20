@@ -1,5 +1,6 @@
 'use client';
 
+import { env } from 'lib/env';
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
 
 const COLLAGE_ROTATIONS = ['-rotate-6', 'rotate-3', '-rotate-2'];
@@ -64,7 +65,7 @@ export function SearchNoResults({
                 {showCollage && (
                   <div className="relative h-28 sm:h-32 mb-3">
                     {catIds.map((id, imgIdx) => {
-                      const imageUrl = `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${id}.avif`;
+                      const imageUrl = `${env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${id}.avif`;
                       const rotation = COLLAGE_ROTATIONS[imgIdx];
                       const offset = COLLAGE_OFFSETS[imgIdx];
                       const zIndex = COLLAGE_Z_INDICES[imgIdx];

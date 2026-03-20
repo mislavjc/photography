@@ -574,13 +574,15 @@ const updateManifestFromOriginals = (
   });
 
 // ----------------------- Run -----------------------
-pipe(
-  program,
-  Effect.catchAll((e) =>
-    Effect.gen(function* () {
-      const msg = e instanceof Error ? e.message : String(e);
-      yield* Console.error(`Error: ${msg}`);
-      yield* Effect.sync(() => process.exit(1));
-    }),
-  ),
-).pipe(Effect.runPromise);
+export function runRegenerate() {
+  return pipe(
+    program,
+    Effect.catchAll((e) =>
+      Effect.gen(function* () {
+        const msg = e instanceof Error ? e.message : String(e);
+        yield* Console.error(`Error: ${msg}`);
+        yield* Effect.sync(() => process.exit(1));
+      }),
+    ),
+  ).pipe(Effect.runPromise);
+}

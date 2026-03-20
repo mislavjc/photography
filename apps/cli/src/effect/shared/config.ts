@@ -11,6 +11,7 @@ import type {
   VariantProfile,
 } from './types';
 
+dotenvConfig({ path: '.env' });
 dotenvConfig({ path: '.env.local' });
 
 // Create a custom HTTP agent with higher connection limits for batch operations

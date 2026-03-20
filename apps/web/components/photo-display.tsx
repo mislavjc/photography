@@ -7,6 +7,8 @@ import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+import { env } from 'lib/env';
+
 import { Picture } from './picture';
 
 function Label({ children }: { children: React.ReactNode }) {
@@ -59,7 +61,7 @@ const mapboxStaticUrl = ({
   styleId?: string;
   retina?: boolean;
 }) => {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
+  const token = env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const L = lat.toFixed(6);
   const X = lon.toFixed(6);
   const pin = `pin-l+${colorHex}(${X},${L})`;

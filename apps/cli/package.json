@@ -11,21 +11,32 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/groq": "^1.1.0",
+    "@ai-sdk/groq": "^3.0.1",
     "@aws-sdk/client-s3": "^3.800.0",
     "@aws-sdk/lib-storage": "^3.800.0",
-    "ai": "^4.0.0",
+    "@repo/shared-types": "workspace:*",
+    "@smithy/node-http-handler": "^4.4.7",
+    "ai": "^6.0.3",
+    "blurhash": "^2.0.5",
     "citty": "^0.1.6",
     "consola": "^3.4.0",
     "dotenv": "^17.0.0",
+    "effect": "^3.19.13",
+    "exiftool-vendored": "^34.1.0",
+    "fast-average-color": "^9.5.0",
+    "fast-glob": "^3.3.3",
+    "mime-types": "^3.0.2",
     "ora": "^8.0.0",
     "replicate": "^1.4.0",
-    "sharp": "^0.34.0"
+    "sharp": "^0.34.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@types/mime-types": "^3.0.1",
     "@types/node": "^22.0.0",
     "tsup": "^8.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.0.0"
   }
 }

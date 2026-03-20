@@ -5,6 +5,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { config } from 'dotenv';
 
+config({ path: '.env' });
 config({ path: '.env.local' });
 
 const s3 = new S3Client({
@@ -36,4 +37,6 @@ async function emptyBucket(bucket: string) {
   } while (ContinuationToken);
 }
 
-emptyBucket('photography');
+export function runEmpty() {
+  return emptyBucket('photography');
+}

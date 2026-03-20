@@ -13,11 +13,18 @@ import type { Manifest } from 'types';
 
 import { EXT_RE } from 'lib/constants';
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
-import { computeMasonryLayout, type MasonryColumn } from 'lib/timeline-layout';
+import {
+  computeMasonryLayout,
+  DAY_ROW_PADDING,
+  type MasonryColumn,
+  MONTH_HEADER_HEIGHT,
+  YEAR_HEADER_HEIGHT,
+} from 'lib/timeline-layout';
 import type {
   DayGroup,
   MonthGroup,
   TimelineData,
+  TimelineLayoutItem,
   YearGroup,
 } from 'lib/timeline-utils';
 
@@ -28,22 +35,11 @@ import { TimelineDayRow } from './timeline-day-row';
 // Virtualization settings
 const VIRTUAL_MARGIN = 600; // px above/below viewport to render
 
-// Type for SSR-precomputed items
-interface SSRItem {
-  type: 'year' | 'month' | 'day';
-  key: string;
-  top: number;
-  height: number;
-  yearKey: string;
-  monthKey?: string;
-  precomputedMasonry?: MasonryColumn[];
-}
-
 interface TimelineProps {
   data: TimelineData;
   manifest: Manifest;
   /** SSR-precomputed items for initial render (reduces CLS) */
-  ssrItems?: SSRItem[];
+  ssrItems?: TimelineLayoutItem[];
   /** SSR-precomputed total height */
   ssrTotalHeight?: number;
   /** Filtered photo IDs from search */
@@ -259,9 +255,6 @@ export function Timeline({
     }> = [];
 
     let currentTop = 0;
-    const YEAR_HEADER_HEIGHT = 80;
-    const MONTH_HEADER_HEIGHT = 56;
-    const DAY_ROW_PADDING = 24;
     const MOBILE_DATE_HEIGHT = isMobile ? 36 : 0;
 
     for (const year of filteredData.years) {

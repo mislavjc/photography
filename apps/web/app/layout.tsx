@@ -7,10 +7,9 @@ import { Analytics } from 'components/analytics';
 import { ThemeProvider } from 'components/theme-provider';
 
 import { SITE_CONFIG } from 'lib/constants';
+import { env } from 'lib/env';
 
 import './globals.css';
-
-const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_URL ?? process.env.R2_PUBLIC_URL;
 
 function getOrigin(url?: string) {
   if (!url) return null;
@@ -21,7 +20,7 @@ function getOrigin(url?: string) {
   }
 }
 
-const R2_ORIGIN = getOrigin(R2_PUBLIC_URL);
+const R2_ORIGIN = getOrigin(env.NEXT_PUBLIC_R2_URL);
 const R2_DNS_PREFETCH = R2_ORIGIN ? `//${new URL(R2_ORIGIN).host}` : null;
 
 const geistSans = Geist({

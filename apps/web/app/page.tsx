@@ -6,6 +6,7 @@ import { EXT_RE } from 'lib/constants';
 import { computeNearSquareLayout } from 'lib/layout';
 import { loadManifest } from 'lib/manifest-server';
 import { trimManifestForClient } from 'lib/manifest-utils';
+import { R2_URL } from 'lib/r2-url';
 
 import { HomeGrid } from '../components/home-grid';
 
@@ -40,9 +41,6 @@ function getLcpCandidates(
     .sort((a, b) => b.w * b.h - a.w * a.h)
     .slice(0, count);
 }
-
-const R2_URL =
-  process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL ?? '';
 
 export default async function Page() {
   'use cache';

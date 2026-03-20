@@ -110,7 +110,12 @@ async function pMap<T, R>(
 
   for (let i = 0; i < items.length; i++) {
     const idx = i;
-    const promise = fn(items[i]!, i)
+    const item = items[i];
+    if (item === undefined) {
+      continue;
+    }
+
+    const promise = fn(item, i)
       .then((result) => {
         results[idx] = result;
       })

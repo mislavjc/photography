@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import type mapboxgl from 'mapbox-gl';
 import Link from 'next/link';
 
+import { env } from 'lib/env';
+
 import { Navbar } from './navbar';
 import { Picture } from './picture';
 import { useTheme } from './theme-provider';
@@ -112,7 +114,7 @@ function buildPhotoGeoJSON(photos: Photo[]): GeoJSON.FeatureCollection {
 
 function buildPhotoUrl(photoId: string): string {
   const base = photoId.replace(/\.[^.]+$/, '');
-  return `${process.env.NEXT_PUBLIC_R2_URL}/variants/grid/jpeg/320/${base}.jpeg`;
+  return `${env.NEXT_PUBLIC_R2_URL}/variants/grid/jpeg/320/${base}.jpeg`;
 }
 
 function calculatePopupDimensions(width: number, height: number) {
@@ -181,7 +183,7 @@ export function MapView({ initialData }: MapViewProps) {
 
       if (!mapContainerRef.current || mapRef.current) return;
 
-      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      const token = env.NEXT_PUBLIC_MAPBOX_TOKEN;
       if (!token) {
         setError('Mapbox token not configured');
         setIsLoading(false);

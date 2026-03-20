@@ -13,6 +13,11 @@ export interface MasonryColumn {
   height: number;
 }
 
+// Shared layout constants used by both server (page.tsx) and client (timeline.tsx)
+export const YEAR_HEADER_HEIGHT = 80;
+export const MONTH_HEADER_HEIGHT = 56;
+export const DAY_ROW_PADDING = 24;
+
 // Layout tunables
 const TARGET_COL_WIDTH = 160;
 export const GAP = 4;

@@ -170,8 +170,8 @@ async function handleSimilar(photoId: string, env: Env): Promise<Response> {
     );
   }
 
-  const photoVector = vectors[0]!;
-  if (!photoVector.values) {
+  const photoVector = vectors[0];
+  if (!photoVector?.values) {
     return Response.json(
       { error: 'Photo embedding not available', results: [] },
       { status: 404, headers: CORS_HEADERS },

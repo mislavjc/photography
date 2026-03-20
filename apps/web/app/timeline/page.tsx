@@ -1,44 +1,40 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { cacheLife } from 'next/cache';
+import type { Manifest } from 'types';
 
 import { TimelineSkeleton } from 'components/timeline-skeleton';
 import { TimelineWrapper } from 'components/timeline-wrapper';
+
+import { EXT_RE } from 'lib/constants';
+import { loadManifest } from 'lib/manifest-server';
+import { trimManifestForClient } from 'lib/manifest-utils';
+import { R2_URL } from 'lib/r2-url';
+import {
+  computeMasonryLayout,
+  DAY_ROW_PADDING,
+  MONTH_HEADER_HEIGHT,
+  YEAR_HEADER_HEIGHT,
+} from 'lib/timeline-layout';
+import {
+  groupPhotosForTimeline,
+  type TimelineData,
+  type TimelineLayoutItem,
+} from 'lib/timeline-utils';
 
 export const metadata: Metadata = {
   title: 'Timeline',
 };
 
-import type { Manifest } from 'types';
-
-import { EXT_RE } from 'lib/constants';
-import { loadManifest } from 'lib/manifest-server';
-import { trimManifestForClient } from 'lib/manifest-utils';
-import { computeMasonryLayout, type MasonryColumn } from 'lib/timeline-layout';
-import { groupPhotosForTimeline, type TimelineData } from 'lib/timeline-utils';
-
 // Precompute item heights for default desktop width to reduce CLS
 const DEFAULT_CONTAINER_WIDTH = 900; // Approximate desktop photo container width
-const YEAR_HEADER_HEIGHT = 80;
-const MONTH_HEADER_HEIGHT = 56;
-const DAY_ROW_PADDING = 24;
-
-export interface PrecomputedItem {
-  type: 'year' | 'month' | 'day';
-  key: string;
-  top: number;
-  height: number;
-  yearKey: string;
-  monthKey?: string;
-  precomputedMasonry?: MasonryColumn[];
-}
 
 // Precompute and trim data on the server
 async function getTimelineData(): Promise<{
   timelineData: TimelineData;
   trimmedManifest: Manifest;
   lcpImages: string[];
-  precomputedItems: PrecomputedItem[];
+  precomputedItems: TimelineLayoutItem[];
   totalHeight: number;
 }> {
   'use cache';
@@ -62,7 +58,7 @@ async function getTimelineData(): Promise<{
   const trimmedManifest = trimManifestForClient(manifest);
 
   // Precompute layout positions for SSR to reduce CLS
-  const precomputedItems: PrecomputedItem[] = [];
+  const precomputedItems: TimelineLayoutItem[] = [];
   let currentTop = 0;
 
   for (const year of timelineData.years) {
@@ -131,9 +127,6 @@ async function getTimelineData(): Promise<{
     totalHeight: currentTop,
   };
 }
-
-const R2_URL =
-  process.env.R2_PUBLIC_URL ?? process.env.NEXT_PUBLIC_R2_URL ?? '';
 
 export default async function TimelinePage() {
   const {
