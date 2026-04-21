@@ -13,7 +13,9 @@ export async function loadManifest(): Promise<Manifest> {
   const manifestUrl = `${R2_URL.replace(/\/$/, '')}/${env.R2_VARIANTS_PREFIX}/r2-manifest.json`;
 
   try {
-    const response = await fetch(manifestUrl);
+    const response = await fetch(manifestUrl, {
+      next: { tags: ['manifest'] },
+    });
 
     if (!response.ok) {
       console.error(

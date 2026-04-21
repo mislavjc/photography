@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { cacheLife } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import type { Manifest } from 'types';
 
 import { TimelineSkeleton } from 'components/timeline-skeleton';
@@ -39,6 +39,7 @@ async function getTimelineData(): Promise<{
 }> {
   'use cache';
   cacheLife('days');
+  cacheTag('manifest');
 
   const manifest = await loadManifest();
   const timelineData = groupPhotosForTimeline(manifest);

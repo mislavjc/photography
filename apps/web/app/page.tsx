@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { cacheLife } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 
 import { EXT_RE } from 'lib/constants';
 import { computeNearSquareLayout } from 'lib/layout';
@@ -40,6 +40,7 @@ function getLcpCandidates(
 export default async function Page() {
   'use cache';
   cacheLife('days');
+  cacheTag('manifest');
 
   const manifest = await loadManifest();
 

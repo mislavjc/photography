@@ -15,7 +15,8 @@
     "knip": "knip",
     "prepare": "husky",
     "infra:deploy": "bun alchemy.run.ts",
-    "infra:destroy": "bun alchemy.run.ts --destroy"
+    "infra:destroy": "bun alchemy.run.ts --destroy",
+    "infra:dev": "alchemy dev alchemy.run.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",

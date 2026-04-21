@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { cacheLife } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 
 import { MapView } from 'components/map-view';
 
@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 async function getMapData() {
   'use cache';
   cacheLife('days');
+  cacheTag('manifest');
 
   const manifest = await loadManifest();
 

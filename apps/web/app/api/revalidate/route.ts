@@ -1,5 +1,4 @@
 import { revalidateTag } from 'next/cache';
-import { after } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { env } from 'lib/env';
@@ -11,10 +10,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid secret' }, { status: 401 });
   }
 
-  // Run revalidation after the response is sent (non-blocking)
-  after(() => {
-    revalidateTag('manifest', 'days');
-  });
+  // { expire: 0 } forces immediate expiration; 'max'/'days' only mark stale (SWR)
+  // and can serve the old manifest on the very next visit.
+  revalidateTag('manifest', { expire: 0 });
 
   return NextResponse.json({ revalidated: true });
 }

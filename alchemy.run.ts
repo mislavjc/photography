@@ -22,13 +22,14 @@ export const photosBucket = await R2Bucket('photos', {
   name: 'photography',
   adopt: true,
   locationHint: 'eeur',
+  dev: { remote: true }, // Worker dev mode reads the real bucket, not miniflare-local.
 });
 
 // =============================================================================
 // Vectorize (Photo Search)
 // =============================================================================
 
-// Vector index for semantic photo search using ImageBind embeddings
+// Vector index for semantic photo search using ImageBind embeddings (legacy)
 export const searchIndex = await VectorizeIndex('photo-search', {
   name: 'photography-search',
   description: 'Semantic photo search using ImageBind embeddings',
@@ -37,26 +38,55 @@ export const searchIndex = await VectorizeIndex('photo-search', {
   adopt: true, // Adopt existing index
 });
 
+
 // =============================================================================
 // KV Namespace (Embedding Cache)
 // =============================================================================
 
-// Cache for text embeddings to avoid repeated Replicate API calls
+// Cache for text embeddings to avoid repeated API calls
 export const embeddingCache = await KVNamespace('embedding-cache', {
   title: 'photos-embedding-cache',
+  adopt: true,
 });
 
 // =============================================================================
 // Search API Worker
 // =============================================================================
 
-// Only deploy worker if REPLICATE_API_TOKEN is set
-const replicateApiToken = process.env.REPLICATE_API_TOKEN;
+const geminiApiKey = process.env.GEMINI_API_KEY;
 
-export const searchWorker = replicateApiToken
+export const searchWorker = geminiApiKey
   ? await Worker('search-api', {
       name: 'photos-search-api',
       entrypoint: './apps/search-worker/src/index.ts',
+      adopt: true,
+      bindings: {
+        PHOTOS_BUCKET: photosBucket,
+        GEMINI_API_KEY: alchemy.secret(geminiApiKey),
+        EMBEDDING_CACHE: embeddingCache,
+      },
+      url: true,
+    })
+  : null;
+
+if (!geminiApiKey) {
+  console.log('\n⚠️  GEMINI_API_KEY not set. Search worker not deployed.');
+  console.log('   Get a key at: https://aistudio.google.com/apikey\n');
+}
+
+if (searchWorker) {
+  console.log(`Search API: ${searchWorker.url}`);
+}
+
+// Rollback fallback: old ImageBind+Vectorize worker stays published alongside
+// prod so we can flip apps/web SEARCH_API_URL to it if Gemini has an outage.
+// Soak window: 7 days after the migration. Remove this block + the legacy
+// source dir + the `photography-search` index once we're confident.
+const replicateApiToken = process.env.REPLICATE_API_TOKEN;
+export const legacySearchWorker = replicateApiToken
+  ? await Worker('search-api-legacy', {
+      name: 'photos-search-legacy',
+      entrypoint: './apps/search-worker-legacy/src/index.ts',
       adopt: true,
       bindings: {
         VECTORIZE: searchIndex,
@@ -64,20 +94,11 @@ export const searchWorker = replicateApiToken
         REPLICATE_API_TOKEN: alchemy.secret(replicateApiToken),
         EMBEDDING_CACHE: embeddingCache,
       },
-      url: true, // Enable workers.dev URL
+      url: true,
     })
   : null;
-
-if (!replicateApiToken) {
-  console.log('\n⚠️  REPLICATE_API_TOKEN not set. Search worker not deployed.');
-  console.log('   Get a token at: https://replicate.com/account/api-tokens');
-  console.log(
-    '   Then run: REPLICATE_API_TOKEN=your_token bun alchemy.run.ts\n',
-  );
-}
-
-if (searchWorker) {
-  console.log(`Search API: ${searchWorker.url}`);
+if (legacySearchWorker) {
+  console.log(`Legacy Search API: ${legacySearchWorker.url}`);
 }
 
 // =============================================================================

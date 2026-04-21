@@ -24,7 +24,7 @@ export function createS3Client(config: CLIConfig): S3Client {
   });
 }
 
-async function getObject(
+export async function getObject(
   s3: S3Client,
   bucket: string,
   key: string,
@@ -40,7 +40,7 @@ async function getObject(
   return Buffer.concat(chunks);
 }
 
-async function putObject(
+export async function putObject(
   s3: S3Client,
   bucket: string,
   key: string,

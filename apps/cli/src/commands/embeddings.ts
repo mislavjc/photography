@@ -1,104 +1,92 @@
+import { S3ServiceException } from '@aws-sdk/client-s3';
+import { GoogleGenAI } from '@google/genai';
 import { defineCommand } from 'citty';
 import consola from 'consola';
 import ora from 'ora';
-import { spawn } from 'node:child_process';
-import { writeFile, unlink } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import Replicate from 'replicate';
 
 import { loadConfig } from '../lib/config.js';
-import { createS3Client, loadManifest, getVariantImage } from '../lib/r2.js';
+import {
+  decode,
+  EMBEDDINGS_KEY,
+  encode,
+  type EmbeddingsFile,
+  recordSize,
+} from '../lib/embeddings-file.js';
+import {
+  createS3Client,
+  getObject,
+  getVariantImage,
+  loadManifest,
+  putObject,
+} from '../lib/r2.js';
 
-const VECTORIZE_INDEX = 'photography-search';
-const IMAGEBIND_MODEL =
-  'daanelson/imagebind:0383f62e173dc821ec52663ed22a076d9c970549c209666ac3db181618b7a304';
-const BATCH_SIZE = 5; // Process 5 images in parallel
-const CONCURRENCY = 10; // Max concurrent Replicate requests
+const GEMINI_MODEL = 'gemini-embedding-2-preview';
+const OUTPUT_DIMS = 3072;
+const DEFAULT_CONCURRENCY = 8; // Retries handle paid-tier per-minute bursts; daily quota isn't a factor
+const DEFAULT_FLUSH_EVERY = 100;
+const MAX_RETRIES = 6;
 
-interface ImageBindOutput {
-  embedding: number[];
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
-async function getImageEmbedding(
-  replicate: Replicate,
-  imageBuffer: Buffer,
-): Promise<number[]> {
-  const output = await replicate.run(IMAGEBIND_MODEL, {
-    input: {
-      input: imageBuffer,
-      modality: 'vision',
-    },
-  });
+/** Pull a retryDelay hint (e.g. "18.9s") out of a Gemini 429 error message. */
+function parseRetryDelayMs(err: unknown): number | null {
+  const msg = err instanceof Error ? err.message : String(err);
+  const m = msg.match(/retry in ([\d.]+)s/i);
+  if (!m) return null;
+  const secs = parseFloat(m[1]!);
+  return Number.isFinite(secs) ? Math.ceil(secs * 1000) : null;
+}
 
-  // Debug: log output structure
-  if (process.env.DEBUG) {
-    console.log('ImageBind output type:', typeof output);
-    console.log(
-      'ImageBind output:',
-      Array.isArray(output) ? `array[${output.length}]` : output,
-    );
-    if (Array.isArray(output) && output.length > 0) {
-      console.log('First element type:', typeof output[0]);
-      if (typeof output[0] === 'number') {
-        console.log('First 5 values:', output.slice(0, 5));
+function isRateLimitError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /\b429\b|quota|rate.?limit/i.test(msg);
+}
+
+async function embedImage(
+  ai: GoogleGenAI,
+  imageBuffer: Buffer,
+): Promise<Float32Array> {
+  let attempt = 0;
+  while (true) {
+    try {
+      const response = await ai.models.embedContent({
+        model: GEMINI_MODEL,
+        contents: [
+          {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: 'image/jpeg',
+                  data: imageBuffer.toString('base64'),
+                },
+              },
+            ],
+          },
+        ],
+        config: { outputDimensionality: OUTPUT_DIMS },
+      });
+
+      const values = response.embeddings?.[0]?.values;
+      if (!values || values.length !== OUTPUT_DIMS) {
+        throw new Error(
+          `Unexpected Gemini embedding shape: got ${values?.length ?? 'none'} dims`,
+        );
       }
+      return new Float32Array(values);
+    } catch (err) {
+      attempt++;
+      if (attempt > MAX_RETRIES || !isRateLimitError(err)) throw err;
+      // Prefer the server-suggested delay; otherwise exponential backoff.
+      const hinted = parseRetryDelayMs(err);
+      const backoff = hinted ?? Math.min(60_000, 1000 * 2 ** attempt);
+      const jitter = Math.floor(Math.random() * 500);
+      await sleep(backoff + jitter);
     }
   }
-
-  // Handle different output formats
-  if (Array.isArray(output)) {
-    return output as number[];
-  }
-  if (output && typeof output === 'object' && 'embedding' in output) {
-    return (output as ImageBindOutput).embedding;
-  }
-
-  throw new Error(
-    `Unexpected ImageBind output format: ${JSON.stringify(output).slice(0, 200)}`,
-  );
 }
 
-async function insertWithWrangler(
-  vectors: { id: string; values: number[] }[],
-): Promise<void> {
-  // Write vectors to temp NDJSON file
-  const tmpFile = join(tmpdir(), `vectorize-${Date.now()}.ndjson`);
-  const ndjson = vectors
-    .map((v) => JSON.stringify({ id: v.id, values: v.values }))
-    .join('\n');
-
-  await writeFile(tmpFile, ndjson);
-
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const proc = spawn(
-        'wrangler',
-        ['vectorize', 'insert', VECTORIZE_INDEX, '--file', tmpFile],
-        {
-          stdio: ['ignore', 'pipe', 'pipe'],
-        },
-      );
-
-      let stderr = '';
-      proc.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      proc.on('close', (code) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(new Error(`wrangler exited with code ${code}: ${stderr}`));
-        }
-      });
-    });
-  } finally {
-    await unlink(tmpFile).catch(() => {});
-  }
-}
-
-// Helper to limit concurrency with error handling
 async function pMap<T, R>(
   items: T[],
   fn: (item: T, index: number) => Promise<R>,
@@ -106,46 +94,63 @@ async function pMap<T, R>(
 ): Promise<{ results: R[]; errors: { index: number; error: Error }[] }> {
   const results: R[] = [];
   const errors: { index: number; error: Error }[] = [];
-  const executing: Promise<void>[] = [];
-
-  for (let i = 0; i < items.length; i++) {
-    const idx = i;
-    const item = items[i];
-    if (item === undefined) {
-      continue;
-    }
-
-    const promise = fn(item, i)
-      .then((result) => {
-        results[idx] = result;
-      })
-      .catch((err) => {
-        errors.push({ index: idx, error: err });
-      });
-
-    executing.push(promise);
-
-    if (executing.length >= concurrency) {
-      await Promise.race(executing);
-      // Remove completed promises
-      const completed = executing.filter(
-        (p) => (p as Promise<void> & { settled?: boolean }).settled,
-      );
-      for (const c of completed) {
-        const idx = executing.indexOf(c);
-        if (idx !== -1) executing.splice(idx, 1);
+  let cursor = 0;
+  async function worker() {
+    while (true) {
+      const idx = cursor++;
+      if (idx >= items.length) return;
+      const item = items[idx];
+      if (item === undefined) continue;
+      try {
+        results[idx] = await fn(item, idx);
+      } catch (err) {
+        errors.push({
+          index: idx,
+          error: err instanceof Error ? err : new Error(String(err)),
+        });
       }
     }
   }
-
-  await Promise.all(executing);
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
+  );
   return { results: results.filter((r) => r !== undefined), errors };
+}
+
+async function loadExistingEmbeddings(
+  s3: ReturnType<typeof createS3Client>,
+  bucket: string,
+): Promise<EmbeddingsFile> {
+  try {
+    return decode(await getObject(s3, bucket, EMBEDDINGS_KEY));
+  } catch (err) {
+    if (
+      err instanceof S3ServiceException &&
+      (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404)
+    ) {
+      return { dims: OUTPUT_DIMS, byId: new Map() };
+    }
+    throw err;
+  }
+}
+
+async function saveEmbeddings(
+  s3: ReturnType<typeof createS3Client>,
+  bucket: string,
+  file: EmbeddingsFile,
+): Promise<number> {
+  const buf = encode(file);
+  await putObject(s3, bucket, EMBEDDINGS_KEY, buf, 'application/octet-stream', {
+    cacheControl: 'public, max-age=300, s-maxage=300',
+  });
+  return buf.length;
 }
 
 export default defineCommand({
   meta: {
     name: 'embeddings',
-    description: 'Generate image embeddings and index them in Vectorize',
+    description:
+      'Generate Gemini Embedding 2 vectors and append them to variants/embeddings.bin in R2',
   },
   args: {
     dryRun: {
@@ -162,35 +167,38 @@ export default defineCommand({
       description: 'Number of images to skip (for resuming)',
       default: '0',
     },
-    batchSize: {
-      type: 'string',
-      description: 'Number of images per Vectorize insert batch',
-      default: String(BATCH_SIZE),
-    },
     concurrency: {
       type: 'string',
-      description: 'Number of concurrent Replicate requests',
-      default: String(CONCURRENCY),
+      description: 'Number of concurrent Gemini requests',
+      default: String(DEFAULT_CONCURRENCY),
+    },
+    flushEvery: {
+      type: 'string',
+      description: 'Flush partial embeddings to R2 every N images',
+      default: String(DEFAULT_FLUSH_EVERY),
+    },
+    reembed: {
+      type: 'boolean',
+      description: 'Re-embed photos even if they already have a vector',
+      default: false,
     },
   },
   async run({ args }) {
     const config = loadConfig();
     const s3 = createS3Client(config);
 
-    const replicateApiToken = process.env.REPLICATE_API_TOKEN;
-
-    if (!replicateApiToken) {
-      consola.error('REPLICATE_API_TOKEN environment variable is required');
-      consola.info('Get a token at: https://replicate.com/account/api-tokens');
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      consola.error('GEMINI_API_KEY environment variable is required');
+      consola.info('Get a key at: https://aistudio.google.com/apikey');
       process.exit(1);
     }
-
-    const replicate = new Replicate({ auth: replicateApiToken });
+    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
     const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
     const skip = parseInt(args.skip, 10);
-    const batchSize = parseInt(args.batchSize, 10);
     const concurrency = parseInt(args.concurrency, 10);
+    const flushEvery = parseInt(args.flushEvery, 10);
 
     consola.info('Loading manifest from R2...');
     const manifest = await loadManifest(
@@ -199,136 +207,136 @@ export default defineCommand({
       config.r2.variantsPrefix,
     );
 
+    consola.info('Loading existing embeddings.bin...');
+    const embeddings = await loadExistingEmbeddings(s3, config.r2.bucket);
+    if (embeddings.dims !== OUTPUT_DIMS) {
+      consola.warn(
+        `Existing embeddings.bin dims ${embeddings.dims} != ${OUTPUT_DIMS}; starting fresh.`,
+      );
+      embeddings.byId.clear();
+      embeddings.dims = OUTPUT_DIMS;
+    }
+    consola.info(`Existing vectors: ${embeddings.byId.size}`);
+
     const allKeys = Object.keys(manifest);
-    const toProcess = allKeys.slice(skip, skip + limit);
+    const pending: string[] = [];
+    for (const key of allKeys.slice(skip)) {
+      if (pending.length >= limit) break;
+      const uuid = key.replace(/\.[^.]+$/, '');
+      if (!args.reembed && embeddings.byId.has(uuid)) continue;
+      pending.push(uuid);
+    }
 
     consola.info(
-      `Processing ${toProcess.length} images (skip: ${skip}, total: ${allKeys.length})`,
+      `To embed: ${pending.length} (skip: ${skip}, manifest total: ${allKeys.length})`,
     );
     consola.info(
-      `Using Replicate ImageBind (concurrency: ${concurrency}, batch size: ${batchSize})`,
+      `Model: ${GEMINI_MODEL} → ${OUTPUT_DIMS}d, concurrency: ${concurrency}`,
     );
     consola.info(
-      `Estimated cost: ~$${(toProcess.length * 0.00046).toFixed(2)}`,
+      `Estimated cost: ~$${(pending.length * 0.0001).toFixed(2)} (Gemini image pricing)`,
     );
 
     if (args.dryRun) {
-      consola.box('DRY RUN - Would process:');
-      toProcess.slice(0, 10).forEach((key) => consola.log(`  - ${key}`));
-      if (toProcess.length > 10) {
-        consola.log(`  ... and ${toProcess.length - 10} more`);
+      consola.box('DRY RUN - Would embed:');
+      pending.slice(0, 10).forEach((id) => consola.log(`  - ${id}`));
+      if (pending.length > 10) {
+        consola.log(`  ... and ${pending.length - 10} more`);
       }
       return;
     }
 
+    if (pending.length === 0) {
+      consola.success('Nothing to do — all manifest entries already embedded.');
+      return;
+    }
+
+    const startTime = Date.now();
     let processed = 0;
     let failed = 0;
-    const startTime = Date.now();
+    let sinceFlush = 0;
 
-    // Process in batches for Vectorize inserts
-    for (let i = 0; i < toProcess.length; i += batchSize) {
-      const batchKeys = toProcess.slice(i, i + batchSize);
-      const batchNum = Math.floor(i / batchSize) + 1;
-      const totalBatches = Math.ceil(toProcess.length / batchSize);
-      const batchSpinner = ora(
-        `[${batchNum}/${totalBatches}] Loading ${batchKeys.length} images...`,
+    for (let i = 0; i < pending.length; i += flushEvery) {
+      const chunk = pending.slice(i, i + flushEvery);
+      const chunkSpinner = ora(
+        `[${Math.floor(i / flushEvery) + 1}/${Math.ceil(pending.length / flushEvery)}] Loading ${chunk.length} images...`,
       ).start();
 
       try {
-        // Load images in parallel
         const images: { id: string; buffer: Buffer }[] = [];
-
         await Promise.all(
-          batchKeys.map(async (key) => {
-            const uuid = key.replace(/\.[^.]+$/, '');
-            const imageBuf = await getVariantImage(
+          chunk.map(async (uuid) => {
+            const buf = await getVariantImage(
               s3,
               config.r2.bucket,
               config.r2.variantsPrefix,
               uuid,
             );
-
-            if (imageBuf) {
-              images.push({
-                id: uuid,
-                buffer: imageBuf,
-              });
-            }
+            if (buf) images.push({ id: uuid, buffer: buf });
           }),
         );
 
         if (images.length === 0) {
-          batchSpinner.warn(`[${batchNum}/${totalBatches}] No images in batch`);
+          chunkSpinner.warn('no images fetched');
           continue;
         }
 
-        batchSpinner.text = `[${batchNum}/${totalBatches}] Generating embeddings for ${images.length} images (Replicate)...`;
-
-        // Get embeddings from Replicate with concurrency control
-        const { results: embeddings, errors } = await pMap(
+        chunkSpinner.text = `Embedding ${images.length} images via Gemini...`;
+        const { results, errors } = await pMap(
           images,
-          async (img) => {
-            const embedding = await getImageEmbedding(replicate, img.buffer);
-            return { id: img.id, embedding };
-          },
+          async (img) => ({
+            id: img.id,
+            vec: await embedImage(ai, img.buffer),
+          }),
           concurrency,
         );
 
-        // Log any embedding errors
-        if (errors.length > 0) {
-          for (const { index, error } of errors) {
-            consola.warn(
-              `Failed to embed ${images[index]?.id}: ${error.message}`,
-            );
-          }
-          failed += errors.length;
+        for (const { index, error } of errors) {
+          consola.warn(`Failed ${images[index]?.id}: ${error.message}`);
         }
+        failed += errors.length;
 
-        if (embeddings.length === 0) {
-          batchSpinner.warn(
-            `[${batchNum}/${totalBatches}] No embeddings generated`,
+        for (const { id, vec } of results) embeddings.byId.set(id, vec);
+
+        sinceFlush += results.length;
+        processed += results.length;
+
+        if (sinceFlush >= flushEvery) {
+          const projected =
+            recordSize(embeddings.byId.size, embeddings.dims) / 1024 / 1024;
+          chunkSpinner.text = `Flushing ${embeddings.byId.size} vectors to R2 (~${projected.toFixed(1)} MB)...`;
+          const size = await saveEmbeddings(s3, config.r2.bucket, embeddings);
+          sinceFlush = 0;
+          const rate = (processed / ((Date.now() - startTime) / 1000)).toFixed(
+            2,
           );
-          continue;
+          chunkSpinner.succeed(
+            `+${results.length} (total ${embeddings.byId.size} in ${(size / 1024 / 1024).toFixed(1)} MB, ${rate} img/s)`,
+          );
+        } else {
+          chunkSpinner.succeed(
+            `+${results.length} (total ${embeddings.byId.size}, not yet flushed)`,
+          );
         }
-
-        batchSpinner.text = `[${batchNum}/${totalBatches}] Indexing ${embeddings.length} vectors...`;
-
-        // Insert via wrangler
-        const vectors = embeddings.map((e) => ({
-          id: e.id,
-          values: e.embedding,
-        }));
-
-        await insertWithWrangler(vectors);
-
-        processed += embeddings.length;
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        const rate = (processed / parseFloat(elapsed)).toFixed(2);
-        batchSpinner.succeed(
-          `[${batchNum}/${totalBatches}] Indexed ${embeddings.length} vectors (total: ${processed}, ${rate} img/s)`,
-        );
       } catch (err) {
-        failed += batchKeys.length;
-        batchSpinner.fail(
-          `[${batchNum}/${totalBatches}] Failed: ${err instanceof Error ? err.message : err}`,
+        failed += chunk.length;
+        chunkSpinner.fail(
+          `Chunk failed: ${err instanceof Error ? err.message : err}`,
         );
-
-        // Continue on error, just log it
-        consola.error(err);
       }
+    }
+
+    if (sinceFlush > 0) {
+      const size = await saveEmbeddings(s3, config.r2.bucket, embeddings);
+      consola.info(
+        `Final flush: ${embeddings.byId.size} vectors, ${(size / 1024 / 1024).toFixed(1)} MB`,
+      );
     }
 
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
     consola.box({
       title: 'Done',
-      message: `Indexed: ${processed}\nFailed: ${failed}\nTime: ${totalTime}s\nEstimated cost: ~$${(processed * 0.00046).toFixed(2)}`,
+      message: `Embedded: ${processed}\nFailed: ${failed}\nTotal in file: ${embeddings.byId.size}\nTime: ${totalTime}s\nCost: ~$${(processed * 0.0001).toFixed(2)}`,
     });
-
-    if (processed > 0) {
-      consola.info('\nTest search:');
-      consola.info(
-        `  curl "https://photos-search-api.mislavjc.workers.dev/search?q=sunset"`,
-      );
-    }
   },
 });
