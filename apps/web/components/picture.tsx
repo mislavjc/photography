@@ -57,6 +57,8 @@ interface PictureProps {
   /** Layout behavior */
   mode?: Mode;
   fit?: Fit;
+  /** Skip fade-in when image should appear immediately */
+  disableFadeIn?: boolean;
 }
 
 export const Picture = memo(function Picture({
@@ -74,6 +76,7 @@ export const Picture = memo(function Picture({
   dominantColor,
   mode = 'intrinsic',
   fit = 'contain',
+  disableFadeIn = false,
 }: PictureProps) {
   // Priority images should be visible immediately for LCP - no fade-in
   const isPriority = fetchPriority === 'high';
@@ -125,7 +128,7 @@ export const Picture = memo(function Picture({
 
   // Use CSS-only fade-in animation to avoid React state and re-renders
   // Priority images render immediately, others fade in via CSS animation
-  const fadeInClass = isPriority ? '' : 'animate-fade-in';
+  const fadeInClass = isPriority || disableFadeIn ? '' : 'animate-fade-in';
 
   return (
     <div className={pictureClassName} style={wrapperStyles}>

@@ -11,6 +11,18 @@ import { env } from 'lib/env';
 
 import './globals.css';
 
+function getOrigin(url?: string) {
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+const R2_ORIGIN = getOrigin(env.NEXT_PUBLIC_R2_URL);
+const R2_DNS_PREFETCH = R2_ORIGIN ? `//${new URL(R2_ORIGIN).host}` : null;
+
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
@@ -42,12 +54,10 @@ export default function RootLayout({
     <html lang="en">
       <head>
         {/* Resource hints for image CDN */}
-        <link
-          rel="preconnect"
-          href={env.NEXT_PUBLIC_R2_URL}
-          crossOrigin="anonymous"
-        />
-        <link rel="dns-prefetch" href={env.NEXT_PUBLIC_R2_URL} />
+        {R2_ORIGIN && (
+          <link rel="preconnect" href={R2_ORIGIN} crossOrigin="anonymous" />
+        )}
+        {R2_DNS_PREFETCH && <link rel="dns-prefetch" href={R2_DNS_PREFETCH} />}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
