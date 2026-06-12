@@ -1,12 +1,13 @@
 import type { Manifest } from '../types';
 
-/** Strips the manifest down to only the fields needed client-side (w, h, first dominant color). */
+/** Strips the manifest down to only the fields needed client-side (w, h, thumbhash, first dominant color). */
 export function trimManifestForClient(manifest: Manifest): Manifest {
   const trimmed = {} as Manifest;
   for (const [key, value] of Object.entries(manifest)) {
     trimmed[key] = {
       w: value.w,
       h: value.h,
+      thumbhash: value.thumbhash,
       exif: {
         dominantColors: value.exif?.dominantColors?.slice(0, 1),
       },

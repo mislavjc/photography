@@ -27,8 +27,8 @@ export interface UploadConfig {
   Q_WEBP: number;
   Q_JPEG: number;
   PRESERVE_METADATA: boolean;
-  GEN_BLURHASH: boolean;
-  BLURHASH_MAX: number;
+  GEN_THUMBHASH: boolean;
+  THUMBHASH_MAX: number;
   GEN_AI_DESCRIPTIONS: boolean;
   VERBOSE: boolean;
   NOMINATIM_EMAIL: string;

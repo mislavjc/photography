@@ -36,7 +36,7 @@ export default defineCommand({
         const entries = Object.entries(manifest);
         const withDesc = entries.filter(([, e]) => e.description).length;
         const withLocation = entries.filter(([, e]) => e.exif.location).length;
-        const withBlurhash = entries.filter(([, e]) => e.blurhash).length;
+        const withThumbhash = entries.filter(([, e]) => e.thumbhash).length;
 
         consola.box({
           title: 'Manifest Info',
@@ -44,7 +44,7 @@ export default defineCommand({
             `Total entries: ${entries.length}`,
             `With description: ${withDesc}`,
             `With location: ${withLocation}`,
-            `With blurhash: ${withBlurhash}`,
+            `With thumbhash: ${withThumbhash}`,
           ].join('\n'),
         });
       },

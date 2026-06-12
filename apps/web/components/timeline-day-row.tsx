@@ -81,7 +81,6 @@ export const TimelineDayRow = memo(function TimelineDayRow({
                 >
                   {col.photos.map((photo) => {
                     const meta = manifest[photo.filename];
-                    const dominantColor = meta?.exif?.dominantColors?.[0]?.hex;
 
                     return (
                       <button
@@ -99,14 +98,12 @@ export const TimelineDayRow = memo(function TimelineDayRow({
                           uuidWithExt={photo.filename}
                           alt={photo.filename}
                           profile="grid"
+                          entry={meta}
                           intrinsicWidth={photo.originalW}
                           intrinsicHeight={photo.originalH}
                           pictureClassName="block w-full h-full"
-                          imgClassName="block w-full h-full object-cover"
                           sizes={`${photo.width}px`}
                           loading="lazy"
-                          dominantColor={dominantColor}
-                          mode="fill"
                           fit="cover"
                         />
                       </button>

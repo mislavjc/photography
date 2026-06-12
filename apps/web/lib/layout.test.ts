@@ -6,7 +6,7 @@ import { computeNearSquareLayout } from './layout';
 /** Helper to create a manifest entry with given dimensions. */
 function entry(w: number, h: number): Manifest[string] {
   return {
-    blurhash: 'L00000fQfQfQfQfQfQfQfQfQfQfQ',
+    thumbhash: '3OcRJYB4d3h/iIeHeEh3eIhw+j2w',
     w,
     h,
     exif: {

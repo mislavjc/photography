@@ -31,8 +31,8 @@ import {
   getObject,
   headObject,
   loadManifestFromR2,
-  makeBlurhash,
   makePreviewJpeg,
+  makeThumbhash,
   manifestKeys,
   parseCLIOptions,
   putObject,
@@ -240,7 +240,7 @@ const createProgram = (srcDirOverride?: string) =>
         `   Preserve metadata on variants: ${cfg.PRESERVE_METADATA ? 'yes' : 'no'}`,
       );
       yield* Console.log(
-        `   BlurHash: ${cfg.GEN_BLURHASH ? 'enabled' : 'disabled'} (max ${cfg.BLURHASH_MAX})`,
+        `   ThumbHash: ${cfg.GEN_THUMBHASH ? 'enabled' : 'disabled'} (max ${cfg.THUMBHASH_MAX})`,
       );
       yield* Console.log(
         `   AI Descriptions: ${cfg.GEN_AI_DESCRIPTIONS && !opts.skipAi ? 'enabled' : 'disabled'}`,
@@ -301,14 +301,14 @@ const createProgram = (srcDirOverride?: string) =>
     if (
       cfg.GEN_AI_DESCRIPTIONS &&
       !opts.skipAi &&
-      cfg.GEN_BLURHASH &&
+      cfg.GEN_THUMBHASH &&
       !opts.dryRun
     ) {
       yield* generateAIDescriptions(filesToProcess, manifest, cfg);
     }
 
     // Upload manifest (unless skipped or dry-run)
-    if (cfg.GEN_BLURHASH && !opts.skipManifest && !opts.dryRun) {
+    if (cfg.GEN_THUMBHASH && !opts.skipManifest && !opts.dryRun) {
       const result = yield* saveManifestToR2(
         cfg.s3,
         cfg.R2_BUCKET,
@@ -465,26 +465,26 @@ const processFile = (
       );
     }
 
-    // Generate blurhash, dimensions, and manifest entry
-    let blurhash = '';
+    // Generate thumbhash, dimensions, and manifest entry
+    let thumbhash = '';
     let dimensions: { w: number; h: number };
     let dominantColors: ExifMetadata['dominantColors'] = undefined;
 
-    if (cfg.GEN_BLURHASH) {
-      progress.update({ currentOperation: 'Generating blurhash' });
-      const bh = yield* makeBlurhash(file, cfg.BLURHASH_MAX);
-      blurhash = bh.blurhash;
-      dimensions = { w: bh.w, h: bh.h };
+    if (cfg.GEN_THUMBHASH) {
+      progress.update({ currentOperation: 'Generating thumbhash' });
+      const th = yield* makeThumbhash(file, cfg.THUMBHASH_MAX);
+      thumbhash = th.thumbhash;
+      dimensions = { w: th.w, h: th.h };
       dominantColors = yield* extractDominantColors(file, 5);
 
       if (cfg.VERBOSE) {
-        yield* Console.log(`  🎨 blurhash: ${bh.w}x${bh.h}`);
+        yield* Console.log(`  🎨 thumbhash: ${th.w}x${th.h}`);
         if (dominantColors?.[0]) {
           yield* Console.log(`  🌈 color: ${dominantColors[0].hex}`);
         }
       }
     } else {
-      // Still need dimensions for manifest even without blurhash
+      // Still need dimensions for manifest even without thumbhash
       progress.update({ currentOperation: 'Reading dimensions' });
       dimensions = yield* getImageDimensions(file);
     }
@@ -512,7 +512,7 @@ const processFile = (
     };
 
     manifest[`${uuid}${ext}`] = {
-      blurhash,
+      thumbhash,
       w: dimensions.w,
       h: dimensions.h,
       exif: exifForManifest,

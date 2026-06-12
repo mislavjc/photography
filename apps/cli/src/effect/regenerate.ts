@@ -20,7 +20,7 @@ import {
   cleanPrefix,
   type ConfigWithS3,
   createEnhancedProgressTracker,
-  extractDominantColorsFromBuffer,
+  extractDominantColors,
   extractExtFromKey,
   extractUuidFromKey,
   formatDuration,
@@ -28,7 +28,7 @@ import {
   getObject,
   listObjects,
   loadManifestFromR2,
-  makeBlurhashFromBuffer,
+  makeThumbhash,
   mergeManifests,
   putObject,
   saveManifestToR2,
@@ -84,7 +84,7 @@ Options:
   --format=<fmt>        Generate variants for specific format only (avif, webp, jpeg)
   --profile=<name>      Generate variants for specific profile only (grid, large)
   --all                 Regenerate ALL variants (use with caution!)
-  --update-manifest     Update manifest entries for originals (blurhash, colors)
+  --update-manifest     Update manifest entries for originals (thumbhash, colors)
   --dry-run             Show what would be done without making changes
   --concurrency=<n>     Number of concurrent operations (default: 4)
   --verbose, -v         Show detailed output
@@ -102,10 +102,45 @@ Examples:
   # Preview what would happen
   pnpm tsx cli/regenerate.ts --width=360 --dry-run
 
-  # Update manifest with blurhash for all originals
+  # Update manifest with thumbhash for all originals
   pnpm tsx cli/regenerate.ts --update-manifest
 `);
 }
+
+/**
+ * Builds the manifest entry for a freshly hashed photo: pre-thumbhash entries
+ * keep their EXIF/colors/description and only gain the hash; new photos get a
+ * bare entry with dominant colors extracted from the buffer.
+ */
+const buildThumbhashEntry = (
+  th: { thumbhash: string; w: number; h: number },
+  buffer: Buffer,
+  existingEntry: Manifest[string] | undefined,
+) =>
+  Effect.gen(function* () {
+    if (existingEntry) {
+      return { ...existingEntry, thumbhash: th.thumbhash };
+    }
+
+    const dominantColors = yield* extractDominantColors(buffer, 5);
+
+    return {
+      thumbhash: th.thumbhash,
+      w: th.w,
+      h: th.h,
+      exif: {
+        camera: null,
+        lens: null,
+        focalLength: null,
+        aperture: null,
+        shutterSpeed: null,
+        iso: null,
+        location: null,
+        dateTime: null,
+        dominantColors,
+      },
+    };
+  });
 
 // ----------------------- Main Program -----------------------
 const program = Effect.gen(function* () {
@@ -348,33 +383,15 @@ const program = Effect.gen(function* () {
       const ext = variants[0]!.ext;
       const manifestKey = `${uuid}${ext}`;
 
-      // Generate blurhash if not in manifest
-      if (!existingManifest[manifestKey]) {
-        const bh = yield* makeBlurhashFromBuffer(
+      // Generate thumbhash if missing (new photo or pre-thumbhash entry)
+      const existingEntry = existingManifest[manifestKey];
+      if (!existingEntry?.thumbhash) {
+        const th = yield* makeThumbhash(originalBuffer, cfg.THUMBHASH_MAX);
+        newManifestEntries[manifestKey] = yield* buildThumbhashEntry(
+          th,
           originalBuffer,
-          cfg.BLURHASH_MAX,
+          existingEntry,
         );
-        const dominantColors = yield* extractDominantColorsFromBuffer(
-          originalBuffer,
-          5,
-        );
-
-        newManifestEntries[manifestKey] = {
-          blurhash: bh.blurhash,
-          w: bh.w,
-          h: bh.h,
-          exif: {
-            camera: null,
-            lens: null,
-            focalLength: null,
-            aperture: null,
-            shutterSpeed: null,
-            iso: null,
-            location: null,
-            dateTime: null,
-            dominantColors,
-          },
-        };
       }
 
       // Generate and upload each variant
@@ -485,71 +502,74 @@ const updateManifestFromOriginals = (
     const t0 = Date.now();
     const newEntries: Manifest = {};
 
-    for (const originalKey of originalKeys) {
-      const uuid = extractUuidFromKey(originalKey);
-      const ext = extractExtFromKey(originalKey);
-      const manifestKey = `${uuid}${ext}`;
+    const processKey = (originalKey: string) =>
+      Effect.gen(function* () {
+        const uuid = extractUuidFromKey(originalKey);
+        const ext = extractExtFromKey(originalKey);
+        const manifestKey = `${uuid}${ext}`;
 
-      progress.update({
-        currentFile: originalKey,
-        currentOperation: 'Processing',
-      });
+        progress.update({
+          currentFile: originalKey,
+          currentOperation: 'Processing',
+        });
 
-      // Skip if already in manifest
-      if (existingManifest[manifestKey]) {
-        progress.update({ processedFiles: 1 });
-        continue;
-      }
-
-      if (opts.dryRun) {
-        yield* Console.log(`   Would add: ${manifestKey}`);
-        progress.update({ processedFiles: 1 });
-        continue;
-      }
-
-      try {
-        const originalBuffer = yield* getObject(
-          cfg.s3,
-          cfg.R2_BUCKET,
-          originalKey,
-        );
-        const bh = yield* makeBlurhashFromBuffer(
-          originalBuffer,
-          cfg.BLURHASH_MAX,
-        );
-        const dominantColors = yield* extractDominantColorsFromBuffer(
-          originalBuffer,
-          5,
-        );
-
-        newEntries[manifestKey] = {
-          blurhash: bh.blurhash,
-          w: bh.w,
-          h: bh.h,
-          exif: {
-            camera: null,
-            lens: null,
-            focalLength: null,
-            aperture: null,
-            shutterSpeed: null,
-            iso: null,
-            location: null,
-            dateTime: null,
-            dominantColors,
-          },
-        };
-
-        if (opts.verbose) {
-          yield* Console.log(`   ✓ ${manifestKey}: ${bh.w}x${bh.h}`);
+        // Skip if already in manifest with a thumbhash
+        const existingEntry = existingManifest[manifestKey];
+        if (existingEntry?.thumbhash) {
+          progress.update({ processedFiles: 1 });
+          return;
         }
 
-        progress.update({ processedFiles: 1 });
-      } catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error);
-        yield* Console.log(`   ✗ ${manifestKey}: ${errMsg}`);
-        progress.update({ failedFiles: 1 });
-      }
-    }
+        if (opts.dryRun) {
+          yield* Console.log(`   Would add: ${manifestKey}`);
+          progress.update({ processedFiles: 1 });
+          return;
+        }
+
+        try {
+          // Existing entries only need ~100px of pixels for the hash, so pull
+          // the small grid variant instead of the multi-MB original
+          const sourceKey = existingEntry
+            ? toVariantKey(
+                uuid,
+                cfg.R2_VARIANTS_PREFIX,
+                'grid',
+                'jpeg',
+                160,
+                '.jpeg',
+              )
+            : originalKey;
+          const buffer = yield* getObject(
+            cfg.s3,
+            cfg.R2_BUCKET,
+            sourceKey,
+          ).pipe(
+            Effect.orElse(() => getObject(cfg.s3, cfg.R2_BUCKET, originalKey)),
+          );
+          const th = yield* makeThumbhash(buffer, cfg.THUMBHASH_MAX);
+          // New entries hash the original (sourceKey === originalKey), so
+          // th.w/th.h and the extracted colors reflect the full photo
+          newEntries[manifestKey] = yield* buildThumbhashEntry(
+            th,
+            buffer,
+            existingEntry,
+          );
+
+          if (opts.verbose) {
+            yield* Console.log(`   ✓ ${manifestKey}: ${th.w}x${th.h}`);
+          }
+
+          progress.update({ processedFiles: 1 });
+        } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error);
+          yield* Console.log(`   ✗ ${manifestKey}: ${errMsg}`);
+          progress.update({ failedFiles: 1 });
+        }
+      });
+
+    yield* Effect.all(originalKeys.map(processKey), {
+      concurrency: opts.concurrency,
+    });
 
     if (!opts.dryRun && Object.keys(newEntries).length > 0) {
       const mergedManifest = mergeManifests(existingManifest, newEntries);

@@ -1,6 +1,6 @@
 // Re-export all shared utilities for convenient imports
 export * from './ai';
-export * from './blurhash';
+export * from './thumbhash';
 export * from './config';
 export * from './exif';
 export * from './geocoding';

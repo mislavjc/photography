@@ -15,7 +15,7 @@ function fullEntry(
   }>,
 ): Manifest[string] {
   return {
-    blurhash: 'L00000fQfQfQfQfQfQfQfQfQfQfQ',
+    thumbhash: '3OcRJYB4d3h/iIeHeEh3eIhw+j2w',
     w,
     h,
     exif: {
@@ -66,6 +66,18 @@ describe('trimManifestForClient', () => {
     expect(entry.exif.lens).toBeUndefined();
     expect(entry.exif.dateTime).toBeUndefined();
     expect(entry.exif.location).toBeUndefined();
+  });
+
+  it('preserves the thumbhash for placeholders', () => {
+    const manifest: Manifest = {
+      'photo.jpg': fullEntry(4000, 3000),
+    };
+
+    const trimmed = trimManifestForClient(manifest);
+
+    expect(trimmed['photo.jpg']!.thumbhash).toBe(
+      '3OcRJYB4d3h/iIeHeEh3eIhw+j2w',
+    );
   });
 
   it('handles entries without dominant colors', () => {

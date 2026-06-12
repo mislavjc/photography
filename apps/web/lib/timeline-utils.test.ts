@@ -6,7 +6,7 @@ import { groupPhotosForTimeline } from './timeline-utils';
 /** Helper to create a minimal manifest entry. */
 function entry(dateTime: string | null, w = 4000, h = 3000): Manifest[string] {
   return {
-    blurhash: 'L00000fQfQfQfQfQfQfQfQfQfQfQ',
+    thumbhash: '3OcRJYB4d3h/iIeHeEh3eIhw+j2w',
     w,
     h,
     exif: {

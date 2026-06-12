@@ -20,7 +20,7 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 interface PhotoData {
-  blurhash?: string;
+  thumbhash?: string;
   w: number;
   h: number;
   exif: {
@@ -449,12 +449,11 @@ function PhotoLayout({
               alt={alt}
               profile="large"
               loading="eager"
-              intrinsicWidth={photoData.w}
-              intrinsicHeight={photoData.h}
-              imgClassName="block max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain"
-              pictureClassName="block"
-              sizes="70vw"
+              entry={photoData}
               dominantColor={dominant}
+              pictureClassName="block w-full h-full"
+              sizes="70vw"
+              fit="contain"
             />
           </div>
         </div>
@@ -490,12 +489,11 @@ function PhotoLayout({
               alt={alt}
               profile="large"
               loading="eager"
-              intrinsicWidth={photoData.w}
-              intrinsicHeight={photoData.h}
-              imgClassName="block max-w-full max-h-full w-auto h-auto object-contain"
-              pictureClassName="block"
-              sizes="100vw"
+              entry={photoData}
               dominantColor={dominant}
+              pictureClassName="block w-full h-full"
+              sizes="100vw"
+              fit="contain"
             />
           </div>
         </div>

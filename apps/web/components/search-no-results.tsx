@@ -1,7 +1,8 @@
 'use client';
 
-import { env } from 'lib/env';
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
+
+import { Picture } from './picture';
 
 const COLLAGE_ROTATIONS = ['-rotate-6', 'rotate-3', '-rotate-2'];
 const COLLAGE_OFFSETS = [
@@ -65,7 +66,6 @@ export function SearchNoResults({
                 {showCollage && (
                   <div className="relative h-28 sm:h-32 mb-3">
                     {catIds.map((id, imgIdx) => {
-                      const imageUrl = `${env.NEXT_PUBLIC_R2_URL}/variants/grid/avif/480/${id}.avif`;
                       const rotation = COLLAGE_ROTATIONS[imgIdx];
                       const offset = COLLAGE_OFFSETS[imgIdx];
                       const zIndex = COLLAGE_Z_INDICES[imgIdx];
@@ -78,11 +78,14 @@ export function SearchNoResults({
                           key={id}
                           className={`absolute ${offset} ${zIndex} ${rotation} ${size} overflow-hidden rounded-lg bg-white shadow-md transition-transform duration-300 group-hover:rotate-0`}
                         >
-                          <img
-                            src={imageUrl}
+                          <Picture
+                            uuidWithExt={id}
                             alt=""
-                            className="h-full w-full object-cover"
+                            profile="grid"
                             loading="lazy"
+                            pictureClassName="block w-full h-full"
+                            sizes="96px"
+                            fit="cover"
                           />
                         </div>
                       );

@@ -22,7 +22,7 @@ type Photo = {
   date: string | null;
   w: number;
   h: number;
-  blurhash: string;
+  thumbhash?: string;
   camera: string | null;
   dominantColor: string;
 };
@@ -562,10 +562,12 @@ function PhotoSidebar({
                   loading="lazy"
                   intrinsicWidth={photo.w}
                   intrinsicHeight={photo.h}
-                  imgClassName="w-full h-full object-cover transition-transform group-hover:scale-105"
-                  pictureClassName="block"
+                  imgClassName="transition-transform group-hover:scale-105"
+                  pictureClassName="block w-full h-full"
                   sizes="160px"
                   dominantColor={photo.dominantColor}
+                  thumbhash={photo.thumbhash}
+                  fit="cover"
                 />
               </Link>
             ))}

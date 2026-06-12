@@ -2,12 +2,14 @@ import React, { memo } from 'react';
 
 import { EXT_RE } from 'lib/constants';
 import { env } from 'lib/env';
+import { thumbhashToDataURL } from 'lib/thumbhash';
 
 type Formats = 'avif' | 'webp' | 'jpeg';
 type Profile = 'grid' | 'large';
-type Mode = 'intrinsic' | 'fill';
 type Fit = 'contain' | 'cover' | 'none' | 'scale-down' | 'fill';
 
+// NOTE: omits the 360 variant on purpose — the LCP <link rel=preload> tags in
+// app/page.tsx and app/timeline/page.tsx assume the browser picks 480 here
 const GRID_WIDTHS = [160, 240, 320, 480, 640, 800, 960] as const;
 const LARGE_WIDTHS = [
   256, 384, 512, 768, 1024, 1280, 1536, 1920, 2560,
@@ -35,6 +37,14 @@ function buildSrcSet(
     .join(', ');
 }
 
+/** The manifest fields Picture derives placeholder + dimension data from */
+interface PlaceholderEntry {
+  thumbhash?: string;
+  w?: number;
+  h?: number;
+  exif?: { dominantColors?: Array<{ hex: string }> | null } | null;
+}
+
 interface PictureProps {
   uuidWithExt: string;
   alt: string;
@@ -42,20 +52,22 @@ interface PictureProps {
   loading?: 'lazy' | 'eager';
   fetchPriority?: 'high' | 'low' | 'auto';
   sizes?: string;
-  intrinsicWidth: number;
-  intrinsicHeight: number;
 
-  /** Class on the WRAPPER (not <picture>) */
+  /** Manifest entry; thumbhash, placeholder color, and dimensions derive from it */
+  entry?: PlaceholderEntry;
+  /** Fallbacks for when `entry` (or the matching field on it) is absent */
+  intrinsicWidth?: number;
+  intrinsicHeight?: number;
+  dominantColor?: string;
+  thumbhash?: string;
+
+  /** Class on the WRAPPER (not <picture>). The wrapper paints the placeholder,
+   *  so it must be sized by the parent (e.g. "block w-full h-full"). */
   pictureClassName?: string;
-  /** Applied to <img> only */
+  /** Applied to <img> only; sizing comes from inline styles */
   imgClassName?: string;
   imgStyle?: React.CSSProperties;
 
-  /** Dominant color hex for background */
-  dominantColor?: string;
-
-  /** Layout behavior */
-  mode?: Mode;
   fit?: Fit;
 }
 
@@ -66,13 +78,14 @@ export const Picture = memo(function Picture({
   loading = 'lazy',
   fetchPriority = 'auto',
   sizes,
+  entry,
   intrinsicWidth,
   intrinsicHeight,
+  dominantColor,
+  thumbhash,
   pictureClassName = '',
   imgClassName = '',
   imgStyle,
-  dominantColor,
-  mode = 'intrinsic',
   fit = 'contain',
 }: PictureProps) {
   // Priority images should be visible immediately for LCP - no fade-in
@@ -85,43 +98,30 @@ export const Picture = memo(function Picture({
       : '(max-width: 1024px) calc(100vw - 2rem), 100vw';
   const effectiveSizes = sizes || defaultSizes;
 
-  // Image styles based on mode
-  const intrinsicImgStyles: React.CSSProperties = {
-    ...(mode === 'intrinsic'
-      ? {
-          display: 'block',
-          width: 'auto', // natural width
-          height: 'auto', // preserve aspect ratio
-          maxWidth: '100%', // shrink to fit parent width if needed
-          maxHeight: '100%', // shrink to fit parent height if needed
-          aspectRatio: `${intrinsicWidth} / ${intrinsicHeight}`,
-        }
-      : {
-          width: '100%',
-          height: '100%', // fill wrapper (wrapper must define height)
-          objectFit: fit,
-        }),
-    ...imgStyle,
-  };
+  const width = entry?.w ?? intrinsicWidth;
+  const height = entry?.h ?? intrinsicHeight;
+  const hash = entry?.thumbhash ?? thumbhash;
+  const bgColor = entry?.exif?.dominantColors?.[0]?.hex ?? dominantColor;
 
-  // Wrapper styles to match img sizing in intrinsic mode
+  // The wrapper paints the placeholder: dominant color, with the decoded
+  // thumbhash layered on top; the image then fades in over it
+  const placeholderUrl = thumbhashToDataURL(hash);
   const wrapperStyles: React.CSSProperties = {
-    backgroundColor: dominantColor || 'transparent',
-    ...(mode === 'intrinsic' && {
-      display: 'inline-block', // shrink to content width
-      width: 'auto',
-      maxWidth: '100%',
+    backgroundColor: bgColor || 'transparent',
+    ...(placeholderUrl && {
+      backgroundImage: `url(${placeholderUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
     }),
   };
 
-  // Strip height classes that conflict with intrinsic mode
-  const shouldStripHeightClasses = mode === 'intrinsic';
-  const safeImgClass = shouldStripHeightClasses
-    ? imgClassName
-        .split(' ')
-        .filter((c) => c && !/^h-(full|screen|\[.*\])$/.test(c))
-        .join(' ')
-    : imgClassName;
+  const imgStyles: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    height: '100%', // fill wrapper (wrapper must define height)
+    objectFit: fit,
+    ...imgStyle,
+  };
 
   // Use CSS-only fade-in animation to avoid React state and re-renders
   // Priority images render immediately, others fade in via CSS animation
@@ -141,8 +141,8 @@ export const Picture = memo(function Picture({
           sizes={effectiveSizes}
         />
         <img
-          width={intrinsicWidth}
-          height={intrinsicHeight}
+          width={width}
+          height={height}
           src={r2VariantUrl(uuidWithExt, profile, 320, 'jpeg')}
           srcSet={buildSrcSet(uuidWithExt, profile, 'jpeg', widths)}
           sizes={effectiveSizes}
@@ -151,8 +151,8 @@ export const Picture = memo(function Picture({
           fetchPriority={fetchPriority}
           decoding={isPriority ? 'sync' : 'async'}
           draggable={false}
-          className={`${fadeInClass} ${safeImgClass}`}
-          style={intrinsicImgStyles}
+          className={`${fadeInClass} ${imgClassName}`}
+          style={imgStyles}
         />
       </picture>
     </div>

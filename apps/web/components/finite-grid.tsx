@@ -679,8 +679,6 @@ export function PannableGrid({
         >
           {visibleItems.map((it, idx) => {
             const meta = manifest[it.filename]; // { w, h, ... } from Manifest
-            const intrinsicW = meta?.w ?? 3; // fallback guards
-            const intrinsicH = meta?.h ?? 2;
             const isInViewport =
               it.x < viewRect.x + viewRect.w &&
               it.x + it.w > viewRect.x &&
@@ -711,16 +709,13 @@ export function PannableGrid({
                     uuidWithExt={it.filename}
                     alt={it.filename}
                     profile="grid"
-                    intrinsicWidth={intrinsicW}
-                    intrinsicHeight={intrinsicH}
+                    entry={meta}
+                    dominantColor="#f9fafb"
                     pictureClassName="block w-full h-full"
-                    imgClassName="block w-full h-full object-cover"
                     sizes={`${Math.round(it.w)}px`}
                     loading={isInViewport ? 'eager' : 'lazy'}
                     fetchPriority={isLCPCandidate ? 'high' : 'auto'}
-                    dominantColor={
-                      meta?.exif?.dominantColors?.[0]?.hex ?? '#f9fafb'
-                    }
+                    fit="cover"
                   />
                 </Link>
               </article>

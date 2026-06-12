@@ -11,11 +11,11 @@ import {
 } from 'motion/react';
 import type { Manifest } from 'types';
 
-import { env } from 'lib/env';
 import type { PlacedItem } from 'lib/layout';
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
 
 import { Minimap } from './minimap';
+import { Picture } from './picture';
 import { ThemeToggle } from './theme-toggle';
 
 const APPS = [
@@ -81,8 +81,6 @@ interface NavbarSearchProps {
   categorySampleIds?: string[];
   searchPreview?: Array<{ id: string }>;
 }
-
-const R2_URL = env.NEXT_PUBLIC_R2_URL;
 
 function NavbarSearch({
   onSearch,
@@ -340,11 +338,14 @@ function NavbarSearch({
                       onClick={() => updateSearchOpen(false)}
                       className="flex-shrink-0 h-14 w-14 overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-700 hover:opacity-80 transition-opacity"
                     >
-                      <img
-                        src={`${R2_URL}/variants/grid/avif/160/${result.id}.avif`}
+                      <Picture
+                        uuidWithExt={result.id}
                         alt=""
-                        className="h-full w-full object-cover"
+                        profile="grid"
                         loading="eager"
+                        pictureClassName="block w-full h-full"
+                        sizes="56px"
+                        fit="cover"
                       />
                     </button>
                   ))}
@@ -372,9 +373,6 @@ function NavbarSearch({
                 {matchingCategories.map((cat, i) => {
                   const catIdx = SEARCH_CATEGORIES.indexOf(cat);
                   const sampleId = categorySampleIds?.[catIdx];
-                  const imageUrl = sampleId
-                    ? `${R2_URL}/variants/grid/avif/480/${sampleId}.avif`
-                    : undefined;
                   return (
                     <m.button
                       key={cat.id}
@@ -418,12 +416,16 @@ function NavbarSearch({
                         ease: [0.215, 0.61, 0.355, 1] as const,
                       }}
                     >
-                      {imageUrl && (
+                      {sampleId && (
                         <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
-                          <img
-                            src={imageUrl}
+                          <Picture
+                            uuidWithExt={sampleId}
                             alt=""
-                            className="h-full w-full object-cover"
+                            profile="grid"
+                            loading="lazy"
+                            pictureClassName="block w-full h-full"
+                            sizes="56px"
+                            fit="cover"
                           />
                         </div>
                       )}

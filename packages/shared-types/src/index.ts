@@ -23,7 +23,8 @@ export interface ExifMetadata {
 }
 
 export interface ManifestEntry {
-  blurhash: string;
+  /** Base64-encoded ThumbHash bytes; absent on entries not yet regenerated */
+  thumbhash?: string;
   w: number;
   h: number;
   exif: ExifMetadata;

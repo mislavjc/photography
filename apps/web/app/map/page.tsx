@@ -28,7 +28,7 @@ async function getMapData() {
       date: data.exif.dateTime,
       w: data.w,
       h: data.h,
-      blurhash: data.blurhash,
+      thumbhash: data.thumbhash,
       camera: data.exif.camera,
       dominantColor: data.exif.dominantColors?.[0]?.hex || '#e2001a',
     }));

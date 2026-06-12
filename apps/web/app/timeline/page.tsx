@@ -55,7 +55,7 @@ async function getTimelineData(): Promise<{
     }
   }
 
-  // Only send fields the client actually uses: dominant color hex for placeholders
+  // Only send fields the client actually uses: thumbhash + dominant color for placeholders
   const trimmedManifest = trimManifestForClient(manifest);
 
   // Precompute layout positions for SSR to reduce CLS

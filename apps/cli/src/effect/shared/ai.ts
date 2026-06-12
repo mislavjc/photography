@@ -28,7 +28,7 @@ export const makePreviewJpeg = (buf: Buffer) =>
 export const buildPromptFromManifest = (
   entry:
     | {
-        blurhash: string;
+        thumbhash?: string;
         w: number;
         h: number;
         exif: ExifMetadata;

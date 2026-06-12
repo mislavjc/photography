@@ -54,8 +54,9 @@ export const getConfig = Effect.gen(function* () {
   const Q_JPEG = parseInt(process.env.Q_JPEG || '78', 10);
   const PRESERVE_METADATA =
     (process.env.PRESERVE_METADATA || 'true') === 'true';
-  const GEN_BLURHASH = (process.env.GEN_BLURHASH || 'true') === 'true';
-  const BLURHASH_MAX = parseInt(process.env.BLURHASH_MAX || '64', 10);
+  const GEN_THUMBHASH = (process.env.GEN_THUMBHASH || 'true') === 'true';
+  // ThumbHash caps input at 100x100
+  const THUMBHASH_MAX = parseInt(process.env.THUMBHASH_MAX || '100', 10);
   const GEN_AI_DESCRIPTIONS =
     (process.env.GEN_AI_DESCRIPTIONS || 'false') === 'true';
   const VERBOSE = (process.env.VERBOSE || 'false') === 'true';
@@ -120,8 +121,8 @@ export const getConfig = Effect.gen(function* () {
     Q_WEBP,
     Q_JPEG,
     PRESERVE_METADATA,
-    GEN_BLURHASH,
-    BLURHASH_MAX,
+    GEN_THUMBHASH,
+    THUMBHASH_MAX,
     GEN_AI_DESCRIPTIONS,
     VERBOSE,
     NOMINATIM_EMAIL,
