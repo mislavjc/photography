@@ -1,10 +1,5 @@
 import alchemy from 'alchemy';
-import {
-  KVNamespace,
-  R2Bucket,
-  VectorizeIndex,
-  Worker,
-} from 'alchemy/cloudflare';
+import { KVNamespace, R2Bucket, Worker } from 'alchemy/cloudflare';
 
 const app = await alchemy('photography', {
   phase: process.argv.includes('--destroy') ? 'destroy' : 'up',
@@ -24,20 +19,6 @@ export const photosBucket = await R2Bucket('photos', {
   locationHint: 'eeur',
   dev: { remote: true }, // Worker dev mode reads the real bucket, not miniflare-local.
 });
-
-// =============================================================================
-// Vectorize (Photo Search)
-// =============================================================================
-
-// Vector index for semantic photo search using ImageBind embeddings (legacy)
-export const searchIndex = await VectorizeIndex('photo-search', {
-  name: 'photography-search',
-  description: 'Semantic photo search using ImageBind embeddings',
-  dimensions: 1024, // ImageBind output dimensions
-  metric: 'cosine',
-  adopt: true, // Adopt existing index
-});
-
 
 // =============================================================================
 // KV Namespace (Embedding Cache)
@@ -76,29 +57,6 @@ if (!geminiApiKey) {
 
 if (searchWorker) {
   console.log(`Search API: ${searchWorker.url}`);
-}
-
-// Rollback fallback: old ImageBind+Vectorize worker stays published alongside
-// prod so we can flip apps/web SEARCH_API_URL to it if Gemini has an outage.
-// Soak window: 7 days after the migration. Remove this block + the legacy
-// source dir + the `photography-search` index once we're confident.
-const replicateApiToken = process.env.REPLICATE_API_TOKEN;
-export const legacySearchWorker = replicateApiToken
-  ? await Worker('search-api-legacy', {
-      name: 'photos-search-legacy',
-      entrypoint: './apps/search-worker-legacy/src/index.ts',
-      adopt: true,
-      bindings: {
-        VECTORIZE: searchIndex,
-        PHOTOS_BUCKET: photosBucket,
-        REPLICATE_API_TOKEN: alchemy.secret(replicateApiToken),
-        EMBEDDING_CACHE: embeddingCache,
-      },
-      url: true,
-    })
-  : null;
-if (legacySearchWorker) {
-  console.log(`Legacy Search API: ${legacySearchWorker.url}`);
 }
 
 // =============================================================================
