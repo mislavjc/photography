@@ -13,6 +13,7 @@ import type { Manifest } from 'types';
 
 import type { PlacedItem } from 'lib/layout';
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
+import { useMediaQuery } from 'lib/use-media-query';
 
 import { Minimap } from './minimap';
 import { Picture } from './picture';
@@ -472,26 +473,11 @@ export function Navbar({
   searchPreview,
 }: NavbarProps) {
   const [openWindows, setOpenWindows] = useState<Set<string>>(new Set());
-  const [isMobile, setIsMobile] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const shouldReduceMotion = useReducedMotion();
 
-  // Detect mobile for logo animation - only update when crossing threshold
-  React.useEffect(() => {
-    let lastIsMobile = window.innerWidth < 768;
-    setIsMobile(lastIsMobile);
-
-    const checkMobile = () => {
-      const nowMobile = window.innerWidth < 768;
-      if (nowMobile !== lastIsMobile) {
-        lastIsMobile = nowMobile;
-        setIsMobile(nowMobile);
-      }
-    };
-
-    window.addEventListener('resize', checkMobile, { passive: true });
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  // Detect mobile for logo animation - below Tailwind's md breakpoint (768px)
+  const isMobile = useMediaQuery('(max-width: 767px)');
 
   const anyWindowOpen = openWindows.size > 0;
 

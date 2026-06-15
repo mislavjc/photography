@@ -11,32 +11,32 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/groq": "^3.0.1",
-    "@aws-sdk/client-s3": "^3.800.0",
-    "@aws-sdk/lib-storage": "^3.800.0",
-    "@google/genai": "^1.50.1",
+    "@ai-sdk/groq": "^3.0.41",
+    "@aws-sdk/client-s3": "^3.1068.0",
+    "@aws-sdk/lib-storage": "^3.1068.0",
+    "@google/genai": "^1.52.0",
     "@repo/shared-types": "workspace:*",
-    "@smithy/node-http-handler": "^4.4.7",
-    "ai": "^6.0.3",
+    "@smithy/node-http-handler": "^4.7.8",
+    "ai": "^6.0.203",
     "citty": "^0.1.6",
-    "consola": "^3.4.0",
-    "dotenv": "^17.0.0",
-    "effect": "^3.19.13",
-    "exiftool-vendored": "^34.1.0",
-    "fast-average-color": "^9.5.0",
+    "consola": "^3.4.2",
+    "dotenv": "^17.4.2",
+    "effect": "^3.21.3",
+    "exiftool-vendored": "^36.0.0",
+    "fast-average-color": "^9.5.2",
     "fast-glob": "^3.3.3",
     "mime-types": "^3.0.2",
-    "ora": "^8.0.0",
-    "sharp": "^0.34.0",
+    "ora": "^8.2.0",
+    "sharp": "^0.34.5",
     "thumbhash": "^0.1.1",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/mime-types": "^3.0.1",
-    "@types/node": "^22.0.0",
-    "tsup": "^8.0.0",
-    "tsx": "^4.21.0",
-    "typescript": "^5.0.0"
+    "@types/node": "^22.19.21",
+    "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.3"
   }
 }

@@ -8,6 +8,8 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 
+import { useMediaQuery } from 'lib/use-media-query';
+
 type Theme = 'light' | 'dark' | 'system';
 
 interface ThemeContextValue {
@@ -50,23 +52,6 @@ function getThemeServerSnapshot(): Theme {
   return 'light';
 }
 
-// --- System preference store ---
-function subscribeToSystemPreference(callback: () => void) {
-  const mq = window.matchMedia('(prefers-color-scheme: dark)');
-  mq.addEventListener('change', callback);
-  return () => mq.removeEventListener('change', callback);
-}
-
-function getSystemPreferenceSnapshot(): 'light' | 'dark' {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light';
-}
-
-function getSystemPreferenceServerSnapshot(): 'light' | 'dark' {
-  return 'light';
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useSyncExternalStore(
     subscribeToTheme,
@@ -74,11 +59,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     getThemeServerSnapshot,
   );
 
-  const systemPreference = useSyncExternalStore(
-    subscribeToSystemPreference,
-    getSystemPreferenceSnapshot,
-    getSystemPreferenceServerSnapshot,
-  );
+  const prefersDark = useMediaQuery('(prefers-color-scheme: dark)');
+  const systemPreference: 'light' | 'dark' = prefersDark ? 'dark' : 'light';
 
   // Derived — no state needed
   const resolvedTheme = theme === 'system' ? systemPreference : theme;
