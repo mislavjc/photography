@@ -1,12 +1,15 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "ignoreWorkspaces": ["packages/typescript-config"],
+  "ignoreBinaries": ["portless"],
   "workspaces": {
     "apps/web": {
-      "entry": ["app/**/*.{ts,tsx}", "cli/*.ts", "lib/imageLoader.ts"],
+      "entry": ["app/**/*.{ts,tsx}", "lib/imageLoader.ts"],
       "project": ["**/*.{ts,tsx}"],
-      "ignore": ["**/*.d.ts"],
       "ignoreDependencies": ["tw-animate-css", "tailwindcss"]
+    },
+    "apps/cli": {
+      "ignoreDependencies": ["tsx"]
     },
     "packages/eslint-config": {
       "entry": ["*.mjs"],

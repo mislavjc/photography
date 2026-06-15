@@ -1,6 +1,1 @@
-export type {
-  ExifLocation,
-  ExifMetadata,
-  Manifest,
-  ManifestEntry,
-} from '@repo/shared-types';
+export type { Manifest, ManifestEntry } from '@repo/shared-types';

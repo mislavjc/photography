@@ -20,8 +20,8 @@ export const GRID_INSET_TOP = 56;
 export const GRID_INSET_BOTTOM = 56;
 export const GRID_INSET_LEFT = 72;
 export const GRID_INSET_RIGHT = 72;
-export const GRID_THICKNESS = 1;
-export const GRID_COLOR = 'rgba(0,0,0,0.14)';
+const GRID_THICKNESS = 1;
+const GRID_COLOR = 'rgba(0,0,0,0.14)';
 
 export function OgGridLines() {
   return (

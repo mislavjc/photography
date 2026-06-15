@@ -9,8 +9,8 @@
  *               dims * 4 bytes Float32 vector
  */
 
-export const HEADER_SIZE = 8;
-export const UUID_BYTES = 16;
+const HEADER_SIZE = 8;
+const UUID_BYTES = 16;
 
 /** Total file size for a blob with `count` records at `dims` dimensions. */
 export function recordSize(count: number, dims: number): number {

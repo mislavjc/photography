@@ -3,9 +3,7 @@ import { ImageResponse } from 'next/og';
 import { loadManifest } from 'lib/manifest-server';
 import {
   GRID_INSET_BOTTOM,
-  GRID_INSET_LEFT,
   GRID_INSET_RIGHT,
-  GRID_INSET_TOP,
   OgGridLines,
   r2VariantUrl,
   toDataUri,

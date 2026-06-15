@@ -1,10 +1,5 @@
 // Re-export shared types from the canonical source
-export type {
-  ExifLocation,
-  ExifMetadata,
-  ManifestEntry,
-  Manifest,
-} from '@repo/shared-types';
+export type { ExifMetadata, Manifest, ManifestEntry } from '@repo/shared-types';
 
 export type Formats = 'avif' | 'webp' | 'jpeg';
 export type ProfileName = 'grid' | 'large';
