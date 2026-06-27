@@ -36,6 +36,14 @@ export function PhotoKeyboardNav({
   const prevId = hasPrev ? allPhotoIds[currentIndex - 1] : null;
   const nextId = hasNext ? allPhotoIds[currentIndex + 1] : null;
 
+  // Warm the adjacent photo routes. Prev/next are buttons + arrow keys driven by
+  // router.push (not <Link>), so they get no automatic prefetch — prefetch them
+  // explicitly so stepping through photos is instant.
+  useEffect(() => {
+    if (prevId) router.prefetch(`/photo/${prevId}`);
+    if (nextId) router.prefetch(`/photo/${nextId}`);
+  }, [prevId, nextId, router]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger navigation when typing in inputs

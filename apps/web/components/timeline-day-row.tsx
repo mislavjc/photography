@@ -1,7 +1,7 @@
 'use client';
 
-import { memo, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { memo, useMemo } from 'react';
+import Link from 'next/link';
 import type { Manifest } from 'types';
 
 import { Picture } from 'components/picture';
@@ -12,6 +12,14 @@ import {
   type MasonryColumn,
 } from 'lib/timeline-layout';
 import type { DayGroup } from 'lib/timeline-utils';
+
+// A plain photo tile is a navigation, so it's a <Link> (like the canvas grid).
+// `from=timeline` lets the photo page's back button return here.
+function photoHref(filename: string, searchQuery?: string) {
+  const params = new URLSearchParams({ from: 'timeline' });
+  if (searchQuery) params.set('q', searchQuery);
+  return `/photo/${encodeURIComponent(filename)}?${params.toString()}`;
+}
 
 interface TimelineDayRowProps {
   day: DayGroup;
@@ -28,26 +36,10 @@ export const TimelineDayRow = memo(function TimelineDayRow({
   precomputedMasonry,
   searchQuery,
 }: TimelineDayRowProps) {
-  const router = useRouter();
-
   const columns = useMemo(() => {
     if (precomputedMasonry) return precomputedMasonry;
     return computeMasonryLayout(day.photos, containerWidth).columns;
   }, [day.photos, containerWidth, precomputedMasonry]);
-
-  const handlePhotoClick = useCallback(
-    (filename: string) => {
-      const params = new URLSearchParams();
-      params.set('from', 'timeline');
-      if (searchQuery) {
-        params.set('q', searchQuery);
-      }
-      router.push(
-        `/photo/${encodeURIComponent(filename)}?${params.toString()}`,
-      );
-    },
-    [router, searchQuery],
-  );
 
   return (
     <div className="sm:flex sm:gap-6">
@@ -83,15 +75,14 @@ export const TimelineDayRow = memo(function TimelineDayRow({
                     const meta = manifest[photo.filename];
 
                     return (
-                      <button
-                        type="button"
+                      <Link
+                        href={photoHref(photo.filename, searchQuery)}
                         key={photo.filename}
-                        className="cursor-pointer overflow-hidden hover:opacity-80 transition-opacity shrink-0"
+                        className="block cursor-pointer overflow-hidden hover:opacity-80 transition-opacity shrink-0"
                         style={{
                           width: photo.width,
                           height: photo.height,
                         }}
-                        onClick={() => handlePhotoClick(photo.filename)}
                         data-filename={photo.filename}
                       >
                         <Picture
@@ -106,7 +97,7 @@ export const TimelineDayRow = memo(function TimelineDayRow({
                           loading="lazy"
                           fit="cover"
                         />
-                      </button>
+                      </Link>
                     );
                   })}
                 </div>
