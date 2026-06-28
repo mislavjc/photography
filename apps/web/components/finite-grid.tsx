@@ -140,6 +140,20 @@ export function PannableGrid({
     registerPhotoPreviews(manifest);
   }, [manifest]);
 
+  // Warm the shared modal route chunk once, on idle, so the first photo opens
+  // instantly even without a hover. One request — not the per-tile flurry.
+  useEffect(() => {
+    const first = Object.keys(manifest)[0];
+    if (!first) return;
+    const warm = () => router.prefetch(`/photo/${encodeURIComponent(first)}`);
+    if (typeof requestIdleCallback !== 'undefined') {
+      const id = requestIdleCallback(warm, { timeout: 3000 });
+      return () => cancelIdleCallback(id);
+    }
+    const id = setTimeout(warm, 1500);
+    return () => clearTimeout(id);
+  }, [manifest, router]);
+
   // Warm the photo a pointer is hovering, so its modal content is ready on click
   // without prefetching every visible tile (the "flurry" Partial Prefetching avoids).
   const prefetchedRef = useRef<Set<string>>(new Set());

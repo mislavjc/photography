@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Manifest } from 'types';
 
 import { registerPhotoPreviews } from 'lib/photo-preview-store';
@@ -41,6 +42,20 @@ export function TimelineWrapper({
   useEffect(() => {
     registerPhotoPreviews(manifest);
   }, [manifest]);
+
+  // Warm the shared modal route chunk once, on idle, so opening a photo is instant.
+  const router = useRouter();
+  useEffect(() => {
+    const first = Object.keys(manifest)[0];
+    if (!first) return;
+    const warm = () => router.prefetch(`/photo/${encodeURIComponent(first)}`);
+    if (typeof requestIdleCallback !== 'undefined') {
+      const id = requestIdleCallback(warm, { timeout: 3000 });
+      return () => cancelIdleCallback(id);
+    }
+    const id = setTimeout(warm, 1500);
+    return () => clearTimeout(id);
+  }, [manifest, router]);
 
   return (
     <Timeline
