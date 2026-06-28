@@ -77,4 +77,29 @@ test.describe('instant navigations', () => {
       await expect(photoGrid(page)).toBeVisible();
     });
   });
+
+  test('opening a hovered photo is instant', async ({ page }) => {
+    // Driven from the timeline (normal scrolling layout) rather than the pannable
+    // canvas, whose virtualized off-screen tiles can't be hovered reliably. Both
+    // grids share the same modal shell + preview store + pointer-prefetch path.
+    await page.goto('/timeline');
+    const tile = page.locator('a[href^="/photo/"]').first();
+    await tile.waitFor();
+    // Let the grid's effect populate the client preview store the shell reads.
+    await page.waitForTimeout(500);
+
+    // Hovering warms the modal route via pointer-prefetch, so the click needs no
+    // network. (Tiles use prefetch={false} to avoid a per-tile flurry, so an
+    // un-hovered open instead fetches the route chunk on click — fast, not zero-network.)
+    await tile.hover();
+    await page.waitForTimeout(800);
+
+    await instant(page, async () => {
+      await tile.click();
+      // The modal's loading shell paints the full-res <img> from client data.
+      await expect(
+        page.locator('picture img[src*="/variants/large/"]').first(),
+      ).toBeVisible();
+    });
+  });
 });

@@ -10,6 +10,7 @@ import React, {
   useState,
 } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Manifest } from 'types';
 
 import { Picture } from 'components/picture';
@@ -17,6 +18,7 @@ import { SearchNoResults } from 'components/search-no-results';
 
 import { EXT_RE } from 'lib/constants';
 import { computeNearSquareLayout, type Layout } from 'lib/layout';
+import { registerPhotoPreviews } from 'lib/photo-preview-store';
 import { SEARCH_CATEGORIES } from 'lib/search-categories';
 
 // Lazy load Navbar with idle callback to defer heavy dependencies until after LCP
@@ -131,6 +133,24 @@ export function PannableGrid({
   searchError,
 }: Props) {
   const { vw, vh } = useViewportSize();
+  const router = useRouter();
+
+  // Feed the modal's instant shell so a clicked photo can paint immediately.
+  useEffect(() => {
+    registerPhotoPreviews(manifest);
+  }, [manifest]);
+
+  // Warm the photo a pointer is hovering, so its modal content is ready on click
+  // without prefetching every visible tile (the "flurry" Partial Prefetching avoids).
+  const prefetchedRef = useRef<Set<string>>(new Set());
+  const prefetchPhoto = React.useCallback(
+    (href: string) => {
+      if (prefetchedRef.current.has(href)) return;
+      prefetchedRef.current.add(href);
+      router.prefetch(href);
+    },
+    [router],
+  );
 
   // Filter manifest if search results provided
   const filteredManifest = useMemo(() => {
@@ -686,6 +706,7 @@ export function PannableGrid({
               it.y + it.h > viewRect.y;
             // Only first 4 viewport images get high priority for LCP
             const isLCPCandidate = isInViewport && idx < 4;
+            const href = `/photo/${encodeURIComponent(it.filename)}${searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : ''}`;
 
             return (
               <article
@@ -695,8 +716,13 @@ export function PannableGrid({
                 style={{ left: it.x, top: it.y, width: it.w, height: it.h }}
               >
                 <Link
-                  href={`/photo/${encodeURIComponent(it.filename)}${searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : ''}`}
+                  href={href}
+                  // The intercepted modal route can't share a reusable shell, so
+                  // the default in-viewport prefetch fires one request per tile (a
+                  // flurry). Opt out and warm only the hovered tile instead.
+                  prefetch={false}
                   className="block w-full h-full cursor-pointer"
+                  onPointerEnter={() => prefetchPhoto(href)}
                   onClick={(e) => {
                     // Block navigation if we just finished dragging
                     if (wasJustDraggingRef.current || draggingRef.current) {

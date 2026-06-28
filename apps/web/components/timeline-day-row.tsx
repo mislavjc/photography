@@ -2,6 +2,7 @@
 
 import { memo, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Manifest } from 'types';
 
 import { Picture } from 'components/picture';
@@ -36,6 +37,7 @@ export const TimelineDayRow = memo(function TimelineDayRow({
   precomputedMasonry,
   searchQuery,
 }: TimelineDayRowProps) {
+  const router = useRouter();
   const columns = useMemo(() => {
     if (precomputedMasonry) return precomputedMasonry;
     return computeMasonryLayout(day.photos, containerWidth).columns;
@@ -73,16 +75,21 @@ export const TimelineDayRow = memo(function TimelineDayRow({
                 >
                   {col.photos.map((photo) => {
                     const meta = manifest[photo.filename];
+                    const href = photoHref(photo.filename, searchQuery);
 
                     return (
                       <Link
-                        href={photoHref(photo.filename, searchQuery)}
+                        href={href}
                         key={photo.filename}
+                        // Opt out of the per-tile modal prefetch flurry; warm only
+                        // the hovered tile (see finite-grid for the rationale).
+                        prefetch={false}
                         className="block cursor-pointer overflow-hidden hover:opacity-80 transition-opacity shrink-0"
                         style={{
                           width: photo.width,
                           height: photo.height,
                         }}
+                        onPointerEnter={() => router.prefetch(href)}
                         data-filename={photo.filename}
                       >
                         <Picture
