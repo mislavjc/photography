@@ -17,11 +17,27 @@ const UUID_BYTES = 16;
 // before we can embed the query.
 const QUERY_DIMS = 3072;
 
-const MAX_RESULTS = 100;
 const SIMILAR_COUNT = 6;
-const DEFAULT_MIN_SCORE = 0.3;
-const MIN_SCORE_SPREAD = 0.04;
 const SIMILAR_MIN_SCORE = 0.55;
+
+// Text→image search tuning. The Gemini text/image modality gap squashes every
+// cosine into a narrow, query-dependent band (~0.24 baseline, ~0.34-0.42 for a
+// strong match), so absolute thresholds are meaningless — a common concept like
+// "sunset" lands every photo near the same score. Instead we anchor to each
+// query's OWN best match:
+//   • TOP_SCORE_FLOOR — if even the best match is this weak, the concept isn't
+//     in the collection (gibberish tops out ~0.32; real queries reach ≥0.34).
+//   • CUTOFF_FRACTION — keep results scoring in the upper part of the gap between
+//     the distribution mean and the top score. Adapts automatically and is
+//     self-limiting: a sharp peak (one car photo) returns a tight set; a generic
+//     query has a tight distribution so the cutoff lands several std out and keeps
+//     few; only a genuinely well-represented concept (night city) returns many.
+//     This is the ONLY filter — there's no fixed result cap, so the count reflects
+//     real relevance density (a handful to a few hundred) instead of a constant.
+// These constants are specific to gemini-embedding-2-preview; retune if the
+// embedding model changes.
+const TOP_SCORE_FLOOR = 0.33;
+const CUTOFF_FRACTION = 0.65;
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 const CORS_HEADERS = {
@@ -175,13 +191,9 @@ async function getTextEmbedding(
   return { embedding: vec, cached: false };
 }
 
-function topKCosine(
-  store: VectorStore,
-  query: Float32Array,
-  k: number,
-): Array<{ row: number; score: number }> {
+/** Cosine similarity of `query` against every row of the store (one score per row). */
+function cosineScores(store: VectorStore, query: Float32Array): Float32Array {
   const { dims, count, matrix, norms } = store;
-  // Precompute query norm
   let qNorm = 0;
   for (let j = 0; j < dims; j++) qNorm += query[j]! * query[j]!;
   qNorm = Math.sqrt(qNorm);
@@ -194,8 +206,16 @@ function topKCosine(
     const denom = qNorm * norms[i]!;
     scores[i] = denom > 0 ? dot / denom : 0;
   }
+  return scores;
+}
 
-  const indices = Array.from({ length: count }, (_, i) => i);
+function topKCosine(
+  store: VectorStore,
+  query: Float32Array,
+  k: number,
+): Array<{ row: number; score: number }> {
+  const scores = cosineScores(store, query);
+  const indices = Array.from({ length: store.count }, (_, i) => i);
   indices.sort((a, b) => scores[b]! - scores[a]!);
   return indices.slice(0, k).map((row) => ({ row, score: scores[row]! }));
 }
@@ -203,9 +223,46 @@ function topKCosine(
 // Note: at 30K+ vectors a bounded min-heap or quickselect beats full sort;
 // not worth the complexity until the index grows past ~10K.
 
+/**
+ * Cross-modal (text→image) ranking. Cosine scores live in a compressed,
+ * query-dependent band, so we anchor the cutoff to this query's own
+ * distribution rather than an absolute threshold. See TOP_SCORE_FLOOR /
+ * CUTOFF_FRACTION for the reasoning.
+ */
+function searchWithCutoff(
+  store: VectorStore,
+  query: Float32Array,
+): SearchResult[] {
+  const { count, ids } = store;
+  const scores = cosineScores(store, query);
+
+  // Cheap O(count) reduction (negligible next to the O(count·dims) scan above)
+  // to derive the query's own mean and best match for the adaptive cutoff.
+  let sum = 0;
+  let top = 0;
+  for (let i = 0; i < count; i++) {
+    const s = scores[i]!;
+    sum += s;
+    if (s > top) top = s;
+  }
+
+  // Best match too weak → the concept isn't represented; return nothing rather
+  // than surfacing the least-irrelevant noise.
+  if (top < TOP_SCORE_FLOOR) return [];
+
+  const mean = sum / count;
+  const cutoff = mean + CUTOFF_FRACTION * (top - mean);
+
+  const picked: SearchResult[] = [];
+  for (let i = 0; i < count; i++) {
+    if (scores[i]! >= cutoff) picked.push({ id: ids[i]!, score: scores[i]! });
+  }
+  picked.sort((a, b) => b.score - a.score);
+  return picked;
+}
+
 async function handleSearch(
   query: string,
-  minScore: number,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {
@@ -213,17 +270,15 @@ async function handleSearch(
   // and the store fetch ETag check would otherwise serialize behind Gemini.
   const [store, textRes] = await Promise.all([
     getStore(env.PHOTOS_BUCKET),
-    (async () => {
-      // getTextEmbedding needs the store's dim. We know it's 3072 (the only
-      // value we ever write), so don't wait just to discover that.
-      return getTextEmbedding(
-        query,
-        env.GEMINI_API_KEY,
-        env.EMBEDDING_CACHE,
-        QUERY_DIMS,
-        ctx,
-      );
-    })(),
+    // getTextEmbedding needs the store's dim. We know it's 3072 (the only
+    // value we ever write), so don't wait just to discover that.
+    getTextEmbedding(
+      query,
+      env.GEMINI_API_KEY,
+      env.EMBEDDING_CACHE,
+      QUERY_DIMS,
+      ctx,
+    ),
   ]);
   const { embedding, cached } = textRes;
 
@@ -233,23 +288,7 @@ async function handleSearch(
     );
   }
 
-  const hits = topKCosine(store, embedding, MAX_RESULTS);
-
-  if (hits.length === 0) {
-    return Response.json(
-      { results: [], query, cached },
-      { headers: CORS_HEADERS },
-    );
-  }
-
-  const spread = hits[0]!.score - hits[hits.length - 1]!.score;
-
-  let results: SearchResult[] = [];
-  if (spread >= MIN_SCORE_SPREAD) {
-    results = hits
-      .filter((h) => h.score >= minScore)
-      .map((h) => ({ id: store.ids[h.row]!, score: h.score }));
-  }
+  const results = searchWithCutoff(store, embedding);
 
   return Response.json({ results, query, cached }, { headers: CORS_HEADERS });
 }
@@ -303,19 +342,12 @@ export default {
     if (url.pathname === '/search') {
       try {
         let query: string | null = null;
-        let minScore = DEFAULT_MIN_SCORE;
 
         if (request.method === 'POST') {
-          const body = (await request.json()) as {
-            query?: string;
-            minScore?: number;
-          };
+          const body = (await request.json()) as { query?: string };
           query = body.query || null;
-          if (body.minScore !== undefined) minScore = body.minScore;
         } else if (request.method === 'GET') {
           query = url.searchParams.get('q');
-          const p = url.searchParams.get('minScore');
-          if (p) minScore = parseFloat(p);
         }
 
         if (!query) {
@@ -325,7 +357,7 @@ export default {
           );
         }
 
-        return await handleSearch(query, minScore, env, ctx);
+        return await handleSearch(query, env, ctx);
       } catch (error) {
         console.error('Search error:', error);
         return Response.json(
