@@ -9,6 +9,7 @@ import {
   m,
   useReducedMotion,
 } from 'motion/react';
+import Link from 'next/link';
 import type { Manifest } from 'types';
 
 import type { PlacedItem } from 'lib/layout';
@@ -146,7 +147,7 @@ function NavbarSearch({
     [onSearch],
   );
 
-  // Debounced search - triggers after 400ms of no typing
+  // Debounced search - triggers after 300ms of no typing
   // Uses AbortController to cancel stale searches
   const handleInputChange = (value: string) => {
     setInputState((prev) => ({ ...prev, value }));
@@ -167,7 +168,7 @@ function NavbarSearch({
         // Create new AbortController for this search
         abortControllerRef.current = new AbortController();
         handleSearch(value);
-      }, 400);
+      }, 300);
     } else if (hasActiveSearch) {
       // Immediately clear if input is empty and there was a search
       onClearSearch();
@@ -247,6 +248,25 @@ function NavbarSearch({
 
   return (
     <div ref={searchRef} className="relative flex-1 md:max-w-lg md:mx-auto">
+      {/* Full-width top progress bar: a clear, non-covering "searching"
+          indicator. Fixed to the viewport, so its position in the tree is
+          irrelevant; fades in/out with the search state. */}
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none fixed inset-x-0 top-0 z-[80] h-[3px] overflow-hidden transition-opacity duration-200 ${
+          isSearching ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {/* Animation applied only while searching, so nothing ticks when idle.
+            Under reduced motion it falls back to a static full-width bar. */}
+        <div
+          className={`absolute top-0 left-0 h-full w-[30%] rounded-full bg-neutral-600 motion-reduce:w-full dark:bg-neutral-300 ${
+            isSearching
+              ? 'animate-search-progress motion-reduce:animate-none'
+              : ''
+          }`}
+        />
+      </div>
       <form
         role="search"
         onSubmit={(e) => {
@@ -529,24 +549,29 @@ export function Navbar({
       >
         <div className="mx-auto flex h-14 items-center gap-3 px-4">
           {/* Left: Logo (desktop) or hidden on mobile when search focused */}
-          <m.a
+          <Link
             href="/"
+            aria-label="Home"
             className="flex-shrink-0 flex items-center overflow-hidden md:w-7"
-            initial={false}
-            animate={{
-              width: isMobile && searchOpen ? 0 : 28,
-              opacity: isMobile && searchOpen ? 0 : 1,
-            }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
-            <img
-              src="/icon.png"
-              alt="Logo"
-              className="h-7 w-7"
-              width={28}
-              height={28}
-            />
-          </m.a>
+            <m.span
+              className="flex items-center overflow-hidden"
+              initial={false}
+              animate={{
+                width: isMobile && searchOpen ? 0 : 28,
+                opacity: isMobile && searchOpen ? 0 : 1,
+              }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+            >
+              <img
+                src="/icon.png"
+                alt="Logo"
+                className="h-7 w-7"
+                width={28}
+                height={28}
+              />
+            </m.span>
+          </Link>
 
           {/* Center: Search */}
           {onSearch && onClearSearch ? (
@@ -688,9 +713,9 @@ function NavbarButton({
   // Use Link for navigation, button for window toggle
   if (href) {
     return (
-      <a href={href} className={baseClasses}>
+      <Link href={href} className={baseClasses}>
         {label}
-      </a>
+      </Link>
     );
   }
 
@@ -718,7 +743,7 @@ function MobileNavLink({
   if (!href) return null;
 
   return (
-    <a
+    <Link
       href={href}
       className={`relative min-h-[44px] flex items-center px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 dark:focus-visible:ring-neutral-600 rounded ${
         isActive
@@ -730,7 +755,7 @@ function MobileNavLink({
       {isActive && (
         <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-neutral-300" />
       )}
-    </a>
+    </Link>
   );
 }
 

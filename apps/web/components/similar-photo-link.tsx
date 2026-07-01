@@ -17,6 +17,10 @@ export function SimilarPhotoLink({
     <Link
       href={`/photo/${targetId}`}
       replace
+      // Bounded set of similar photos with high click-intent. The destination's
+      // photo data is cached ('use cache'), so prefetch ships it ahead of the
+      // click for an instant transition (not just the App Shell skeleton).
+      prefetch
       onClick={() =>
         trackEvent('Similar Photo Click', {
           from_photo: photoId,

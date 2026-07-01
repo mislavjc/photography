@@ -1,36 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import worker from '../src/index';
-
-// IDs are stored as 16 raw bytes and parsed back into UUID strings
-function uuidFromByte(n: number): string {
-  const hex = n.toString(16).padStart(2, '0');
-  return `00000000-0000-0000-0000-0000000000${hex}`;
-}
+import { buildEmbeddingsBlob, uuidFromByte } from './helpers';
 
 const PHOTO_1 = uuidFromByte(1);
 const PHOTO_2 = uuidFromByte(2);
-
-/** Builds a blob in the worker's packed format: u32 count, u32 dims, then per record 16 UUID bytes + dims float32s. */
-function buildEmbeddingsBlob(
-  entries: Array<{ lastIdByte: number; vector: number[] }>,
-): ArrayBuffer {
-  const dims = entries[0]!.vector.length;
-  const recSize = 16 + dims * 4;
-  const ab = new ArrayBuffer(8 + entries.length * recSize);
-  const view = new DataView(ab);
-  view.setUint32(0, entries.length, true);
-  view.setUint32(4, dims, true);
-  const bytes = new Uint8Array(ab);
-  let off = 8;
-  for (const { lastIdByte, vector } of entries) {
-    bytes[off + 15] = lastIdByte;
-    off += 16;
-    new Float32Array(ab, off, dims).set(vector);
-    off += dims * 4;
-  }
-  return ab;
-}
 
 function createEnv(overrides: Record<string, unknown> = {}) {
   // photo-2 is nearly parallel to photo-1 (cos ≈ 0.98, above SIMILAR_MIN_SCORE);

@@ -3,11 +3,11 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactCompiler: true,
   cacheComponents: true,
+  partialPrefetching: true,
   experimental: {
     optimizePackageImports: [
       'motion',
       'lucide-react',
-      'nuqs',
       '@radix-ui/react-tooltip',
       '@radix-ui/react-select',
       '@radix-ui/react-slot',

@@ -38,7 +38,7 @@ function buildSrcSet(
 }
 
 /** The manifest fields Picture derives placeholder + dimension data from */
-interface PlaceholderEntry {
+export interface PlaceholderEntry {
   thumbhash?: string;
   w?: number;
   h?: number;
@@ -90,6 +90,10 @@ export const Picture = memo(function Picture({
 }: PictureProps) {
   // Priority images should be visible immediately for LCP - no fade-in
   const isPriority = fetchPriority === 'high';
+  // Eager (in-viewport) images paint immediately too: fading them from opacity 0
+  // delays the contentful paint (and the LCP) for no benefit — the fade is only
+  // worth it for lazy tiles that scroll into view later.
+  const eager = loading === 'eager';
 
   const widths = profile === 'grid' ? GRID_WIDTHS : LARGE_WIDTHS;
   const defaultSizes =
@@ -123,9 +127,9 @@ export const Picture = memo(function Picture({
     ...imgStyle,
   };
 
-  // Use CSS-only fade-in animation to avoid React state and re-renders
-  // Priority images render immediately, others fade in via CSS animation
-  const fadeInClass = isPriority ? '' : 'animate-fade-in';
+  // Use CSS-only fade-in animation to avoid React state and re-renders.
+  // Priority/eager images render immediately; only lazy ones fade in.
+  const fadeInClass = isPriority || eager ? '' : 'animate-fade-in';
 
   return (
     <div className={pictureClassName} style={wrapperStyles}>
