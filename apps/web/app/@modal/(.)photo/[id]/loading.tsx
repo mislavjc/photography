@@ -3,7 +3,7 @@
 import { X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 
-import { Picture } from 'components/picture';
+import { ContainedPhoto } from 'components/contained-photo';
 
 import { getPhotoPreview } from 'lib/photo-preview-store';
 
@@ -12,7 +12,13 @@ import { getPhotoPreview } from 'lib/photo-preview-store';
 // preview store) the moment a tile is clicked, while the modal page streams its
 // metadata in behind it. The layout mirrors PhotoLayout so the image keeps its
 // position when the real content replaces this fallback.
-function ImageBox({ id, sizes }: { id: string; sizes: string }) {
+function ImageBox({
+  id,
+  variant,
+}: {
+  id: string;
+  variant: 'desktop' | 'mobile';
+}) {
   const preview = getPhotoPreview(id);
   if (!preview) {
     return (
@@ -20,26 +26,7 @@ function ImageBox({ id, sizes }: { id: string; sizes: string }) {
     );
   }
   return (
-    <div
-      className="relative"
-      style={{
-        aspectRatio: `${preview.w} / ${preview.h}`,
-        maxHeight: 'calc(100vh - 8rem)',
-        maxWidth: '100%',
-      }}
-    >
-      <Picture
-        uuidWithExt={id}
-        alt=""
-        profile="large"
-        loading="eager"
-        fetchPriority="high"
-        entry={preview}
-        pictureClassName="block w-full h-full"
-        sizes={sizes}
-        fit="contain"
-      />
-    </div>
+    <ContainedPhoto variant={variant} uuidWithExt={id} alt="" entry={preview} />
   );
 }
 
@@ -65,17 +52,33 @@ export default function PhotoModalLoading() {
       {/* Desktop: image + metadata-sidebar skeleton (mirrors PhotoLayout) */}
       <div className="hidden lg:flex h-full">
         <div className="flex-1 flex items-center justify-center p-16 pl-8">
-          {id && <ImageBox id={id} sizes="70vw" />}
+          {id && <ImageBox id={id} variant="desktop" />}
         </div>
         <aside className="w-96 p-4">
-          <div className="h-full rounded-2xl bg-neutral-100 dark:bg-neutral-800/80 animate-pulse" />
+          <div className="rounded-2xl bg-neutral-100 dark:bg-neutral-800/80 p-5">
+            <div className="animate-pulse space-y-5">
+              <div className="h-3.5 w-28 rounded bg-neutral-200/80 dark:bg-neutral-700/80" />
+              <div className="space-y-2">
+                <div className="h-2.5 w-20 rounded bg-neutral-200/80 dark:bg-neutral-700/80" />
+                <div className="h-4 w-32 rounded bg-neutral-200/80 dark:bg-neutral-700/80" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="h-2.5 w-16 rounded bg-neutral-200/80 dark:bg-neutral-700/80" />
+                    <div className="h-4 w-20 rounded bg-neutral-200/80 dark:bg-neutral-700/80" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </aside>
       </div>
 
       {/* Mobile: image pinned to top (mirrors PhotoLayout) */}
       <div className="lg:hidden">
         <div className="fixed inset-x-0 top-0 bottom-[40svh] flex items-center justify-center p-4 pt-16">
-          {id && <ImageBox id={id} sizes="100vw" />}
+          {id && <ImageBox id={id} variant="mobile" />}
         </div>
       </div>
     </div>

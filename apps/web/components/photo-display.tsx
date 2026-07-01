@@ -9,7 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { env } from 'lib/env';
 
-import { Picture } from './picture';
+import { ContainedPhoto } from './contained-photo';
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -436,26 +436,13 @@ function PhotoLayout({
       {/* Desktop layout */}
       <div className={`hidden lg:flex ${desktopContainerClassName}`}>
         <div className="flex-1 flex items-center justify-center p-16 pl-8">
-          <div
-            className="relative"
-            style={{
-              aspectRatio: `${photoData.w} / ${photoData.h}`,
-              maxHeight: 'calc(100vh - 8rem)',
-              maxWidth: '100%',
-            }}
-          >
-            <Picture
-              uuidWithExt={photoName}
-              alt={alt}
-              profile="large"
-              loading="eager"
-              entry={photoData}
-              dominantColor={dominant}
-              pictureClassName="block w-full h-full"
-              sizes="70vw"
-              fit="contain"
-            />
-          </div>
+          <ContainedPhoto
+            variant="desktop"
+            uuidWithExt={photoName}
+            alt={alt}
+            entry={photoData}
+            dominantColor={dominant}
+          />
         </div>
 
         <aside className="w-96 p-4">
@@ -476,26 +463,13 @@ function PhotoLayout({
       {/* Mobile layout - fixed image with scrolling bottom sheet */}
       <div className={`lg:hidden ${mobileContainerClassName}`}>
         <div className="fixed inset-x-0 top-0 bottom-[40svh] flex items-center justify-center p-4 pt-16 pointer-events-none">
-          <div
-            className="relative"
-            style={{
-              aspectRatio: `${photoData.w} / ${photoData.h}`,
-              maxHeight: '100%',
-              maxWidth: '100%',
-            }}
-          >
-            <Picture
-              uuidWithExt={photoName}
-              alt={alt}
-              profile="large"
-              loading="eager"
-              entry={photoData}
-              dominantColor={dominant}
-              pictureClassName="block w-full h-full"
-              sizes="100vw"
-              fit="contain"
-            />
-          </div>
+          <ContainedPhoto
+            variant="mobile"
+            uuidWithExt={photoName}
+            alt={alt}
+            entry={photoData}
+            dominantColor={dominant}
+          />
         </div>
 
         <div className="h-[60svh]" />
@@ -591,44 +565,38 @@ export function PhotoModal({
   similarSlot,
 }: PhotoDisplayBaseProps) {
   const router = useRouter();
-  const shouldReduceMotion = useReducedMotion();
 
+  // No entrance fade: the loading shell already presented this exact frame
+  // (backdrop + image), so the real modal must replace it seamlessly. Fading the
+  // backdrop in here would briefly reveal the page behind it — the open "flash".
   return (
-    <LazyMotion features={domAnimation}>
-      <m.div
-        className="fixed inset-0 z-[100] bg-white dark:bg-neutral-900 lg:overflow-hidden overflow-y-auto overscroll-contain"
-        role="dialog"
-        aria-modal={true}
-        aria-label={`Photo: ${photoAlt(photoData)}`}
-        initial={shouldReduceMotion ? false : { opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{
-          duration: 0.15,
-          ease: [0.215, 0.61, 0.355, 1],
-        }}
-      >
-        <PhotoLayout
-          photoName={photoName}
-          photoData={photoData}
-          similarSlot={similarSlot}
-          desktopContainerClassName="h-full"
-          mobileContainerClassName=""
-          sheetZClassName="z-[106] overscroll-contain"
-          closeButton={
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className={`z-[110] ${closeButtonClassName}`}
-              aria-label="Close"
-            >
-              <X
-                className="w-5 h-5 text-neutral-600 dark:text-neutral-300"
-                aria-hidden="true"
-              />
-            </button>
-          }
-        />
-      </m.div>
-    </LazyMotion>
+    <div
+      className="fixed inset-0 z-[100] bg-white dark:bg-neutral-900 lg:overflow-hidden overflow-y-auto overscroll-contain"
+      role="dialog"
+      aria-modal={true}
+      aria-label={`Photo: ${photoAlt(photoData)}`}
+    >
+      <PhotoLayout
+        photoName={photoName}
+        photoData={photoData}
+        similarSlot={similarSlot}
+        desktopContainerClassName="h-full"
+        mobileContainerClassName=""
+        sheetZClassName="z-[106] overscroll-contain"
+        closeButton={
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className={`z-[110] ${closeButtonClassName}`}
+            aria-label="Close"
+          >
+            <X
+              className="w-5 h-5 text-neutral-600 dark:text-neutral-300"
+              aria-hidden="true"
+            />
+          </button>
+        }
+      />
+    </div>
   );
 }
