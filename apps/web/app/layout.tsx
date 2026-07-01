@@ -1,7 +1,6 @@
 import { Agentation } from 'agentation';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
 import { Analytics } from 'components/analytics';
 import { ThemeProvider } from 'components/theme-provider';
@@ -53,10 +52,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider>
-          <NuqsAdapter>
-            {children}
-            {modal}
-          </NuqsAdapter>
+          {children}
+          {modal}
           <Analytics />
           {process.env.NODE_ENV === 'development' && <Agentation />}
         </ThemeProvider>

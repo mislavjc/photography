@@ -9,6 +9,7 @@ import { trimManifestForClient } from 'lib/manifest-utils';
 import { R2_URL } from 'lib/r2-url';
 
 import { HomeGrid } from '../components/home-grid';
+import { SearchLoadingGuard } from '../components/search-loading-guard';
 
 export const metadata: Metadata = {
   title: 'Photos',
@@ -70,6 +71,7 @@ export default async function Page() {
           <HomeGrid manifest={trimmedManifest} initialLayout={layout} />
         </Suspense>
       </main>
+      <SearchLoadingGuard />
     </>
   );
 }

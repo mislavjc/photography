@@ -8,7 +8,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       'motion',
       'lucide-react',
-      'nuqs',
       '@radix-ui/react-tooltip',
       '@radix-ui/react-select',
       '@radix-ui/react-slot',

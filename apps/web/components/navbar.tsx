@@ -147,7 +147,7 @@ function NavbarSearch({
     [onSearch],
   );
 
-  // Debounced search - triggers after 400ms of no typing
+  // Debounced search - triggers after 300ms of no typing
   // Uses AbortController to cancel stale searches
   const handleInputChange = (value: string) => {
     setInputState((prev) => ({ ...prev, value }));
@@ -168,7 +168,7 @@ function NavbarSearch({
         // Create new AbortController for this search
         abortControllerRef.current = new AbortController();
         handleSearch(value);
-      }, 400);
+      }, 300);
     } else if (hasActiveSearch) {
       // Immediately clear if input is empty and there was a search
       onClearSearch();
@@ -248,6 +248,25 @@ function NavbarSearch({
 
   return (
     <div ref={searchRef} className="relative flex-1 md:max-w-lg md:mx-auto">
+      {/* Full-width top progress bar: a clear, non-covering "searching"
+          indicator. Fixed to the viewport, so its position in the tree is
+          irrelevant; fades in/out with the search state. */}
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none fixed inset-x-0 top-0 z-[80] h-[3px] overflow-hidden transition-opacity duration-200 ${
+          isSearching ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {/* Animation applied only while searching, so nothing ticks when idle.
+            Under reduced motion it falls back to a static full-width bar. */}
+        <div
+          className={`absolute top-0 left-0 h-full w-[30%] rounded-full bg-neutral-600 motion-reduce:w-full dark:bg-neutral-300 ${
+            isSearching
+              ? 'animate-search-progress motion-reduce:animate-none'
+              : ''
+          }`}
+        />
+      </div>
       <form
         role="search"
         onSubmit={(e) => {

@@ -226,8 +226,16 @@ export function PannableGrid({
   // Track whether we restored from storage to avoid recentering over it
   const restoredFromStorageRef = useRef(false);
 
-  // Initial cam: start at top-left (0,0). Apply saved position AFTER hydrate to avoid SSR mismatch.
-  const [cam, setCam] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Start centered using the SSR-safe viewport so the first paint shows the same
+  // center tiles the page preloads as LCP candidates (cache hit instead of a late
+  // fetch) — and so there's no top-left -> center jump. Computed deterministically
+  // (no actual-viewport reads), so server and client agree and there's no
+  // hydration mismatch; the effect below refines it to the real viewport / saved
+  // position after mount.
+  const [cam, setCam] = useState<{ x: number; y: number }>(() => ({
+    x: Math.max(0, (layout.width - SSR_SAFE_VW) / 2),
+    y: Math.max(0, (layout.height - SSR_SAFE_VH) / 2),
+  }));
   const camRef = useRef(cam);
   useEffect(() => {
     camRef.current = cam;
